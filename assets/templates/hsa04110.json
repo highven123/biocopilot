@@ -1,0 +1,630 @@
+{
+    "id": "hsa04110",
+    "name": "Cell cycle",
+    "description": "Cell cycle - Homo sapiens (human)",
+    "organism": "hsa",
+    "nodes": [
+        {
+            "id": "GROWTH_FACTORS",
+            "name": "Growth Factors",
+            "x": 50,
+            "y": 300,
+            "color": "#3498db",
+            "value": 1,
+            "category": "signal"
+        },
+        {
+            "id": "CCND1",
+            "name": "Cyclin D",
+            "x": 200,
+            "y": 250,
+            "color": "#95a5a6",
+            "value": 1,
+            "category": "cyclin"
+        },
+        {
+            "id": "CDK4",
+            "name": "CDK4/6",
+            "x": 200,
+            "y": 350,
+            "color": "#95a5a6",
+            "value": 1,
+            "category": "cdk"
+        },
+        {
+            "id": "RB1",
+            "name": "RB",
+            "x": 350,
+            "y": 300,
+            "color": "#95a5a6",
+            "value": 1,
+            "category": "checkpoint"
+        },
+        {
+            "id": "E2F",
+            "name": "E2F",
+            "x": 500,
+            "y": 300,
+            "color": "#95a5a6",
+            "value": 1,
+            "category": "transcription"
+        },
+        {
+            "id": "CCNE1",
+            "name": "Cyclin E",
+            "x": 650,
+            "y": 200,
+            "color": "#95a5a6",
+            "value": 1,
+            "category": "cyclin"
+        },
+        {
+            "id": "CDK2",
+            "name": "CDK2",
+            "x": 650,
+            "y": 280,
+            "color": "#95a5a6",
+            "value": 1,
+            "category": "cdk"
+        },
+        {
+            "id": "CCNA2",
+            "name": "Cyclin A",
+            "x": 800,
+            "y": 150,
+            "color": "#95a5a6",
+            "value": 1,
+            "category": "cyclin"
+        },
+        {
+            "id": "CDC25A",
+            "name": "CDC25A",
+            "x": 650,
+            "y": 360,
+            "color": "#95a5a6",
+            "value": 1,
+            "category": "phosphatase"
+        },
+        {
+            "id": "DNA_REPLICATION",
+            "name": "DNA Replication",
+            "x": 950,
+            "y": 200,
+            "color": "#27ae60",
+            "value": 1,
+            "category": "process"
+        },
+        {
+            "id": "CCNB1",
+            "name": "Cyclin B",
+            "x": 800,
+            "y": 450,
+            "color": "#95a5a6",
+            "value": 1,
+            "category": "cyclin"
+        },
+        {
+            "id": "CDK1",
+            "name": "CDK1",
+            "x": 800,
+            "y": 530,
+            "color": "#95a5a6",
+            "value": 1,
+            "category": "cdk"
+        },
+        {
+            "id": "CDC25C",
+            "name": "CDC25C",
+            "x": 650,
+            "y": 490,
+            "color": "#95a5a6",
+            "value": 1,
+            "category": "phosphatase"
+        },
+        {
+            "id": "WEE1",
+            "name": "WEE1",
+            "x": 650,
+            "y": 570,
+            "color": "#95a5a6",
+            "value": 1,
+            "category": "kinase"
+        },
+        {
+            "id": "MITOSIS",
+            "name": "Mitosis",
+            "x": 950,
+            "y": 490,
+            "color": "#e74c3c",
+            "value": 1,
+            "category": "process"
+        },
+        {
+            "id": "APC",
+            "name": "APC/C",
+            "x": 800,
+            "y": 650,
+            "color": "#95a5a6",
+            "value": 1,
+            "category": "ubiquitin"
+        },
+        {
+            "id": "CDC20",
+            "name": "CDC20",
+            "x": 650,
+            "y": 650,
+            "color": "#95a5a6",
+            "value": 1,
+            "category": "activator"
+        },
+        {
+            "id": "CDH1",
+            "name": "CDH1",
+            "x": 650,
+            "y": 720,
+            "color": "#95a5a6",
+            "value": 1,
+            "category": "activator"
+        },
+        {
+            "id": "CDKN1A",
+            "name": "p21",
+            "x": 350,
+            "y": 150,
+            "color": "#95a5a6",
+            "value": 1,
+            "category": "inhibitor"
+        },
+        {
+            "id": "CDKN1B",
+            "name": "p27",
+            "x": 350,
+            "y": 200,
+            "color": "#95a5a6",
+            "value": 1,
+            "category": "inhibitor"
+        },
+        {
+            "id": "CDKN2A",
+            "name": "p16",
+            "x": 200,
+            "y": 150,
+            "color": "#95a5a6",
+            "value": 1,
+            "category": "inhibitor"
+        },
+        {
+            "id": "TP53",
+            "name": "p53",
+            "x": 200,
+            "y": 50,
+            "color": "#3498db",
+            "value": 2,
+            "category": "checkpoint"
+        },
+        {
+            "id": "ATM",
+            "name": "ATM/ATR",
+            "x": 50,
+            "y": 50,
+            "color": "#95a5a6",
+            "value": 1,
+            "category": "kinase"
+        },
+        {
+            "id": "CHEK1",
+            "name": "CHK1/2",
+            "x": 50,
+            "y": 150,
+            "color": "#95a5a6",
+            "value": 1,
+            "category": "kinase"
+        },
+        {
+            "id": "MYC",
+            "name": "MYC",
+            "x": 500,
+            "y": 200,
+            "color": "#95a5a6",
+            "value": 1,
+            "category": "transcription"
+        },
+        {
+            "id": "CDKN2B",
+            "name": "p15",
+            "x": 200,
+            "y": 450,
+            "color": "#95a5a6",
+            "value": 1,
+            "category": "inhibitor"
+        },
+        {
+            "id": "TGFB",
+            "name": "TGF-β",
+            "x": 50,
+            "y": 450,
+            "color": "#95a5a6",
+            "value": 1,
+            "category": "signal"
+        },
+        {
+            "id": "SMAD",
+            "name": "SMAD",
+            "x": 50,
+            "y": 520,
+            "color": "#95a5a6",
+            "value": 1,
+            "category": "transcription"
+        },
+        {
+            "id": "SKP2",
+            "name": "SKP2",
+            "x": 500,
+            "y": 450,
+            "color": "#95a5a6",
+            "value": 1,
+            "category": "ubiquitin"
+        },
+        {
+            "id": "PLK1",
+            "name": "PLK1",
+            "x": 500,
+            "y": 530,
+            "color": "#95a5a6",
+            "value": 1,
+            "category": "kinase"
+        },
+        {
+            "id": "SECURIN",
+            "name": "Securin",
+            "x": 950,
+            "y": 570,
+            "color": "#95a5a6",
+            "value": 1,
+            "category": "regulator"
+        },
+        {
+            "id": "SEPARASE",
+            "name": "Separase",
+            "x": 950,
+            "y": 650,
+            "color": "#95a5a6",
+            "value": 1,
+            "category": "protease"
+        },
+        {
+            "id": "COHESINS",
+            "name": "Cohesins",
+            "x": 1100,
+            "y": 650,
+            "color": "#95a5a6",
+            "value": 1,
+            "category": "structural"
+        },
+        {
+            "id": "G1_PHASE",
+            "name": "G1",
+            "x": 350,
+            "y": 100,
+            "color": "#f39c12",
+            "value": 1,
+            "category": "phase"
+        },
+        {
+            "id": "S_PHASE",
+            "name": "S",
+            "x": 800,
+            "y": 100,
+            "color": "#f39c12",
+            "value": 1,
+            "category": "phase"
+        },
+        {
+            "id": "G2_PHASE",
+            "name": "G2",
+            "x": 500,
+            "y": 650,
+            "color": "#f39c12",
+            "value": 1,
+            "category": "phase"
+        },
+        {
+            "id": "M_PHASE",
+            "name": "M",
+            "x": 1100,
+            "y": 490,
+            "color": "#f39c12",
+            "value": 1,
+            "category": "phase"
+        }
+    ],
+    "edges": [
+        {
+            "source": "GROWTH_FACTORS",
+            "target": "CCND1",
+            "relation": "induction"
+        },
+        {
+            "source": "CCND1",
+            "target": "CDK4",
+            "relation": "binding"
+        },
+        {
+            "source": "CDK4",
+            "target": "RB1",
+            "relation": "phosphorylation"
+        },
+        {
+            "source": "RB1",
+            "target": "E2F",
+            "relation": "release"
+        },
+        {
+            "source": "E2F",
+            "target": "CCNE1",
+            "relation": "transcription"
+        },
+        {
+            "source": "E2F",
+            "target": "CCNA2",
+            "relation": "transcription"
+        },
+        {
+            "source": "E2F",
+            "target": "MYC",
+            "relation": "transcription"
+        },
+        {
+            "source": "CCNE1",
+            "target": "CDK2",
+            "relation": "binding"
+        },
+        {
+            "source": "CDK2",
+            "target": "RB1",
+            "relation": "phosphorylation"
+        },
+        {
+            "source": "CDK2",
+            "target": "DNA_REPLICATION",
+            "relation": "initiation"
+        },
+        {
+            "source": "CDC25A",
+            "target": "CDK2",
+            "relation": "activation"
+        },
+        {
+            "source": "CCNA2",
+            "target": "CDK2",
+            "relation": "binding"
+        },
+        {
+            "source": "CCNA2",
+            "target": "DNA_REPLICATION",
+            "relation": "regulation"
+        },
+        {
+            "source": "CCNB1",
+            "target": "CDK1",
+            "relation": "binding"
+        },
+        {
+            "source": "CDK1",
+            "target": "MITOSIS",
+            "relation": "initiation"
+        },
+        {
+            "source": "CDC25C",
+            "target": "CDK1",
+            "relation": "activation"
+        },
+        {
+            "source": "WEE1",
+            "target": "CDK1",
+            "relation": "inhibition"
+        },
+        {
+            "source": "PLK1",
+            "target": "CDC25C",
+            "relation": "activation"
+        },
+        {
+            "source": "PLK1",
+            "target": "WEE1",
+            "relation": "inhibition"
+        },
+        {
+            "source": "CDK1",
+            "target": "APC",
+            "relation": "activation"
+        },
+        {
+            "source": "CDC20",
+            "target": "APC",
+            "relation": "activation"
+        },
+        {
+            "source": "APC",
+            "target": "CCNB1",
+            "relation": "degradation"
+        },
+        {
+            "source": "APC",
+            "target": "SECURIN",
+            "relation": "degradation"
+        },
+        {
+            "source": "SECURIN",
+            "target": "SEPARASE",
+            "relation": "inhibition"
+        },
+        {
+            "source": "SEPARASE",
+            "target": "COHESINS",
+            "relation": "cleavage"
+        },
+        {
+            "source": "CDH1",
+            "target": "APC",
+            "relation": "activation"
+        },
+        {
+            "source": "APC",
+            "target": "SKP2",
+            "relation": "degradation"
+        },
+        {
+            "source": "CDKN2A",
+            "target": "CDK4",
+            "relation": "inhibition"
+        },
+        {
+            "source": "CDKN1A",
+            "target": "CDK2",
+            "relation": "inhibition"
+        },
+        {
+            "source": "CDKN1A",
+            "target": "CDK4",
+            "relation": "inhibition"
+        },
+        {
+            "source": "CDKN1B",
+            "target": "CDK2",
+            "relation": "inhibition"
+        },
+        {
+            "source": "TP53",
+            "target": "CDKN1A",
+            "relation": "transcription"
+        },
+        {
+            "source": "ATM",
+            "target": "TP53",
+            "relation": "activation"
+        },
+        {
+            "source": "ATM",
+            "target": "CHEK1",
+            "relation": "activation"
+        },
+        {
+            "source": "CHEK1",
+            "target": "CDC25A",
+            "relation": "inhibition"
+        },
+        {
+            "source": "CHEK1",
+            "target": "CDC25C",
+            "relation": "inhibition"
+        },
+        {
+            "source": "TGFB",
+            "target": "SMAD",
+            "relation": "activation"
+        },
+        {
+            "source": "SMAD",
+            "target": "CDKN2B",
+            "relation": "transcription"
+        },
+        {
+            "source": "CDKN2B",
+            "target": "CDK4",
+            "relation": "inhibition"
+        },
+        {
+            "source": "SKP2",
+            "target": "CDKN1B",
+            "relation": "degradation"
+        },
+        {
+            "source": "E2F",
+            "target": "SKP2",
+            "relation": "transcription"
+        },
+        {
+            "source": "CCND1",
+            "target": "G1_PHASE",
+            "relation": "regulation"
+        },
+        {
+            "source": "DNA_REPLICATION",
+            "target": "S_PHASE",
+            "relation": "process"
+        },
+        {
+            "source": "CCNB1",
+            "target": "G2_PHASE",
+            "relation": "regulation"
+        },
+        {
+            "source": "MITOSIS",
+            "target": "M_PHASE",
+            "relation": "process"
+        }
+    ],
+    "categories": [
+        {
+            "name": "signal",
+            "color": "#3498db"
+        },
+        {
+            "name": "cyclin",
+            "color": "#e74c3c"
+        },
+        {
+            "name": "cdk",
+            "color": "#9b59b6"
+        },
+        {
+            "name": "checkpoint",
+            "color": "#e67e22"
+        },
+        {
+            "name": "transcription",
+            "color": "#1abc9c"
+        },
+        {
+            "name": "phosphatase",
+            "color": "#f39c12"
+        },
+        {
+            "name": "kinase",
+            "color": "#16a085"
+        },
+        {
+            "name": "ubiquitin",
+            "color": "#8e44ad"
+        },
+        {
+            "name": "activator",
+            "color": "#2ecc71"
+        },
+        {
+            "name": "inhibitor",
+            "color": "#c0392b"
+        },
+        {
+            "name": "process",
+            "color": "#27ae60"
+        },
+        {
+            "name": "regulator",
+            "color": "#d35400"
+        },
+        {
+            "name": "protease",
+            "color": "#7f8c8d"
+        },
+        {
+            "name": "structural",
+            "color": "#34495e"
+        },
+        {
+            "name": "phase",
+            "color": "#f39c12"
+        }
+    ]
+}

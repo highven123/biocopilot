@@ -1,0 +1,233 @@
+{
+  "id": "hsa04640",
+  "title": "Hematopoietic cell lineage",
+  "description": "Map of blood cell differentiation from HSCs to mature immune cells.",
+  "nodes": [
+    {
+      "id": 1,
+      "name": "HSC",
+      "x": 400,
+      "y": 50,
+      "type": "gene",
+      "category": "Cell"
+    },
+    {
+      "id": 2,
+      "name": "MPP",
+      "x": 400,
+      "y": 150,
+      "type": "gene",
+      "category": "Cell"
+    },
+    {
+      "id": 3,
+      "name": "CMP",
+      "x": 200,
+      "y": 250,
+      "type": "gene",
+      "category": "Cell"
+    },
+    {
+      "id": 4,
+      "name": "CLP",
+      "x": 600,
+      "y": 250,
+      "type": "gene",
+      "category": "Cell"
+    },
+    {
+      "id": 5,
+      "name": "GMP",
+      "x": 100,
+      "y": 350,
+      "type": "gene",
+      "category": "Cell"
+    },
+    {
+      "id": 6,
+      "name": "MEP",
+      "x": 300,
+      "y": 350,
+      "type": "gene",
+      "category": "Cell"
+    },
+    {
+      "id": 7,
+      "name": "Monocyte",
+      "x": 50,
+      "y": 450,
+      "type": "gene",
+      "category": "Cell"
+    },
+    {
+      "id": 8,
+      "name": "Neutrophil",
+      "x": 150,
+      "y": 450,
+      "type": "gene",
+      "category": "Cell"
+    },
+    {
+      "id": 9,
+      "name": "Eosinophil",
+      "x": 100,
+      "y": 550,
+      "type": "gene",
+      "category": "Cell"
+    },
+    {
+      "id": 10,
+      "name": "Basophil",
+      "x": 200,
+      "y": 550,
+      "type": "gene",
+      "category": "Cell"
+    },
+    {
+      "id": 11,
+      "name": "Macrophage",
+      "x": 50,
+      "y": 550,
+      "type": "gene",
+      "category": "Cell"
+    },
+    {
+      "id": 12,
+      "name": "Pro-B cell",
+      "x": 500,
+      "y": 350,
+      "type": "gene",
+      "category": "Cell"
+    },
+    {
+      "id": 13,
+      "name": "Pro-T cell",
+      "x": 700,
+      "y": 350,
+      "type": "gene",
+      "category": "Cell"
+    },
+    {
+      "id": 14,
+      "name": "NK precursor",
+      "x": 800,
+      "y": 350,
+      "type": "gene",
+      "category": "Cell"
+    },
+    {
+      "id": 15,
+      "name": "B cell",
+      "x": 500,
+      "y": 450,
+      "type": "gene",
+      "category": "Cell"
+    },
+    {
+      "id": 16,
+      "name": "T cell",
+      "x": 700,
+      "y": 450,
+      "type": "gene",
+      "category": "Cell"
+    },
+    {
+      "id": 17,
+      "name": "NK cell",
+      "x": 850,
+      "y": 450,
+      "type": "gene",
+      "category": "Cell"
+    },
+    {
+      "id": 18,
+      "name": "CD4+ T cell",
+      "x": 650,
+      "y": 550,
+      "type": "gene",
+      "category": "Cell"
+    },
+    {
+      "id": 19,
+      "name": "CD8+ T cell",
+      "x": 750,
+      "y": 550,
+      "type": "gene",
+      "category": "Cell"
+    }
+  ],
+  "edges": [
+    {
+      "source": 1,
+      "target": 2
+    },
+    {
+      "source": 2,
+      "target": 3
+    },
+    {
+      "source": 2,
+      "target": 4
+    },
+    {
+      "source": 3,
+      "target": 5
+    },
+    {
+      "source": 3,
+      "target": 6
+    },
+    {
+      "source": 5,
+      "target": 7
+    },
+    {
+      "source": 7,
+      "target": 11
+    },
+    {
+      "source": 5,
+      "target": 8
+    },
+    {
+      "source": 5,
+      "target": 9
+    },
+    {
+      "source": 5,
+      "target": 10
+    },
+    {
+      "source": 4,
+      "target": 12
+    },
+    {
+      "source": 4,
+      "target": 13
+    },
+    {
+      "source": 4,
+      "target": 14
+    },
+    {
+      "source": 12,
+      "target": 15
+    },
+    {
+      "source": 13,
+      "target": 16
+    },
+    {
+      "source": 14,
+      "target": 17
+    },
+    {
+      "source": 16,
+      "target": 18
+    },
+    {
+      "source": 16,
+      "target": 19
+    }
+  ]
+}

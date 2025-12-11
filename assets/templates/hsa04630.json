@@ -1,0 +1,263 @@
+{
+    "id": "hsa04630",
+    "name": "JAK-STAT signaling pathway",
+    "description": "The JAK-STAT signaling pathway is a mechanism used by many cytokines and growth factors to transfer signals from the cell membrane to the nucleus.",
+    "nodes": [
+        {
+            "id": "IFNA1",
+            "name": "IFN-α",
+            "x": 100,
+            "y": 200,
+            "category": "Ligand"
+        },
+        {
+            "id": "IFNG",
+            "name": "IFN-γ",
+            "x": 100,
+            "y": 300,
+            "category": "Ligand"
+        },
+        {
+            "id": "IL6",
+            "name": "IL-6",
+            "x": 100,
+            "y": 400,
+            "category": "Ligand"
+        },
+        {
+            "id": "IFNAR1",
+            "name": "IFNAR1",
+            "x": 200,
+            "y": 200,
+            "category": "Receptor"
+        },
+        {
+            "id": "IFNGR1",
+            "name": "IFNGR1",
+            "x": 200,
+            "y": 300,
+            "category": "Receptor"
+        },
+        {
+            "id": "IL6R",
+            "name": "IL6R",
+            "x": 200,
+            "y": 400,
+            "category": "Receptor"
+        },
+        {
+            "id": "JAK1",
+            "name": "JAK1",
+            "x": 250,
+            "y": 200,
+            "category": "Kinase"
+        },
+        {
+            "id": "TYK2",
+            "name": "TYK2",
+            "x": 250,
+            "y": 240,
+            "category": "Kinase"
+        },
+        {
+            "id": "JAK2",
+            "name": "JAK2",
+            "x": 250,
+            "y": 300,
+            "category": "Kinase"
+        },
+        {
+            "id": "JAK3",
+            "name": "JAK3",
+            "x": 250,
+            "y": 400,
+            "category": "Kinase"
+        },
+        {
+            "id": "STAT1",
+            "name": "STAT1",
+            "x": 350,
+            "y": 220,
+            "category": "Transcription Factor"
+        },
+        {
+            "id": "STAT2",
+            "name": "STAT2",
+            "x": 350,
+            "y": 260,
+            "category": "Transcription Factor"
+        },
+        {
+            "id": "STAT3",
+            "name": "STAT3",
+            "x": 350,
+            "y": 400,
+            "category": "Transcription Factor"
+        },
+        {
+            "id": "STAT5A",
+            "name": "STAT5",
+            "x": 350,
+            "y": 440,
+            "category": "Transcription Factor"
+        },
+        {
+            "id": "SOCS1",
+            "name": "SOCS1",
+            "x": 400,
+            "y": 150,
+            "category": "Inhibitor"
+        },
+        {
+            "id": "SOCS3",
+            "name": "SOCS3",
+            "x": 400,
+            "y": 350,
+            "category": "Inhibitor"
+        },
+        {
+            "id": "PIAS1",
+            "name": "PIAS1",
+            "x": 450,
+            "y": 300,
+            "category": "Inhibitor"
+        },
+        {
+            "id": "PTPN6",
+            "name": "SHP-1",
+            "x": 450,
+            "y": 400,
+            "category": "Phosphatase"
+        },
+        {
+            "id": "MYC",
+            "name": "MYC",
+            "x": 550,
+            "y": 300,
+            "category": "Target Gene"
+        },
+        {
+            "id": "BCL2L1",
+            "name": "BCL-XL",
+            "x": 550,
+            "y": 400,
+            "category": "Target Gene"
+        }
+    ],
+    "edges": [
+        {
+            "source": "IFNA1",
+            "target": "IFNAR1",
+            "relation": "binding"
+        },
+        {
+            "source": "IFNG",
+            "target": "IFNGR1",
+            "relation": "binding"
+        },
+        {
+            "source": "IL6",
+            "target": "IL6R",
+            "relation": "binding"
+        },
+        {
+            "source": "IFNAR1",
+            "target": "JAK1",
+            "relation": "binding"
+        },
+        {
+            "source": "IFNAR1",
+            "target": "TYK2",
+            "relation": "binding"
+        },
+        {
+            "source": "IFNGR1",
+            "target": "JAK1",
+            "relation": "binding"
+        },
+        {
+            "source": "IFNGR1",
+            "target": "JAK2",
+            "relation": "binding"
+        },
+        {
+            "source": "IL6R",
+            "target": "JAK1",
+            "relation": "binding"
+        },
+        {
+            "source": "JAK1",
+            "target": "STAT1",
+            "relation": "phosphorylation"
+        },
+        {
+            "source": "JAK1",
+            "target": "STAT2",
+            "relation": "phosphorylation"
+        },
+        {
+            "source": "JAK1",
+            "target": "STAT3",
+            "relation": "phosphorylation"
+        },
+        {
+            "source": "JAK2",
+            "target": "STAT1",
+            "relation": "phosphorylation"
+        },
+        {
+            "source": "JAK2",
+            "target": "STAT3",
+            "relation": "phosphorylation"
+        },
+        {
+            "source": "STAT1",
+            "target": "STAT2",
+            "relation": "dimerization"
+        },
+        {
+            "source": "STAT3",
+            "target": "STAT3",
+            "relation": "dimerization"
+        },
+        {
+            "source": "SOCS1",
+            "target": "JAK1",
+            "relation": "inhibition"
+        },
+        {
+            "source": "SOCS3",
+            "target": "JAK2",
+            "relation": "inhibition"
+        },
+        {
+            "source": "PIAS1",
+            "target": "STAT1",
+            "relation": "inhibition"
+        },
+        {
+            "source": "PTPN6",
+            "target": "JAK2",
+            "relation": "dephosphorylation"
+        },
+        {
+            "source": "STAT3",
+            "target": "BCL2L1",
+            "relation": "expression"
+        },
+        {
+            "source": "STAT3",
+            "target": "MYC",
+            "relation": "expression"
+        }
+    ],
+    "categories": {
+        "Ligand": "#e74c3c",
+        "Receptor": "#e67e22",
+        "Kinase": "#3498db",
+        "Transcription Factor": "#9b59b6",
+        "Inhibitor": "#e74c3c",
+        "Phosphatase": "#f1c40f",
+        "Target Gene": "#2ecc71"
+    }
+}

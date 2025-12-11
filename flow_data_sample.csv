@@ -1,0 +1,19 @@
+Cell Type,Frequency
+HSC,5.0
+MPP,8.0
+Common Myeloid Progenitor,15.0
+Common Lymphoid Progenitor,12.0
+Monocytes,25.0
+Neutrophils,45.0
+Macrophages,20.0
+B cells,18.0
+CD4+ T cell,35.0
+CD8+ T cell,28.0
+NK cells,10.0
+Pro-B cell,5.0
+Pro-T cell,5.0
+Th1,15.0
+Th2,12.0
+Th17,8.0
+Treg,6.0
+Naive T,25.0

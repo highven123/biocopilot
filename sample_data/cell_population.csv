@@ -1,0 +1,26 @@
+CellType,LogFC,PValue,Group
+HSC,0.5,0.45,Stem
+MPP,0.2,0.8,Stem
+CMP,-1.2,0.04,Myeloid
+CLP,0.8,0.2,Lymphoid
+GMP,4.5,0.0001,Myeloid
+MEP,-0.5,0.6,Myeloid
+Monocyte,2.8,0.002,Myeloid
+Macrophage,2.5,0.005,Myeloid
+Neutrophil,5.0,0.00001,Myeloid
+Eosinophil,0.1,0.9,Myeloid
+Basophil,0.0,0.95,Myeloid
+Pro-B cell,-1.8,0.015,B-lineage
+B cell,-2.5,0.001,B-lineage
+Plasma cell,-3.0,0.0005,B-lineage
+Pro-T cell,0.4,0.7,T-lineage
+T cell,1.2,0.045,T-lineage
+CD4+ T cell,3.2,0.0008,T-lineage
+CD8+ T cell,0.5,0.55,T-lineage
+NK precursor,0.2,0.85,NK-lineage
+NK cell,1.5,0.03,NK-lineage
+Naive CD4+ T cell,-0.5,0.68,T-lineage
+Th1 cell,4.8,0.00005,T-lineage
+Th2 cell,-2.0,0.008,T-lineage
+Th17 cell,3.5,0.0004,T-lineage
+Treg cell,1.5,0.035,T-lineage

@@ -1,0 +1,25 @@
+Cell Type,Frequency,LogFC
+HSC,2.5,0.5
+MPP,3.0,0.2
+CMP,5.5,-1.2
+CLP,4.2,0.8
+GMP,15.0,2.5
+MEP,3.8,-0.5
+Monocyte,18.0,1.8
+Macrophage,12.0,1.5
+Neutrophil,35.0,3.0
+Eosinophil,4.5,0.1
+Basophil,1.2,0.0
+Pro-B cell,2.8,-0.8
+B cell,14.0,-1.5
+Pro-T cell,3.0,0.4
+T cell,22.0,1.2
+CD4+ T cell,30.0,2.0
+CD8+ T cell,20.0,0.5
+NK precursor,1.8,0.2
+NK cell,9.5,0.6
+Naive CD4+ T cell,35.0,-0.5
+Th1 cell,18.0,4.5
+Th2 cell,5.0,-2.0
+Th17 cell,8.0,3.2
+Treg cell,6.0,1.5
