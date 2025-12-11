@@ -60,8 +60,8 @@ git push origin v1.0.0
 
 构建完成后，会生成：
 
-### macOS
-- `BioViz Local_版本号_universal.dmg` - Universal Binary DMG 安装包
+### macOS (需手动构建)
+- `BioViz Local_版本号_universal.dmg` - 如需 macOS 版本，请在该 Actions 运行完毕后，在本地运行构建命令并手动上传。
 
 ### Windows
 - `BioViz Local_版本号_x64_en-US.msi` - MSI 安装程序
