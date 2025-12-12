@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { FileDropZone } from './FileDropZone';
 import { TemplatePicker } from './TemplatePicker';
 import './DataImportWizard.css'; // New CSS file
@@ -14,6 +14,9 @@ export interface AnalysisConfig {
         gene: string;
         value: string;
         pvalue?: string;
+        /** Optional: explicit control/experiment columns for raw matrix data */
+        controlCols?: string[];
+        treatCols?: string[];
     };
     pathwayId: string;
     dataType: 'gene' | 'protein' | 'cell';
@@ -91,7 +94,7 @@ export const DataImportWizard: React.FC<DataImportWizardProps> = ({
         if (activeStep && activeStep !== step) {
             setStep(activeStep);
         }
-    }, [activeStep, step]);
+    }, [activeStep]); // Removed 'step' dependency to avoid loop
 
     // Auto-skip in DEV mode logic (disabled for now as per comment)
     useEffect(() => {
@@ -110,6 +113,7 @@ export const DataImportWizard: React.FC<DataImportWizardProps> = ({
     // --- Step 1: Upload ---
 
     const updateStep = (next: 1 | 2 | 3) => {
+        if (next === step) return;
         setStep(next);
         onStepChange?.(next);
     };
@@ -153,6 +157,9 @@ export const DataImportWizard: React.FC<DataImportWizardProps> = ({
     const [selectedValueCol, setSelectedValueCol] = useState('');
     const [selectedPValueCol, setSelectedPValueCol] = useState('');
     const [analysisMethods, setAnalysisMethods] = useState<AnalysisMethod[]>(['auto']);
+    const [rawMode, setRawMode] = useState<'auto' | 'manual'>('auto');
+    const [manualControlCols, setManualControlCols] = useState<string[]>([]);
+    const [manualTreatCols, setManualTreatCols] = useState<string[]>([]);
 
     useEffect(() => {
         if (step === 2 && fileInfo) {
@@ -167,6 +174,43 @@ export const DataImportWizard: React.FC<DataImportWizardProps> = ({
         }
     }, [step, fileInfo, lastConfig]);
 
+    // Detect "raw matrix" layout: multiple Ctrl_*/Exp_* columns, no P-value
+    const rawMatrixInfo = useMemo(() => {
+        if (!fileInfo) return null;
+        const colsLower = fileInfo.columns.map(c => c.toLowerCase());
+        const controls: string[] = [];
+        const treats: string[] = [];
+
+        colsLower.forEach((name, idx) => {
+            const original = fileInfo.columns[idx];
+            if (name.includes('ctrl') || name.includes('control')) {
+                controls.push(original);
+            } else if (name.includes('exp') || name.includes('treat')) {
+                treats.push(original);
+            }
+        });
+
+        const hasP = !!fileInfo.suggestedMapping.pvalue;
+        if (controls.length > 0 && treats.length > 0 && !hasP) {
+            return { controls, treats };
+        }
+        return null;
+    }, [fileInfo]);
+
+    const isRawMatrix = !!rawMatrixInfo;
+
+    // When raw matrix is detected, seed manual selections with detected columns
+    useEffect(() => {
+        if (isRawMatrix && rawMatrixInfo) {
+            setManualControlCols(rawMatrixInfo.controls);
+            setManualTreatCols(rawMatrixInfo.treats);
+        } else {
+            setManualControlCols([]);
+            setManualTreatCols([]);
+            setRawMode('auto');
+        }
+    }, [isRawMatrix, rawMatrixInfo]);
+
     const toggleAnalysisMethod = (method: AnalysisMethod) => {
         setAnalysisMethods(prev => {
             const exists = prev.includes(method);
@@ -178,12 +222,21 @@ export const DataImportWizard: React.FC<DataImportWizardProps> = ({
     };
 
     const handleMappingConfirm = () => {
-        if (!selectedGeneCol || !selectedValueCol) return;
-        setMapping({
+        if (!selectedGeneCol) return;
+
+        // 对于原始矩阵（Ctrl_*/Exp_* 多列强度），支持自动或手动选择列。
+        const effectiveValueCol = isRawMatrix ? '__raw_matrix__' : selectedValueCol;
+        if (!effectiveValueCol) return;
+
+        const mappingPayload = {
             gene: selectedGeneCol,
-            value: selectedValueCol,
-            pvalue: selectedPValueCol || undefined
-        });
+            value: effectiveValueCol,
+            pvalue: selectedPValueCol || undefined,
+            controlCols: isRawMatrix && rawMode === 'manual' ? manualControlCols : undefined,
+            treatCols: isRawMatrix && rawMode === 'manual' ? manualTreatCols : undefined,
+        };
+
+        setMapping(mappingPayload);
         updateStep(3);
         // 映射确定但尚未选 pathway，配置仍不完整
         onConfigPreview?.(null);
@@ -259,14 +312,14 @@ export const DataImportWizard: React.FC<DataImportWizardProps> = ({
                     <div className="step-wrapper">
                         <div className="section-header">
                             <h3>Map Columns</h3>
-                            <p>Tell us how to read your data</p>
+                            <p>Specify which columns contain identifiers, effect size, and optional p-values.</p>
                         </div>
 
                         <div className="mapping-grid">
                             {/* Gene Column */}
                             <div className="mapping-card">
                                 <label className="mapping-label">
-                                    <span>🧬 Entity / Gene</span>
+                                    <span>Entity / Gene column</span>
                                     {fileInfo.suggestedMapping.gene && <span className="badge-auto">Auto</span>}
                                 </label>
                                 <select
@@ -283,24 +336,100 @@ export const DataImportWizard: React.FC<DataImportWizardProps> = ({
                             {/* Value Column */}
                             <div className="mapping-card">
                                 <label className="mapping-label">
-                                    <span>📊 Value / LogFC</span>
+                                    <span>Value / Log2FC column</span>
                                     {fileInfo.suggestedMapping.value && <span className="badge-auto">Auto</span>}
                                 </label>
-                                <select
-                                    value={selectedValueCol}
-                                    onChange={e => setSelectedValueCol(e.target.value)}
-                                    className="select-input"
-                                >
-                                    <option value="">Select Column...</option>
-                                    {fileInfo.columns.map(c => <option key={c} value={c}>{c}</option>)}
-                                </select>
-                                <p className="mapping-hint">Required. Fold Change or Expression.</p>
+                                {isRawMatrix ? (
+                                    <>
+                                        <div className="raw-value-toggle">
+                                            <div className={`raw-toggle-btn ${rawMode === 'auto' ? 'active' : ''}`} onClick={() => setRawMode('auto')}>
+                                                Auto (use all Ctrl / Exp columns)
+                                            </div>
+                                            <div className={`raw-toggle-btn ${rawMode === 'manual' ? 'active' : ''}`} onClick={() => setRawMode('manual')}>
+                                                Manual (pick columns)
+                                            </div>
+                                        </div>
+
+                                        {rawMode === 'auto' && (
+                                            <div className="raw-value-placeholder">
+                                                Detected raw matrix with replicate columns:
+                                                <br />
+                                                <span className="raw-matrix-group">
+                                                    Control&nbsp;({rawMatrixInfo?.controls.join(', ')})
+                                                </span>
+                                                {' '}vs{' '}
+                                                <span className="raw-matrix-group">
+                                                    Experiment&nbsp;({rawMatrixInfo?.treats.join(', ')})
+                                                </span>
+                                                . BioViz will compute Log2FC and approximate P-values from these columns automatically.
+                                            </div>
+                                        )}
+
+                                        {rawMode === 'manual' && (
+                                            <div className="raw-select-group">
+                                                <div className="raw-select-column">
+                                                    <div className="raw-select-title">Control columns</div>
+                                                    <div className="raw-select-list">
+                                                        {fileInfo.columns.map((c) => {
+                                                            const checked = manualControlCols.includes(c);
+                                                            return (
+                                                                <label key={`ctrl-${c}`} className="raw-select-option">
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked={checked}
+                                                                        onChange={() => {
+                                                                            setManualControlCols(prev => checked ? prev.filter(x => x !== c) : [...prev, c]);
+                                                                        }}
+                                                                    />
+                                                                    <span>{c}</span>
+                                                                </label>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </div>
+
+                                                <div className="raw-select-column">
+                                                    <div className="raw-select-title">Experiment columns</div>
+                                                    <div className="raw-select-list">
+                                                        {fileInfo.columns.map((c) => {
+                                                            const checked = manualTreatCols.includes(c);
+                                                            return (
+                                                                <label key={`treat-${c}`} className="raw-select-option">
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked={checked}
+                                                                        onChange={() => {
+                                                                            setManualTreatCols(prev => checked ? prev.filter(x => x !== c) : [...prev, c]);
+                                                                        }}
+                                                                    />
+                                                                    <span>{c}</span>
+                                                                </label>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </>
+                                ) : (
+                                    <>
+                                        <select
+                                            value={selectedValueCol}
+                                            onChange={e => setSelectedValueCol(e.target.value)}
+                                            className="select-input"
+                                        >
+                                            <option value="">Select Column...</option>
+                                            {fileInfo.columns.map(c => <option key={c} value={c}>{c}</option>)}
+                                        </select>
+                                        <p className="mapping-hint">Required. Fold Change or Expression.</p>
+                                    </>
+                                )}
                             </div>
 
                             {/* P-Value Column */}
                             <div className="mapping-card">
                                 <label className="mapping-label">
-                                    <span>🔥 P-Value (Optional)</span>
+                                    <span>P-value column (optional)</span>
                                     {fileInfo.suggestedMapping.pvalue && <span className="badge-auto">Auto</span>}
                                 </label>
                                 <select
@@ -316,33 +445,21 @@ export const DataImportWizard: React.FC<DataImportWizardProps> = ({
                         </div>
 
                         {/* Heuristic hint for raw matrix with replicates */}
-                        {(() => {
-                            const cols = fileInfo.columns.map(c => c.toLowerCase());
-                            const controls = cols.filter(c =>
-                                c.includes('ctrl') || c.includes('control')
-                            );
-                            const treats = cols.filter(c =>
-                                c.includes('exp') || c.includes('treat')
-                            );
-                            const hasP = !!fileInfo.suggestedMapping.pvalue;
-                            const isRawMatrix = controls.length > 0 && treats.length > 0 && !hasP;
-                            if (!isRawMatrix) return null;
-                            return (
-                                <div className="raw-matrix-hint">
-                                    Detected replicate groups:{' '}
-                                    <span className="raw-matrix-group">
-                                        Control&nbsp;({controls.join(', ')})
-                                    </span>{' '}
-                                    vs{' '}
-                                    <span className="raw-matrix-group">
-                                        Experiment&nbsp;({treats.join(', ')})
-                                    </span>
-                                    . BioViz will automatically compute Log2FC and
-                                    p-values for these groups when you click
-                                    <strong> Visualize</strong>.
-                                </div>
-                            );
-                        })()}
+                        {isRawMatrix && rawMatrixInfo && (
+                            <div className="raw-matrix-hint">
+                                Detected replicate groups:{' '}
+                                <span className="raw-matrix-group">
+                                    Control&nbsp;({rawMatrixInfo.controls.join(', ')})
+                                </span>{' '}
+                                vs{' '}
+                                <span className="raw-matrix-group">
+                                    Experiment&nbsp;({rawMatrixInfo.treats.join(', ')})
+                                </span>
+                                . BioViz will automatically compute Log2FC and
+                                P-values for these groups when you click
+                                <strong> Visualize</strong>.
+                            </div>
+                        )}
 
                         {/* Analysis Method Selector (multi-select) */}
                         <div className="mapping-card">
@@ -425,7 +542,14 @@ export const DataImportWizard: React.FC<DataImportWizardProps> = ({
                             </button>
                             <button
                                 onClick={handleMappingConfirm}
-                                disabled={!selectedGeneCol || !selectedValueCol}
+                                disabled={
+                                    !selectedGeneCol ||
+                                    (
+                                        !isRawMatrix
+                                            ? !selectedValueCol
+                                            : (rawMode === 'manual' && (!manualControlCols.length || !manualTreatCols.length))
+                                    )
+                                }
                                 className="btn-primary"
                             >
                                 Continue to Pathway →
@@ -462,7 +586,7 @@ export const DataImportWizard: React.FC<DataImportWizardProps> = ({
                                 disabled={!selectedPathway || !fileInfo || !mapping}
                                 className="btn-primary"
                             >
-                                Visualize 🚀
+                                Run analysis & visualize
                             </button>
                         </div>
                     </div>

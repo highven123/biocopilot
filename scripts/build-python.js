@@ -73,9 +73,12 @@ function buildCython() {
     }
 
     try {
+        // Detect python command
+        const pythonCmd = process.platform === 'win32' ? 'python' : 'python3';
+
         // Run setup.py build_ext --inplace
         // This compiles bio_core.py -> bio_core.c -> bio_core.so (or .pyd)
-        execSync('python3 setup.py build_ext --inplace', {
+        execSync(`${pythonCmd} setup.py build_ext --inplace`, {
             cwd: PYTHON_DIR,
             stdio: 'inherit'
         });

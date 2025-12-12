@@ -1,0 +1,128 @@
+.data-table-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background: var(--bg-app);
+    color: var(--text-primary);
+    overflow: hidden;
+}
+
+.data-table-header {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border-subtle);
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    background: var(--bg-panel);
+}
+
+.dt-search {
+    flex: 1;
+    background: var(--color-bg);
+    border: 1px solid var(--border-subtle);
+    color: var(--text-primary);
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+}
+
+.dt-stats {
+    font-size: 11px;
+    color: var(--text-secondary);
+}
+
+.data-table-scroll {
+    flex: 1;
+    overflow-y: auto;
+}
+
+.dt-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+    table-layout: fixed;
+    /* Fixed header */
+}
+
+.dt-table th {
+    text-align: left;
+    padding: 6px 8px;
+    background: var(--bg-panel);
+    color: var(--text-secondary);
+    font-weight: 600;
+    cursor: pointer;
+    user-select: none;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+
+.dt-table th:hover {
+    color: var(--text-primary);
+    background: var(--border-subtle);
+}
+
+.dt-table th.active {
+    color: var(--brand-primary);
+}
+
+.dt-table td {
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--border-subtle);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: pointer;
+}
+
+.dt-table tr:hover {
+    background: var(--border-subtle);
+}
+
+/* Status Highlighting */
+.dt-table tr.status-up .dt-cell-gene {
+    color: var(--color-danger);
+    font-weight: 500;
+}
+
+.dt-table tr.status-down .dt-cell-gene {
+    color: var(--color-info);
+    font-weight: 500;
+}
+
+.dt-cell-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+}
+
+.dt-cell-status .badge {
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 600;
+}
+
+.badge.up {
+    background: rgba(239, 68, 68, 0.15);
+    color: var(--color-danger);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.badge.down {
+    background: rgba(59, 130, 246, 0.15);
+    color: var(--color-info);
+    border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+.badge.ns {
+    background: rgba(100, 116, 139, 0.15);
+    color: #94a3b8;
+    border: 1px solid rgba(100, 116, 139, 0.3);
+}
+
+.dt-more-row {
+    text-align: center;
+    color: var(--text-dim);
+    padding: 12px !important;
+    font-style: italic;
+}

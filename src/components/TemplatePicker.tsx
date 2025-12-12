@@ -1,8 +1,3 @@
-/**
- * TemplatePicker Component
- * Allows users to select pre-built KEGG pathway templates
- */
-
 import React from 'react';
 import './TemplatePicker.css';
 
@@ -30,9 +25,9 @@ const PATHWAY_TEMPLATES: PathwayTemplate[] = [
   { id: 'hsa04064', name: 'NF-kappa B signaling', description: 'Inflammation and immunity control', icon: '🔥', types: ['gene', 'protein'] },
   { id: 'hsa04630', name: 'JAK-STAT signaling', description: 'Cytokine receptor signaling', icon: '📡', types: ['gene', 'protein'] },
   // New Cell Lineage Maps
-  { id: 'hsa04640', name: 'Hematopoietic Cell Lineage', description: 'Blood cell differentiation tree', icon: '🩸', types: ['cell'] },
-  { id: 'hsa04658', name: 'Th1/Th2 Differentiation', description: 'T cell subset polarization', icon: '⚖️', types: ['cell'] },
-  { id: 'hsa04659', name: 'Th17 Differentiation', description: 'Th17 and Treg development', icon: '🛡️', types: ['cell'] },
+  { id: 'hsa04640', name: 'Hematopoietic Cell Lineage', description: 'Blood cell differentiation tree', icon: 'cell', types: ['cell'] },
+  { id: 'hsa04658', name: 'Th1/Th2 Differentiation', description: 'T cell subset polarization', icon: 'cell', types: ['cell'] },
+  { id: 'hsa04659', name: 'Th17 Differentiation', description: 'Th17 and Treg development', icon: 'cell', types: ['cell'] },
   { id: 'hsa00010', name: 'Glycolysis / Gluconeogenesis', description: 'Glucose metabolism and ATP generation', icon: '🍞', types: ['gene', 'protein'] },
 ];
 
@@ -46,9 +41,9 @@ export const TemplatePicker: React.FC<TemplatePickerProps> = ({ onSelect, disabl
 
   return (
     <div className="template-picker">
-      <h3>📊 Select Pathway Template</h3>
+      <h3>Select pathway template</h3>
       <p className="template-picker-hint">
-        Choose a pre-built pathway to visualize your gene expression data
+        Choose a KEGG pathway layout for visualization; templates are filtered by data type.
       </p>
 
       <div className="template-grid">
@@ -58,11 +53,21 @@ export const TemplatePicker: React.FC<TemplatePickerProps> = ({ onSelect, disabl
             className={`template-card ${selectedId === template.id ? 'selected' : ''} ${disabled ? 'disabled' : ''}`}
             onClick={() => !disabled && handleSelect(template.id)}
           >
-            <div className="template-icon">{template.icon}</div>
             <div className="template-info">
-              <h4>{template.name}</h4>
-              {/* <p className="template-id">{template.id}</p> */}
+              <div className="template-title-row">
+                <h4 className="template-name">{template.name}</h4>
+                <span className="template-id-pill">{template.id}</span>
+              </div>
               <p className="template-description">{template.description}</p>
+              <div className="template-tags">
+                {template.types.map((t) => (
+                  <span key={t} className="template-tag">
+                    {t === 'gene' && 'Gene'}
+                    {t === 'protein' && 'Protein'}
+                    {t === 'cell' && 'Cell'}
+                  </span>
+                ))}
+              </div>
             </div>
             {selectedId === template.id && (
               <div className="template-selected-badge">✓</div>

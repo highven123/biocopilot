@@ -1,0 +1,92 @@
+name: Release Build
+
+on:
+  push:
+    tags:
+      - 'v*' # 当推送 v1.0.0 这样的标签时触发
+  workflow_dispatch: # 允许手动触发
+
+jobs:
+  build:
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: 'windows-latest'
+            args: ''
+
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+
+      - name: Install Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+
+      - name: Install Python (macOS)
+        if: matrix.platform == 'macos-latest'
+        run: |
+          brew install python@3.13
+          brew install pyinstaller
+
+      - name: Install Python (Windows)
+        if: matrix.platform == 'windows-latest'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install PyInstaller and Cython (Windows)
+        if: matrix.platform == 'windows-latest'
+        run: pip install pyinstaller cython setuptools openpyxl numpy scipy
+
+      - name: Install Python dependencies (macOS)
+        if: matrix.platform == 'macos-latest'
+        run: pip3 install cython setuptools openpyxl numpy scipy --break-system-packages
+
+      - name: Install frontend dependencies
+        run: npm install
+
+      - name: Build Python Sidecar (macOS)
+        if: matrix.platform == 'macos-latest'
+        run: npm run build:python
+
+      - name: Build Python Sidecar (Windows)
+        if: matrix.platform == 'windows-latest'
+        run: npm run build:python
+        shell: bash
+
+      - name: Build Tauri App
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: 'BioViz Local ${{ github.ref_name }}'
+          releaseBody: |
+            ## What's New
+            See the CHANGELOG for details.
+            
+            ## Installation
+            - **macOS**: Download the `.dmg` file
+            - **Windows**: Download the `.msi` or `.exe` installer
+            
+            ## Notes
+            - macOS users may need to allow the app in System Preferences > Security & Privacy
+            - Windows users may see a SmartScreen warning on first launch
+          releaseDraft: true
+          prerelease: false
+          args: ${{ matrix.args }}

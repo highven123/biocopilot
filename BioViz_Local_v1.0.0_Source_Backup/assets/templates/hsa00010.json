@@ -1,0 +1,173 @@
+{
+    "id": "hsa00010",
+    "title": "Glycolysis / Gluconeogenesis",
+    "description": "Glycolysis is the process of converting glucose into pyruvate and generating small amounts of ATP (energy) and NADH (reducing power). It is a central pathway that produces important precursor metabolites.",
+    "nodes": [
+        {
+            "id": "HK1",
+            "name": "HK1",
+            "x": 100,
+            "y": 100,
+            "type": "gene",
+            "category": "Enzyme"
+        },
+        {
+            "id": "GPI",
+            "name": "GPI",
+            "x": 250,
+            "y": 100,
+            "type": "gene",
+            "category": "Enzyme"
+        },
+        {
+            "id": "PFKM",
+            "name": "PFKM",
+            "x": 400,
+            "y": 100,
+            "type": "gene",
+            "category": "Enzyme"
+        },
+        {
+            "id": "ALDOA",
+            "name": "ALDOA",
+            "x": 550,
+            "y": 100,
+            "type": "gene",
+            "category": "Enzyme"
+        },
+        {
+            "id": "TPI1",
+            "name": "TPI1",
+            "x": 700,
+            "y": 100,
+            "type": "gene",
+            "category": "Enzyme"
+        },
+        {
+            "id": "GAPDH",
+            "name": "GAPDH",
+            "x": 700,
+            "y": 250,
+            "type": "gene",
+            "category": "Enzyme"
+        },
+        {
+            "id": "PGK1",
+            "name": "PGK1",
+            "x": 550,
+            "y": 250,
+            "type": "gene",
+            "category": "Enzyme"
+        },
+        {
+            "id": "PGAM1",
+            "name": "PGAM1",
+            "x": 400,
+            "y": 250,
+            "type": "gene",
+            "category": "Enzyme"
+        },
+        {
+            "id": "ENO1",
+            "name": "ENO1",
+            "x": 250,
+            "y": 250,
+            "type": "gene",
+            "category": "Enzyme"
+        },
+        {
+            "id": "PKM",
+            "name": "PKM",
+            "x": 100,
+            "y": 250,
+            "type": "gene",
+            "category": "Enzyme"
+        },
+        {
+            "id": "LDHA",
+            "name": "LDHA",
+            "x": 100,
+            "y": 400,
+            "type": "gene",
+            "category": "Enzyme"
+        },
+        {
+            "id": "ADH1A",
+            "name": "ADH1A",
+            "x": 250,
+            "y": 400,
+            "type": "gene",
+            "category": "Enzyme"
+        },
+        {
+            "id": "G6PD",
+            "name": "G6PD",
+            "x": 50,
+            "y": 50,
+            "type": "gene",
+            "category": "Enzyme"
+        }
+    ],
+    "edges": [
+        {
+            "source": "HK1",
+            "target": "GPI",
+            "relation": "reaction"
+        },
+        {
+            "source": "GPI",
+            "target": "PFKM",
+            "relation": "reaction"
+        },
+        {
+            "source": "PFKM",
+            "target": "ALDOA",
+            "relation": "reaction"
+        },
+        {
+            "source": "ALDOA",
+            "target": "TPI1",
+            "relation": "reaction"
+        },
+        {
+            "source": "TPI1",
+            "target": "GAPDH",
+            "relation": "reaction"
+        },
+        {
+            "source": "GAPDH",
+            "target": "PGK1",
+            "relation": "reaction"
+        },
+        {
+            "source": "PGK1",
+            "target": "PGAM1",
+            "relation": "reaction"
+        },
+        {
+            "source": "PGAM1",
+            "target": "ENO1",
+            "relation": "reaction"
+        },
+        {
+            "source": "ENO1",
+            "target": "PKM",
+            "relation": "reaction"
+        },
+        {
+            "source": "PKM",
+            "target": "LDHA",
+            "relation": "reaction"
+        },
+        {
+            "source": "LDHA",
+            "target": "ADH1A",
+            "relation": "reaction"
+        },
+        {
+            "source": "HK1",
+            "target": "G6PD",
+            "relation": "dt"
+        }
+    ]
+}

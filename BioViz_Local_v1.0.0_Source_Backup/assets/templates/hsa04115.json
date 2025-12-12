@@ -1,0 +1,630 @@
+{
+    "id": "hsa04115",
+    "name": "p53 signaling pathway",
+    "description": "p53 signaling pathway - Homo sapiens (human)",
+    "organism": "hsa",
+    "nodes": [
+        {
+            "id": "DNA_DAMAGE",
+            "name": "DNA Damage",
+            "x": 100,
+            "y": 200,
+            "color": "#e74c3c",
+            "value": 1,
+            "category": "stress"
+        },
+        {
+            "id": "HYPOXIA",
+            "name": "Hypoxia",
+            "x": 100,
+            "y": 300,
+            "color": "#e74c3c",
+            "value": 1,
+            "category": "stress"
+        },
+        {
+            "id": "ONCOGENE",
+            "name": "Oncogene",
+            "x": 100,
+            "y": 400,
+            "color": "#e74c3c",
+            "value": 1,
+            "category": "stress"
+        },
+        {
+            "id": "ATM",
+            "name": "ATM",
+            "x": 250,
+            "y": 150,
+            "color": "#95a5a6",
+            "value": 1,
+            "category": "kinase"
+        },
+        {
+            "id": "ATR",
+            "name": "ATR",
+            "x": 250,
+            "y": 250,
+            "color": "#95a5a6",
+            "value": 1,
+            "category": "kinase"
+        },
+        {
+            "id": "CHEK1",
+            "name": "CHEK1",
+            "x": 350,
+            "y": 200,
+            "color": "#95a5a6",
+            "value": 1,
+            "category": "kinase"
+        },
+        {
+            "id": "CHEK2",
+            "name": "CHEK2",
+            "x": 350,
+            "y": 300,
+            "color": "#95a5a6",
+            "value": 1,
+            "category": "kinase"
+        },
+        {
+            "id": "MDM2",
+            "name": "MDM2",
+            "x": 450,
+            "y": 350,
+            "color": "#95a5a6",
+            "value": 1,
+            "category": "regulator"
+        },
+        {
+            "id": "MDM4",
+            "name": "MDM4",
+            "x": 450,
+            "y": 430,
+            "color": "#95a5a6",
+            "value": 1,
+            "category": "regulator"
+        },
+        {
+            "id": "TP53",
+            "name": "p53",
+            "x": 550,
+            "y": 250,
+            "color": "#3498db",
+            "value": 2,
+            "category": "tumor_suppressor"
+        },
+        {
+            "id": "CDKN1A",
+            "name": "p21",
+            "x": 700,
+            "y": 100,
+            "color": "#95a5a6",
+            "value": 1,
+            "category": "cell_cycle"
+        },
+        {
+            "id": "GADD45A",
+            "name": "GADD45",
+            "x": 700,
+            "y": 180,
+            "color": "#95a5a6",
+            "value": 1,
+            "category": "cell_cycle"
+        },
+        {
+            "id": "CDK2",
+            "name": "CDK2",
+            "x": 850,
+            "y": 100,
+            "color": "#95a5a6",
+            "value": 1,
+            "category": "cell_cycle"
+        },
+        {
+            "id": "CDK4",
+            "name": "CDK4",
+            "x": 850,
+            "y": 180,
+            "color": "#95a5a6",
+            "value": 1,
+            "category": "cell_cycle"
+        },
+        {
+            "id": "CCNE1",
+            "name": "Cyclin E",
+            "x": 850,
+            "y": 50,
+            "color": "#95a5a6",
+            "value": 1,
+            "category": "cell_cycle"
+        },
+        {
+            "id": "G1_S_ARREST",
+            "name": "G1/S Arrest",
+            "x": 1000,
+            "y": 140,
+            "color": "#27ae60",
+            "value": 1,
+            "category": "outcome"
+        },
+        {
+            "id": "14-3-3-SIGMA",
+            "name": "14-3-3σ",
+            "x": 700,
+            "y": 260,
+            "color": "#95a5a6",
+            "value": 1,
+            "category": "cell_cycle"
+        },
+        {
+            "id": "CDC2",
+            "name": "CDC2",
+            "x": 850,
+            "y": 260,
+            "color": "#95a5a6",
+            "value": 1,
+            "category": "cell_cycle"
+        },
+        {
+            "id": "G2_M_ARREST",
+            "name": "G2/M Arrest",
+            "x": 1000,
+            "y": 260,
+            "color": "#27ae60",
+            "value": 1,
+            "category": "outcome"
+        },
+        {
+            "id": "BAX",
+            "name": "BAX",
+            "x": 700,
+            "y": 340,
+            "color": "#95a5a6",
+            "value": 1,
+            "category": "apoptosis"
+        },
+        {
+            "id": "PUMA",
+            "name": "PUMA",
+            "x": 700,
+            "y": 410,
+            "color": "#95a5a6",
+            "value": 1,
+            "category": "apoptosis"
+        },
+        {
+            "id": "NOXA",
+            "name": "NOXA",
+            "x": 700,
+            "y": 480,
+            "color": "#95a5a6",
+            "value": 1,
+            "category": "apoptosis"
+        },
+        {
+            "id": "FAS",
+            "name": "FAS",
+            "x": 700,
+            "y": 550,
+            "color": "#95a5a6",
+            "value": 1,
+            "category": "apoptosis"
+        },
+        {
+            "id": "APAF1",
+            "name": "APAF1",
+            "x": 850,
+            "y": 410,
+            "color": "#95a5a6",
+            "value": 1,
+            "category": "apoptosis"
+        },
+        {
+            "id": "CYCS",
+            "name": "Cyt c",
+            "x": 850,
+            "y": 340,
+            "color": "#95a5a6",
+            "value": 1,
+            "category": "apoptosis"
+        },
+        {
+            "id": "CASP9",
+            "name": "Caspase-9",
+            "x": 1000,
+            "y": 375,
+            "color": "#95a5a6",
+            "value": 1,
+            "category": "apoptosis"
+        },
+        {
+            "id": "APOPTOSIS",
+            "name": "Apoptosis",
+            "x": 1150,
+            "y": 410,
+            "color": "#e74c3c",
+            "value": 1,
+            "category": "outcome"
+        },
+        {
+            "id": "IGF1",
+            "name": "IGF-1",
+            "x": 250,
+            "y": 500,
+            "color": "#95a5a6",
+            "value": 1,
+            "category": "growth"
+        },
+        {
+            "id": "TSC2",
+            "name": "TSC2",
+            "x": 350,
+            "y": 500,
+            "color": "#95a5a6",
+            "value": 1,
+            "category": "growth"
+        },
+        {
+            "id": "MTOR",
+            "name": "mTOR",
+            "x": 450,
+            "y": 500,
+            "color": "#95a5a6",
+            "value": 1,
+            "category": "growth"
+        },
+        {
+            "id": "IGF1R",
+            "name": "IGF-1R",
+            "x": 450,
+            "y": 570,
+            "color": "#95a5a6",
+            "value": 1,
+            "category": "growth"
+        },
+        {
+            "id": "SERPINE1",
+            "name": "PAI-1",
+            "x": 700,
+            "y": 620,
+            "color": "#95a5a6",
+            "value": 1,
+            "category": "angiogenesis"
+        },
+        {
+            "id": "THBS1",
+            "name": "TSP-1",
+            "x": 700,
+            "y": 690,
+            "color": "#95a5a6",
+            "value": 1,
+            "category": "angiogenesis"
+        },
+        {
+            "id": "ANGIOGENESIS_INH",
+            "name": "Angiogenesis ↓",
+            "x": 850,
+            "y": 655,
+            "color": "#27ae60",
+            "value": 1,
+            "category": "outcome"
+        },
+        {
+            "id": "DDB2",
+            "name": "DDB2",
+            "x": 700,
+            "y": 760,
+            "color": "#95a5a6",
+            "value": 1,
+            "category": "repair"
+        },
+        {
+            "id": "XPC",
+            "name": "XPC",
+            "x": 850,
+            "y": 760,
+            "color": "#95a5a6",
+            "value": 1,
+            "category": "repair"
+        },
+        {
+            "id": "DNA_REPAIR",
+            "name": "DNA Repair",
+            "x": 1000,
+            "y": 760,
+            "color": "#27ae60",
+            "value": 1,
+            "category": "outcome"
+        }
+    ],
+    "edges": [
+        {
+            "source": "DNA_DAMAGE",
+            "target": "ATM",
+            "relation": "activation"
+        },
+        {
+            "source": "DNA_DAMAGE",
+            "target": "ATR",
+            "relation": "activation"
+        },
+        {
+            "source": "HYPOXIA",
+            "target": "TP53",
+            "relation": "activation"
+        },
+        {
+            "source": "ONCOGENE",
+            "target": "TP53",
+            "relation": "activation"
+        },
+        {
+            "source": "ATM",
+            "target": "CHEK2",
+            "relation": "phosphorylation"
+        },
+        {
+            "source": "ATR",
+            "target": "CHEK1",
+            "relation": "phosphorylation"
+        },
+        {
+            "source": "CHEK1",
+            "target": "TP53",
+            "relation": "phosphorylation"
+        },
+        {
+            "source": "CHEK2",
+            "target": "TP53",
+            "relation": "phosphorylation"
+        },
+        {
+            "source": "ATM",
+            "target": "TP53",
+            "relation": "phosphorylation"
+        },
+        {
+            "source": "CHEK1",
+            "target": "MDM2",
+            "relation": "phosphorylation"
+        },
+        {
+            "source": "CHEK2",
+            "target": "MDM2",
+            "relation": "phosphorylation"
+        },
+        {
+            "source": "MDM2",
+            "target": "TP53",
+            "relation": "inhibition"
+        },
+        {
+            "source": "MDM4",
+            "target": "TP53",
+            "relation": "inhibition"
+        },
+        {
+            "source": "TP53",
+            "target": "MDM2",
+            "relation": "transcription"
+        },
+        {
+            "source": "TP53",
+            "target": "CDKN1A",
+            "relation": "transcription"
+        },
+        {
+            "source": "TP53",
+            "target": "GADD45A",
+            "relation": "transcription"
+        },
+        {
+            "source": "CDKN1A",
+            "target": "CDK2",
+            "relation": "inhibition"
+        },
+        {
+            "source": "CDKN1A",
+            "target": "CDK4",
+            "relation": "inhibition"
+        },
+        {
+            "source": "CCNE1",
+            "target": "CDK2",
+            "relation": "activation"
+        },
+        {
+            "source": "CDK2",
+            "target": "G1_S_ARREST",
+            "relation": "regulation"
+        },
+        {
+            "source": "CDK4",
+            "target": "G1_S_ARREST",
+            "relation": "regulation"
+        },
+        {
+            "source": "GADD45A",
+            "target": "G1_S_ARREST",
+            "relation": "regulation"
+        },
+        {
+            "source": "TP53",
+            "target": "14-3-3-SIGMA",
+            "relation": "transcription"
+        },
+        {
+            "source": "14-3-3-SIGMA",
+            "target": "CDC2",
+            "relation": "inhibition"
+        },
+        {
+            "source": "CDC2",
+            "target": "G2_M_ARREST",
+            "relation": "regulation"
+        },
+        {
+            "source": "TP53",
+            "target": "BAX",
+            "relation": "transcription"
+        },
+        {
+            "source": "TP53",
+            "target": "PUMA",
+            "relation": "transcription"
+        },
+        {
+            "source": "TP53",
+            "target": "NOXA",
+            "relation": "transcription"
+        },
+        {
+            "source": "TP53",
+            "target": "FAS",
+            "relation": "transcription"
+        },
+        {
+            "source": "TP53",
+            "target": "APAF1",
+            "relation": "transcription"
+        },
+        {
+            "source": "BAX",
+            "target": "CYCS",
+            "relation": "release"
+        },
+        {
+            "source": "CYCS",
+            "target": "APAF1",
+            "relation": "activation"
+        },
+        {
+            "source": "APAF1",
+            "target": "CASP9",
+            "relation": "activation"
+        },
+        {
+            "source": "CASP9",
+            "target": "APOPTOSIS",
+            "relation": "leads_to"
+        },
+        {
+            "source": "FAS",
+            "target": "APOPTOSIS",
+            "relation": "leads_to"
+        },
+        {
+            "source": "PUMA",
+            "target": "APOPTOSIS",
+            "relation": "leads_to"
+        },
+        {
+            "source": "IGF1",
+            "target": "IGF1R",
+            "relation": "binding"
+        },
+        {
+            "source": "IGF1R",
+            "target": "MTOR",
+            "relation": "activation"
+        },
+        {
+            "source": "TP53",
+            "target": "TSC2",
+            "relation": "transcription"
+        },
+        {
+            "source": "TP53",
+            "target": "IGF1R",
+            "relation": "inhibition"
+        },
+        {
+            "source": "TSC2",
+            "target": "MTOR",
+            "relation": "inhibition"
+        },
+        {
+            "source": "TP53",
+            "target": "SERPINE1",
+            "relation": "transcription"
+        },
+        {
+            "source": "TP53",
+            "target": "THBS1",
+            "relation": "transcription"
+        },
+        {
+            "source": "SERPINE1",
+            "target": "ANGIOGENESIS_INH",
+            "relation": "leads_to"
+        },
+        {
+            "source": "THBS1",
+            "target": "ANGIOGENESIS_INH",
+            "relation": "leads_to"
+        },
+        {
+            "source": "TP53",
+            "target": "DDB2",
+            "relation": "transcription"
+        },
+        {
+            "source": "TP53",
+            "target": "XPC",
+            "relation": "transcription"
+        },
+        {
+            "source": "DDB2",
+            "target": "DNA_REPAIR",
+            "relation": "leads_to"
+        },
+        {
+            "source": "XPC",
+            "target": "DNA_REPAIR",
+            "relation": "leads_to"
+        }
+    ],
+    "categories": [
+        {
+            "name": "stress",
+            "color": "#e74c3c"
+        },
+        {
+            "name": "kinase",
+            "color": "#9b59b6"
+        },
+        {
+            "name": "regulator",
+            "color": "#f39c12"
+        },
+        {
+            "name": "tumor_suppressor",
+            "color": "#3498db"
+        },
+        {
+            "name": "cell_cycle",
+            "color": "#1abc9c"
+        },
+        {
+            "name": "apoptosis",
+            "color": "#e67e22"
+        },
+        {
+            "name": "growth",
+            "color": "#2ecc71"
+        },
+        {
+            "name": "angiogenesis",
+            "color": "#16a085"
+        },
+        {
+            "name": "repair",
+            "color": "#8e44ad"
+        },
+        {
+            "name": "outcome",
+            "color": "#27ae60"
+        }
+    ]
+}

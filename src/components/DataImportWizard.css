@@ -16,16 +16,15 @@
     justify-content: space-between;
     padding: 16px 32px;
     border-bottom: 1px solid var(--border-subtle);
-    background: rgba(11, 14, 20, 0.8);
+    background: rgba(11, 14, 20, 0.92);
     backdrop-filter: blur(10px);
 }
 
 .wizard-title {
-    font-size: 20px;
-    font-weight: 700;
-    background: linear-gradient(90deg, #60a5fa, #818cf8);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-primary);
+    letter-spacing: 0.04em;
     margin: 0;
 }
 
@@ -66,20 +65,20 @@
 }
 
 .section-header {
-    text-align: center;
+    text-align: left;
     margin-bottom: 16px;
 }
 
 .section-header h3 {
-    font-size: 24px;
-    font-weight: 300;
+    font-size: 18px;
+    font-weight: 600;
     margin-bottom: 8px;
     color: var(--text-primary);
 }
 
 .section-header p {
     color: var(--text-secondary);
-    font-size: 14px;
+    font-size: 13px;
 }
 
 /* Step 1: Upload Extras */
@@ -141,17 +140,31 @@
 
 .select-input {
     width: 100%;
-    background: var(--bg-app);
+    appearance: none;
+    background-color: rgba(15, 23, 42, 0.9);
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 16px;
     border: 1px solid var(--border-subtle);
-    border-radius: 8px;
-    padding: 12px;
+    border-radius: 10px;
+    padding: 10px 14px;
+    padding-right: 40px;
     color: var(--text-primary);
     font-size: 14px;
     outline: none;
+    transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .select-input:focus {
     border-color: var(--brand-primary);
+    box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.35);
+    background-color: rgba(15, 23, 42, 1);
+}
+
+.select-input:hover {
+    border-color: var(--brand-primary);
+    background-color: rgba(15, 23, 42, 0.95);
 }
 
 .mapping-hint {
@@ -162,17 +175,35 @@
 
 .analysis-methods-group {
     display: flex;
-    flex-direction: column;
-    gap: 6px;
-    margin-top: 4px;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 6px;
 }
 
 .analysis-methods-group .checkbox-row {
-    display: flex;
+    display: inline-flex;
     align-items: center;
     gap: 8px;
     font-size: 13px;
     color: var(--text-secondary);
+    padding: 6px 12px;
+    border-radius: 999px;
+    border: 1px solid var(--border-subtle);
+    background: rgba(15, 23, 42, 0.9);
+    cursor: pointer;
+    transition: border-color 0.15s ease, background-color 0.15s ease, transform 0.1s ease;
+}
+
+.analysis-methods-group .checkbox-row input[type="checkbox"] {
+    width: 14px;
+    height: 14px;
+    accent-color: var(--brand-primary);
+}
+
+.analysis-methods-group .checkbox-row:hover {
+    border-color: var(--brand-primary);
+    background: rgba(30, 64, 175, 0.35);
+    transform: translateY(-1px);
 }
 
 .raw-matrix-hint {
@@ -188,6 +219,76 @@
 .raw-matrix-group {
     color: #bfdbfe;
     font-weight: 500;
+}
+
+.raw-value-placeholder {
+    font-size: 12px;
+    color: var(--text-secondary);
+    background: rgba(15, 23, 42, 0.85);
+    border-radius: 8px;
+    padding: 10px 12px;
+    border: 1px dashed var(--border-subtle);
+    line-height: 1.5;
+}
+
+.raw-value-toggle {
+    display: inline-flex;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.raw-toggle-btn {
+    padding: 8px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border-subtle);
+    background: rgba(15, 23, 42, 0.85);
+    color: var(--text-secondary);
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.raw-toggle-btn.active {
+    border-color: var(--brand-primary);
+    background: rgba(59, 130, 246, 0.15);
+    color: var(--text-primary);
+}
+
+.raw-select-group {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 12px;
+    margin-top: 8px;
+}
+
+.raw-select-column {
+    border: 1px solid var(--border-subtle);
+    border-radius: 10px;
+    padding: 10px;
+    background: rgba(15, 23, 42, 0.9);
+}
+
+.raw-select-title {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+    font-weight: 600;
+}
+
+.raw-select-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 160px;
+    overflow-y: auto;
+}
+
+.raw-select-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--text-primary);
 }
 
 /* Preview Table */

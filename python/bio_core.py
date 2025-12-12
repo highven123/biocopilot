@@ -534,6 +534,11 @@ def handle_analyze(payload: Dict[str, Any]) -> Dict[str, Any]:
         gene_col = mapping['gene']
         value_col = mapping['value']
         pvalue_col = mapping.get('pvalue')  # Optional P-value column
+        control_cols = mapping.get("controlCols") or mapping.get("control_cols") or []
+        treat_cols = mapping.get("treatCols") or mapping.get("treat_cols") or []
+        # Normalize list of control/experiment columns if provided
+        control_cols = [str(c) for c in control_cols if isinstance(c, (str, int))]
+        treat_cols = [str(c) for c in treat_cols if isinstance(c, (str, int))]
         
         # Filter thresholds with defaults
         pvalue_threshold = float(filters.get('pvalue_threshold', 0.05))
@@ -628,7 +633,16 @@ def handle_analyze(payload: Dict[str, Any]) -> Dict[str, Any]:
                         break
 
                 # Detect replicate groups for potential Raw matrix mode
-                control_idx, treat_idx = infer_control_treat_indices(headers, gene_idx)
+                if control_cols and treat_cols:
+                    control_idx = [headers.index(c) for c in control_cols if c in headers]
+                    treat_idx = [headers.index(c) for c in treat_cols if c in headers]
+                    if not control_idx or not treat_idx:
+                        return {
+                            "status": "error",
+                            "message": f"Selected control/experiment columns not found in headers: {headers}"
+                        }
+                else:
+                    control_idx, treat_idx = infer_control_treat_indices(headers, gene_idx)
 
                 if method == "precomputed":
                     use_raw_mode = False
@@ -639,7 +653,10 @@ def handle_analyze(payload: Dict[str, Any]) -> Dict[str, Any]:
                         control_idx
                         and treat_idx
                         and not pvalue_idx
-                        and not looks_like_logfc(value_col)
+                        and (
+                            value_col == '__raw_matrix__'
+                            or not looks_like_logfc(value_col)
+                        )
                     )
 
                 if use_raw_mode:

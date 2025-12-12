@@ -15,6 +15,8 @@ interface FileDropZoneProps {
 }
 
 import { listen } from '@tauri-apps/api/event';
+import { ScientificIcon } from './ScientificIcon';
+import './FileDropZone.css';
 
 export const FileDropZone: React.FC<FileDropZoneProps> = ({ onLoadSuccess, addLog }) => {
     const [loading, setLoading] = React.useState(false);
@@ -149,77 +151,37 @@ export const FileDropZone: React.FC<FileDropZoneProps> = ({ onLoadSuccess, addLo
     // Phase 1: Data Type Selection
     if (!dataType) {
         return (
-            <div className="dtype-selection-container" style={{
-                height: '400px',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'center',
-                alignItems: 'center',
-                gap: '24px'
-            }}>
-                <h3 style={{ color: 'var(--text-primary)', marginBottom: '8px' }}>
+            <div className="dtype-selection-container">
+                <h3 className="dtype-title">
                     Select Data Type
                 </h3>
-                <p style={{ color: 'var(--text-secondary)', marginBottom: '16px' }}>
-                    Choose the type of biological data you are analyzing to ensure correct mapping.
+                <p className="dtype-subtitle">
+                    Choose what kind of biological data you are uploading so BioViz can apply the right defaults.
                 </p>
 
-                <div className="dtype-grid" style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(3, 1fr)',
-                    gap: '16px',
-                    width: '100%',
-                    maxWidth: '800px'
-                }}>
-                    <button onClick={() => setDataType('gene')} style={{
-                        padding: '32px',
-                        backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                        border: '1px solid rgba(255, 255, 255, 0.1)',
-                        borderRadius: '12px',
-                        color: 'var(--text-primary)',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        gap: '12px',
-                        transition: 'all 0.2s'
-                    }} className="dtype-card">
-                        <span style={{ fontSize: '32px' }}>🧬</span>
-                        <span style={{ fontWeight: 600 }}>Transcriptomics</span>
+                <div className="dtype-grid">
+                    <button onClick={() => setDataType('gene')} className="dtype-card">
+                        <div className="dtype-badge">RNA</div>
+                        <div className="dtype-text">
+                            <span className="dtype-label">Transcriptomics</span>
+                            <span className="dtype-caption">Gene expression (bulk / single‑cell)</span>
+                        </div>
                     </button>
 
-                    <button onClick={() => setDataType('protein')} style={{
-                        padding: '32px',
-                        backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                        border: '1px solid rgba(255, 255, 255, 0.1)',
-                        borderRadius: '12px',
-                        color: 'var(--text-primary)',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        gap: '12px',
-                        transition: 'all 0.2s'
-                    }} className="dtype-card">
-                        <span style={{ fontSize: '32px' }}>🧪</span>
-                        <span style={{ fontWeight: 600 }}>Proteomics</span>
+                    <button onClick={() => setDataType('protein')} className="dtype-card">
+                        <div className="dtype-badge">PROT</div>
+                        <div className="dtype-text">
+                            <span className="dtype-label">Proteomics</span>
+                            <span className="dtype-caption">Protein abundance or ratios</span>
+                        </div>
                     </button>
 
-                    <button onClick={() => setDataType('cell')} style={{
-                        padding: '32px',
-                        backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                        border: '1px solid rgba(255, 255, 255, 0.1)',
-                        borderRadius: '12px',
-                        color: 'var(--text-primary)',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        gap: '12px',
-                        transition: 'all 0.2s'
-                    }} className="dtype-card">
-                        <span style={{ fontSize: '32px' }}>🩸</span>
-                        <span style={{ fontWeight: 600 }}>Flow Cytometry</span>
+                    <button onClick={() => setDataType('cell')} className="dtype-card">
+                        <div className="dtype-badge">FLOW</div>
+                        <div className="dtype-text">
+                            <span className="dtype-label">Flow Cytometry</span>
+                            <span className="dtype-caption">Cell population frequencies</span>
+                        </div>
                     </button>
                 </div>
             </div>
@@ -228,48 +190,30 @@ export const FileDropZone: React.FC<FileDropZoneProps> = ({ onLoadSuccess, addLo
 
     // Phase 2: File Upload (Specific to selected Type)
     const typeLabels = {
-        'gene': { icon: '🧬', text: 'Transcriptomics' },
-        'protein': { icon: '🧪', text: 'Proteomics' },
-        'cell': { icon: '🩸', text: 'Flow Cytometry' }
+        'gene': { icon: 'gene', text: 'Gene Expression' },
+        'protein': { icon: 'protein', text: 'Proteomics' },
+        'cell': { icon: 'cell', text: 'Flow Cytometry' }
     };
     const currentLabel = typeLabels[dataType];
 
     return (
-        <div className="file-drop-zone-container" style={{ width: '100%', height: '100%', position: 'relative' }}>
+        <div className="file-drop-zone-container">
             {/* Back Button */}
             <button
                 onClick={(e) => { e.stopPropagation(); setDataType(null); }}
-                style={{
-                    position: 'absolute',
-                    top: '16px',
-                    left: '16px',
-                    padding: '8px 16px',
-                    background: 'none',
-                    border: '1px solid rgba(255,255,255,0.2)',
-                    borderRadius: '6px',
-                    color: 'var(--text-secondary)',
-                    cursor: 'pointer',
-                    zIndex: 10
-                }}
+                className="file-drop-back-btn"
             >
-                ← Change Data Type
+                <span>←</span>
+                <span>Change Data Type</span>
             </button>
 
             <div
                 {...getRootProps()}
                 onClick={onContainerClick}
+                className="file-drop-zone"
                 style={{
-                    height: '400px',
-                    border: '2px dashed rgba(255, 255, 255, 0.2)',
-                    borderRadius: 'var(--radius-md)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    backgroundColor: isDragActive ? 'rgba(59, 130, 246, 0.1)' : 'rgba(255, 255, 255, 0.02)',
-                    borderColor: isDragActive ? 'var(--accent-primary)' : 'rgba(255, 255, 255, 0.2)',
-                    transition: 'all 0.2s',
-                    cursor: 'pointer'
+                    backgroundColor: isDragActive ? 'rgba(37, 99, 235, 0.24)' : 'rgba(15, 23, 42, 0.72)',
+                    borderColor: isDragActive ? 'var(--brand-primary)' : 'rgba(148, 163, 184, 0.6)',
                 }}
             >
                 <input {...getInputProps()} />
@@ -288,7 +232,7 @@ export const FileDropZone: React.FC<FileDropZoneProps> = ({ onLoadSuccess, addLo
                             alignItems: 'center',
                             gap: '8px'
                         }}>
-                            <span style={{ fontSize: '48px', opacity: 0.8 }}>{currentLabel.icon}</span>
+                            <ScientificIcon icon={currentLabel.icon} size={64} />
                             <span style={{
                                 fontSize: '14px',
                                 color: 'var(--accent-primary)',
@@ -300,24 +244,13 @@ export const FileDropZone: React.FC<FileDropZoneProps> = ({ onLoadSuccess, addLo
                             </span>
                         </div>
 
-                        <h3 style={{ color: 'var(--text-primary)', marginBottom: '8px' }}>
+                        <h3 className="file-drop-main-title">
                             Drag & Drop your {currentLabel.text} File
                         </h3>
-                        <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginBottom: '24px' }}>
-                            Supports .xlsx, .csv
+                        <p className="file-drop-subtitle">
+                            Supports .xlsx and .csv — or click anywhere in this panel.
                         </p>
-                        <button style={{
-                            pointerEvents: 'none',
-                            backgroundColor: '#ffffff',
-                            color: '#000000',
-                            border: 'none',
-                            padding: '12px 32px',
-                            fontSize: '15px',
-                            fontWeight: 600,
-                            borderRadius: '8px',
-                            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-                            marginTop: '12px'
-                        }}>
+                        <button className="file-drop-cta">
                             Choose File
                         </button>
                     </div>

@@ -6,12 +6,14 @@ import { EvidencePanel, GeneDetail } from './components/EvidencePanel';
 import { PathwayVisualizer, PathwayVisualizerRef } from './components/PathwayVisualizer';
 import { DataTable } from './components/DataTable';
 import { WorkflowBreadcrumb, WorkflowStep } from './components/WorkflowBreadcrumb';
+import { SplashScreen } from './components/SplashScreen'; // New Import
 import { ENTITY_META, resolveEntityKind, EntityKind } from './entityTypes';
 import { openPath } from '@tauri-apps/plugin-opener';
 import { save, ask } from '@tauri-apps/plugin-dialog';
 import { writeTextFile } from '@tauri-apps/plugin-fs';
 import './App.css';
 
+// ... (Types remain same) ...
 // --- Types ---
 interface PathwayData {
   id: string;
@@ -42,6 +44,8 @@ function getBaseName(filePath: string | undefined | null): string {
 }
 
 function App() {
+  const [showSplash, setShowSplash] = useState(true); // Splash State
+
   const { isConnected, isLoading: engineLoading, lastResponse, sendCommand } = useBioEngine();
 
   // --- State ---
@@ -300,8 +304,13 @@ function App() {
 
   // --- Render ---
 
+  if (showSplash) {
+    return <SplashScreen onEnter={() => setShowSplash(false)} />;
+  }
+
   return (
     <div className="workbench-container">
+      {/* ... keeping the rest of the layout same ... */}
 
       {/* Header */}
       <header className="app-header">
@@ -377,23 +386,13 @@ function App() {
         {/* Left Panel: Volcano / Data Table */}
         <div className="panel-col" style={{ borderRight: '1px solid var(--border-subtle)' }}>
           <div className="panel-header" style={{ justifyContent: 'space-between', paddingRight: '12px' }}>
-            <div style={{ display: 'flex', gap: '8px' }}>
+            <div className="left-panel-toggle-group">
               <button
                 onClick={() => { setLeftPanelView('chart'); setChartViewMode('volcano'); }}
-                style={{
-                  background: leftPanelView === 'chart' && chartViewMode === 'volcano' ? 'var(--border-subtle)' : 'transparent',
-                  border: 'none',
-                  color: leftPanelView === 'chart' && chartViewMode === 'volcano' ? 'var(--text-primary)' : 'var(--text-dim)',
-                  padding: '2px 8px',
-                  borderRadius: '4px',
-                  fontSize: '11px',
-                  fontWeight: 600,
-                  cursor: 'pointer'
-                }}
+                className={`left-toggle-btn ${leftPanelView === 'chart' && chartViewMode === 'volcano' ? 'active' : ''}`}
               >
-                🌋 Volcano
+                Volcano
               </button>
-              {/** MA 视图仅在数据具备 mean 信息时可用 */}
               <button
                 onClick={() => {
                   if (!hasMAData) return;
@@ -401,53 +400,21 @@ function App() {
                   setChartViewMode('ma');
                 }}
                 disabled={!hasMAData}
-                style={{
-                  background: leftPanelView === 'chart' && chartViewMode === 'ma' ? 'var(--border-subtle)' : 'transparent',
-                  border: 'none',
-                  color: !hasMAData
-                    ? 'var(--text-muted)'
-                    : leftPanelView === 'chart' && chartViewMode === 'ma'
-                      ? 'var(--text-primary)'
-                      : 'var(--text-dim)',
-                  padding: '2px 8px',
-                  borderRadius: '4px',
-                  fontSize: '11px',
-                  fontWeight: 600,
-                  cursor: !hasMAData ? 'default' : 'pointer',
-                  opacity: !hasMAData ? 0.5 : 1
-                }}
+                className={`left-toggle-btn ${leftPanelView === 'chart' && chartViewMode === 'ma' ? 'active' : ''}`}
               >
                 MA
               </button>
               <button
                 onClick={() => { setLeftPanelView('chart'); setChartViewMode('ranked'); }}
-                style={{
-                  background: leftPanelView === 'chart' && chartViewMode === 'ranked' ? 'var(--border-subtle)' : 'transparent',
-                  border: 'none',
-                  color: leftPanelView === 'chart' && chartViewMode === 'ranked' ? 'var(--text-primary)' : 'var(--text-dim)',
-                  padding: '2px 8px',
-                  borderRadius: '4px',
-                  fontSize: '11px',
-                  fontWeight: 600,
-                  cursor: 'pointer'
-                }}
+                className={`left-toggle-btn ${leftPanelView === 'chart' && chartViewMode === 'ranked' ? 'active' : ''}`}
               >
                 Ranked
               </button>
               <button
                 onClick={() => setLeftPanelView('table')}
-                style={{
-                  background: leftPanelView === 'table' ? 'var(--border-subtle)' : 'transparent',
-                  border: 'none',
-                  color: leftPanelView === 'table' ? 'var(--text-primary)' : 'var(--text-dim)',
-                  padding: '2px 8px',
-                  borderRadius: '4px',
-                  fontSize: '11px',
-                  fontWeight: 600,
-                  cursor: 'pointer'
-                }}
+                className={`left-toggle-btn ${leftPanelView === 'table' ? 'active' : ''}`}
               >
-                📋 Data
+                Table
               </button>
             </div>
 
@@ -498,7 +465,7 @@ function App() {
         />
 
         {/* Center Panel: Pathway */}
-        <div className="panel-col" style={{ background: '#000' }}> {/* Darker bg for chart? Or var(--bg-panel)? ECharts theme is dark */}
+        <div className="panel-col" style={{ background: 'var(--bg-panel)' }}>
           <div className="panel-header">
             <span>Pathway Landscape</span>
 
@@ -577,6 +544,45 @@ function App() {
 
                   {/* Divider */}
                   <div style={{ width: '1px', height: '18px', background: 'var(--border-subtle)', margin: '0 4px' }} />
+
+                  <button
+                    onClick={async () => {
+                      const rawId = analysisData?.pathway?.id;
+                      if (!rawId) {
+                        alert('当前通路没有有效的 KEGG ID。');
+                        return;
+                      }
+
+                      // 规范化为 KEGG 通路 ID，例如 hsa04640
+                      const cleaned = rawId
+                        .replace(/^path:/i, '')
+                        .replace(/^ko:/i, '')
+                        .replace(/^hsa:/i, 'hsa')
+                        .trim();
+
+                      if (!/^hsa\d+$/i.test(cleaned)) {
+                        alert(`无法从当前 ID 推断 KEGG 通路：${rawId}`);
+                        return;
+                      }
+
+                      const url = `https://www.kegg.jp/pathway/${cleaned}`;
+                      try {
+                        await openPath(url);
+                      } catch (e) {
+                        alert('打开 KEGG 页面失败：' + e);
+                      }
+                    }}
+                    className="viz-tool-btn"
+                    style={{
+                      height: '28px',
+                      padding: '0 12px',
+                      fontSize: '12px',
+                      gap: '6px'
+                    }}
+                    title="在浏览器中打开 KEGG 通路页面（可在官网下载 PNG / PDF / KGML）"
+                  >
+                    KEGG
+                  </button>
 
                   <button
                     onClick={async () => {
