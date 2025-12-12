@@ -24,6 +24,7 @@ import json
 import logging
 import traceback
 import math
+from pathlib import Path
 from typing import Dict, Any, Optional, List, Tuple
 from mapper import color_kegg_pathway, get_pathway_statistics
 
@@ -858,6 +859,7 @@ def handle_color_pathway(payload: Dict[str, Any]) -> Dict[str, Any]:
         return {"status": "error", "message": "Missing 'gene_expression' data"}
     
     try:
+        colored_pathway = color_kegg_pathway(pathway_id, gene_expression)
         statistics = get_pathway_statistics(colored_pathway)
         
         return {
@@ -1013,6 +1015,8 @@ def process_command(command_obj: Dict[str, Any]) -> None:
             "ANALYZE": handle_analyze,
             "LOAD_PATHWAY": handle_load_pathway,
             "COLOR_PATHWAY": handle_color_pathway,
+            "SEARCH_PATHWAY": handle_search_pathways,
+            "DOWNLOAD_PATHWAY": handle_download_pathway,
         }
 
         # Handlers that send response directly (new style)
@@ -1103,6 +1107,284 @@ def run():
                 "traceback": traceback.format_exc()
             })
 
+
+
+# --- KEGG Search & Download ---
+
+def search_kegg_pathways(query: str) -> List[Dict[str, str]]:
+    """
+    Search KEGG pathways by query string.
+    Uses KEGG REST API: http://rest.kegg.jp/find/pathway/{query}
+    """
+    import urllib.request
+    import urllib.parse
+    
+    query = urllib.parse.quote(query)
+    url = f"http://rest.kegg.jp/find/pathway/{query}"
+    
+    results = []
+    try:
+        with urllib.request.urlopen(url, timeout=10) as response:
+            data = response.read().decode('utf-8')
+            for line in data.strip().split('\n'):
+                if not line: continue
+                parts = line.split('\t')
+                if len(parts) >= 2:
+                    kegg_id = parts[0].replace('path:', '')
+                    
+                    # Handle Reference Pathways (map) -> Convert to Human (hsa)
+                    if kegg_id.startswith('map'):
+                        kegg_id = kegg_id.replace('map', 'hsa')
+                    elif not kegg_id.startswith('hsa'):
+                        # Skip other organisms or ko/ec
+                        continue
+                        
+                    desc = parts[1]
+                    # Clean description "Name - Homo sapiens (human)" -> "Name"
+                    if ' - Homo sapiens' in desc:
+                        desc = desc.split(' - Homo sapiens')[0]
+                        
+                    results.append({
+                        "id": kegg_id,
+                        "name": desc,
+                        "description": desc # simple fallback
+                    })
+        return results
+    except Exception as e:
+        print(f"[BioEngine] Search failed: {e}", file=sys.stderr)
+        return []
+
+def kgml_to_json(kgml_content: str, pathway_id: str) -> Dict[str, Any]:
+    """
+    Parse KGML XML content into BioViz JSON template format.
+    """
+    import xml.etree.ElementTree as ET
+    
+    root = ET.fromstring(kgml_content)
+    
+    # Metadata
+    title = root.get('title', pathway_id)
+    image_url = root.get('image', '')
+    
+    nodes = []
+    edges = []
+    
+    # Map entry ID (integer) to graphical ID (e.g. gene symbol)
+    entry_id_map = {}
+    
+    # 1. Parse Entries (Nodes)
+    for entry in root.findall('entry'):
+        entry_id = entry.get('id')
+        entry_type = entry.get('type')
+        entry_name_raw = entry.get('name') # hsa:1234 hsa:5678
+        
+        # We only visualize genes and compounds for now
+        # "map" type entries are links to other pathways, we exclude or handle differently?
+        # For simplicity, let's keep gene, compound, ortholog
+        valid_types = ['gene', 'compound', 'ortholog', 'group']
+        if entry_type not in valid_types:
+            continue
+            
+        graphics = entry.find('graphics')
+        if graphics is None:
+            continue
+            
+        x_str = graphics.get('x')
+        y_str = graphics.get('y')
+        
+        if not x_str or not y_str:
+            continue
+            
+        try:
+            x = int(x_str)
+            y = int(y_str)
+        except ValueError:
+            continue
+            
+        # Get Display Name
+        # Graphics name often has the common name "TP53, P53..."
+        label = graphics.get('name')
+        if label:
+            label = label.split(',')[0].replace('...', '')
+        else:
+            label = entry_name_raw.split(' ')[0] if entry_name_raw else entry_id
+            
+        # Heuristic Category Mapping
+        category = "Gene"
+        fg_color = graphics.get('fgcolor') # KGML color hint?
+        
+        if entry_type == 'compound':
+            category = "Compound"
+        elif entry_type == 'group':
+            category = "Complex"
+        
+        # KGML coords are center-based. 
+        # Use internal_id as unique ID to avoid ECharts "duplicate name" error
+        # (Same gene can appear multiple times in a map)
+        
+        node = {
+            "id": entry_id, # Unique ID (e.g. "12")
+            "name": label, # Display Name (e.g. "AKT1")
+            "kegg_id": entry_name_raw, 
+            "x": x,
+            "y": y,
+            "category": category,
+            "internal_id": entry_id 
+        }
+        nodes.append(node)
+        entry_id_map[entry_id] = entry_id # Map to unique ID for edges
+        
+        # Handle Groups (Components)
+        for comp in entry.findall('component'):
+            comp_id = comp.get('id')
+            # Edge case handling...
+            
+    # 2. Parse Relations (Edges)
+    for rel in root.findall('relation'):
+        entry1 = rel.get('entry1')
+        entry2 = rel.get('entry2')
+        rel_type = rel.get('type')
+        
+        source = entry_id_map.get(entry1)
+        target = entry_id_map.get(entry2)
+        
+        # If one of the endpoints wasn't a valid node (e.g. a "map" link), skip
+        if not source or not target:
+            continue
+            
+        # Map KGML relation to our types
+        # GErel: expression
+        # PPrel: protein-protein interaction
+        # PCrel: protein-compound
+        
+        relation_str = "interaction"
+        subtype_el = rel.find('subtype')
+        if subtype_el is not None:
+             subtype_name = subtype_el.get('name')
+             # activation, inhibition, phosphorylation, ubiquitination...
+             if subtype_name in ['activation', 'expression', 'indirect effect']:
+                 relation_str = "activation"
+             elif subtype_name in ['inhibition', 'repression', 'dephosphorylation']:
+                 relation_str = "inhibition"
+             elif subtype_name in ['phosphorylation']:
+                 relation_str = "phosphorylation"
+             elif subtype_name in ['ubiquitination']:
+                 relation_str = "ubiquitination"
+             elif subtype_name in ['binding/association', 'complex']:
+                 relation_str = "binding"
+        
+        edge = {
+            "source": source,
+            "target": target,
+            "relation": relation_str
+        }
+        edges.append(edge)
+
+    # Construct final JSON
+    return {
+        "id": pathway_id,
+        "name": title,
+        "description": f"Imported from KEGG: {title}",
+        "nodes": nodes,
+        "edges": edges,
+        "categories": {
+            "Gene": "#3498db",
+            "Compound": "#f1c40f", 
+            "Complex": "#9b59b6",
+            "Unknown": "#95a5a6"
+        }
+    }
+
+
+def download_kegg_pathway(pathway_id: str) -> Dict[str, Any]:
+    """
+    Download KGML for pathway, parse to JSON, and save to assets.
+    """
+    import urllib.request
+    
+    # 1. Fetch KGML
+    url = f"http://rest.kegg.jp/get/{pathway_id}/kgml"
+    try:
+        print(f"[BioEngine] DownloadingKGML: {url}", file=sys.stderr)
+        with urllib.request.urlopen(url, timeout=15) as response:
+            kgml_content = response.read().decode('utf-8')
+    except Exception as e:
+         return {"status": "error", "message": f"Failed to download KGML: {str(e)}"}
+         
+    # 2. Parse
+    try:
+        template_json = kgml_to_json(kgml_content, pathway_id)
+    except Exception as e:
+        return {"status": "error", "message": f"Failed to parse KGML: {str(e)}"}
+        
+    # 3. Save to assets/templates
+    # Determine save path based on execution environment
+    try:
+        save_dir = None
+        
+        # If running from source (dev), save to source assets
+        # If running packaged, we might need a writable user data dir
+        # BUT user requested "update to templates".
+        # In a real packaged app, the bundle is READ-ONLY.
+        # We should really save to a user-writable Custom Templates folder.
+        # For this quick implementation/Dev mode, we try to find the source dir first?
+        # Or just return the JSON and let Frontend decide? 
+        # Requirement: "download to templates folder".
+        
+        # Let's try to locate the 'active' assets folder.
+        # In Dev: src/../assets/templates
+        # In Prod: We can't write to Program Files/App.app. 
+        # For now, let's just attempt to write to where we found other templates (mapper.py logic),
+        # but prioritize CWD or a writable location.
+        
+        # Simpler approach: Save to CWD/assets/templates or CWD.
+        # Ideally frontend passes the target path. 
+        # For now, let's infer 'local' dev path.
+        
+        possible_paths = [
+             Path(__file__).parent.parent / 'assets' / 'templates', # Dev
+             Path.cwd() / 'assets' / 'templates' # Standalone
+        ]
+        
+        target_dir = None
+        for p in possible_paths:
+            if p.exists():
+                target_dir = p
+                break
+                
+        if not target_dir:
+             # Create CWD assets
+             target_dir = Path.cwd() / 'assets' / 'templates'
+             target_dir.mkdir(parents=True, exist_ok=True)
+             
+        file_path = target_dir / f"{pathway_id}.json"
+        
+        with open(file_path, 'w', encoding='utf-8') as f:
+            json.dump(template_json, f, indent=4, ensure_ascii=False)
+            
+        return {
+            "status": "ok", 
+            "message": f"Saved to {file_path}", 
+            "path": str(file_path),
+            "template": template_json
+        }
+            
+    except Exception as e:
+        return {"status": "error", "message": f"Failed to save content: {str(e)}"}
+
+
+def handle_search_pathways(payload: Dict[str, Any]) -> Dict[str, Any]:
+    query = payload.get("query", "")
+    if not query:
+        return {"status": "error", "message": "No query provided"}
+    results = search_kegg_pathways(query)
+    return {"status": "ok", "results": results}
+
+def handle_download_pathway(payload: Dict[str, Any]) -> Dict[str, Any]:
+    pid = payload.get("id", "")
+    if not pid:
+         return {"status": "error", "message": "No pathway ID provided"}
+    return download_kegg_pathway(pid)
 
 if __name__ == "__main__":
     run()
