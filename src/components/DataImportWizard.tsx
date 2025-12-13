@@ -131,6 +131,13 @@ export const DataImportWizard: React.FC<DataImportWizardProps> = ({
 
     const updateStep = (next: 1 | 2 | 3) => {
         if (next === step) return;
+        // Reset state when going back to Step 1 (allows user to change data type)
+        if (next === 1) {
+            setUploadedFiles(null);
+            setBaseDataType(null);
+            setMapping(null);
+            setSelectedPathway('');
+        }
         setStep(next);
         onStepChange?.(next);
     };
