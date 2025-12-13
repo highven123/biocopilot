@@ -79,8 +79,8 @@ export const PathwayVisualizer = forwardRef<PathwayVisualizerRef, PathwayVisuali
         if (params.dataType === 'node') {
             if (!onNodeClick) return;
 
-            // 优先使用模板中的节点 id（通常是基因符号），
-            // 如果没有 id，则退回到 name，并处理多基因逗号分隔的情况。
+            // Prefer using template node id (usually gene symbol),
+            // if no id, fall back to name, and handle comma-separated multi-gene cases.
             const raw = (params.data && (params.data.hit_name || params.data.id || params.data.name)) || params.name;
             if (!raw) return;
             const primary = String(raw).split(',')[0].trim();
@@ -182,7 +182,7 @@ export const PathwayVisualizer = forwardRef<PathwayVisualizerRef, PathwayVisuali
             const baseSize = 28 + (node.value ? Math.min(Math.abs(node.value) * 3, 12) : 0);
 
             // Visual enhancement logic:
-            // 点击选中的节点变大，其它节点保持原始大小和亮度
+            // Selected nodes become larger, others keep original size and brightness
             const symbolSize = isSelected ? baseSize * 1.5 : baseSize;
             const opacity = 1.0;
             const borderColor = isDark ? '#fff' : '#333';
@@ -512,7 +512,7 @@ export const PathwayVisualizer = forwardRef<PathwayVisualizerRef, PathwayVisuali
         if (!chart) return;
 
         try {
-            // Use clean dark background for SVG export，并去掉工具栏
+            // Use clean dark background for SVG export, and remove toolbar
             const svgUrl = chart.getDataURL({
                 type: 'svg',
                 pixelRatio: 2,
@@ -536,7 +536,7 @@ export const PathwayVisualizer = forwardRef<PathwayVisualizerRef, PathwayVisuali
                 svgContent = decodeURIComponent(data); // Try decoding anyway
             }
 
-            // 在 SVG 中追加水印
+            // Append watermark to SVG
             let finalSvg = svgContent;
 
             // 1. Professional Footer (Always present, subtle)
@@ -673,10 +673,10 @@ export const PathwayVisualizer = forwardRef<PathwayVisualizerRef, PathwayVisuali
             const subTitleStyle = { x: 0.5, y: 3.5, w: 9, fontSize: 16, color: 'AAAAAA', align: 'center' as const };
             const sectionTitleStyle = { x: 0.5, y: 0.4, w: 9, fontSize: 24, bold: true, color: 'FFFFFF' };
 
-            // 统一的联系方式（轻量“水印”），放在每页右下角
+            // Unified contact info (subtle "watermark"), placed at bottom-right of each page
             const contactText = 'BioViz Local • bioviz@bioviz.com';
             const contactOptions = {
-                // 右下角，预留出页码的位置
+                // Bottom-right, leaving space for page number
                 x: 6.5,
                 y: 5.1,
                 w: 3.0,
@@ -700,7 +700,7 @@ export const PathwayVisualizer = forwardRef<PathwayVisualizerRef, PathwayVisuali
                     rotate: 45, align: 'center', valign: 'middle'
                 });
             }
-            // 每页右上角联系方式
+            // Top-right contact info on each page
             titleSlide.addText(contactText, contactOptions);
 
 
@@ -722,8 +722,8 @@ export const PathwayVisualizer = forwardRef<PathwayVisualizerRef, PathwayVisuali
             if (imgUrl && imgUrl.length > 100) {
                 slide2.addImage({
                     data: imgUrl,
-                    // 使用近似正方形区域承载路径图，视觉更紧凑
-                    x: 2.75,          // (10 - 4.5) / 2  居中
+                    // Use approximately square area for pathway image, more compact visually
+                    x: 2.75,          // (10 - 4.5) / 2 centered
                     y: 1.0,
                     w: 4.5,
                     h: 4.5,
@@ -783,7 +783,7 @@ export const PathwayVisualizer = forwardRef<PathwayVisualizerRef, PathwayVisuali
             const slide5 = pptx.addSlide({ masterName: 'DARK_THEME' });
             slide5.addText(getTerm(dataType, 'value') + ' Details', sectionTitleStyle);
 
-            // 仅展示 Top 20，保证一页内表格整齐、不会溢出
+            // Only show Top 20, to keep table neat and prevent overflow on one page
             const sortedNodes = [...nodes]
                 .filter(n => n.expression !== undefined && n.expression !== null)
                 .sort((a, b) => Math.abs(b.expression || 0) - Math.abs(a.expression || 0))

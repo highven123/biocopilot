@@ -32,11 +32,11 @@ interface DataImportWizardProps {
     addLog: (msg: string) => void;
     isConnected: boolean;
     sendCommand: (cmd: string, data?: Record<string, unknown>, waitForResponse?: boolean) => Promise<any>;
-    /** 当前步骤（1=Import,2=Map,3=Pathway），可由外部控制 */
+    /** Current step (1=Import, 2=Map, 3=Pathway), can be controlled externally */
     activeStep?: 1 | 2 | 3;
-    /** 步骤变化回调，用于同步外部导航 */
+    /** Step change callback, for syncing external navigation */
     onStepChange?: (step: 1 | 2 | 3) => void;
-    /** 将当前配置（如果已就绪）回传给父组件，用于从顶部 Step4 触发分析 */
+    /** Pass current config (if ready) back to parent component, for triggering analysis from top Step4 */
     onConfigPreview?: (config: AnalysisConfig | null) => void;
 }
 
@@ -106,7 +106,7 @@ export const DataImportWizard: React.FC<DataImportWizardProps> = ({
     const lastConfig = loadLastConfig();
     const canQuickLoad = !!lastConfig;
 
-    // 同步外部传入的 step（例如顶栏导航点击）
+    // Sync externally passed step (e.g., top nav bar click)
     useEffect(() => {
         if (activeStep && activeStep !== step) {
             setStep(activeStep);
@@ -186,7 +186,7 @@ export const DataImportWizard: React.FC<DataImportWizardProps> = ({
         if (merged.length === 0) return;
         setUploadedFiles(merged);
         updateStep(2);
-        // 上传完成但尚未映射/选路径，配置还不完整
+        // Upload complete but mapping/pathway not set, config is incomplete
         onConfigPreview?.(null);
     };
 
@@ -286,7 +286,7 @@ export const DataImportWizard: React.FC<DataImportWizardProps> = ({
         if (!selectedGeneCol) return;
         if (!uploadedFiles || uploadedFiles.length === 0) return;
 
-        // 对于原始矩阵（Ctrl_*/Exp_* 多列强度），支持自动或手动选择列。
+        // For raw matrix (Ctrl_*/Exp_* multi-column intensities), support auto or manual column selection.
         const effectiveValueCol = isRawMatrix ? '__raw_matrix__' : selectedValueCol;
         if (!effectiveValueCol) return;
 
@@ -377,14 +377,14 @@ export const DataImportWizard: React.FC<DataImportWizardProps> = ({
 
         setMapping(mappingPayload);
         updateStep(3);
-        // 映射确定但尚未选 pathway，配置仍不完整
+        // Mapping confirmed but pathway not selected, config still incomplete
         onConfigPreview?.(null);
     };
 
     // --- Step 3: Pathway ---
     const handlePathwaySelect = (pathwayId: string) => {
         setSelectedPathway(pathwayId);
-        // 当三个要素都齐了时，把配置预览回传给父组件
+        // When all three elements are ready, pass config preview back to parent
         emitConfigPreview(pathwayId);
     };
 
@@ -453,7 +453,7 @@ export const DataImportWizard: React.FC<DataImportWizardProps> = ({
                     <div className="step-wrapper">
                         <div className="section-header">
                             <h3>Map Columns</h3>
-                            <p>Specify which columns contain identifiers, effect size, and optional p-values. Tip: 在数据文件里用清晰的列名标记好基因/蛋白/细胞列和效应值/LogFC/P-value 列（行名请放在第一列），可避免导入时匹配失败。</p>
+                            <p>Specify which columns contain identifiers, effect size, and optional p-values. Tip: Use clear column names in your data file (e.g., Gene, LogFC, PValue) with row names in the first column to avoid mapping issues.</p>
                         </div>
 
                         <div className="file-list-card">

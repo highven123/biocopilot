@@ -278,12 +278,12 @@ function App() {
   const entityKind: EntityKind = activeAnalysis?.entityKind || 'gene';
   const entityLabels = ENTITY_META[entityKind];
 
-  // --- 是否有 MA 图所需的 mean 数据 ---
+  // --- Check if data has mean values for MA plot ---
   const hasMAData = !!activeAnalysis?.volcano_data?.some(
     (p) => typeof p.mean === 'number' && !Number.isNaN(p.mean)
   );
 
-  // 如果当前结果不支持 MA，但视图停留在 MA，则自动退回 Volcano
+  // If current result doesn't support MA but view is set to MA, auto-switch to Volcano
   useEffect(() => {
     if (activeAnalysis && !hasMAData && chartViewMode === 'ma') {
       setChartViewMode('volcano');
@@ -314,12 +314,12 @@ function App() {
       return;
     }
     if (step === 'viz') {
-      // 如果已经有分析结果，直接切换到可视化
+      // If analysis results exist, switch directly to visualization
       if (analysisResults.length > 0) {
         setWorkflowStep('viz');
         return;
       }
-      // 如果当前配置已经就绪（导入 + 映射 + 选 pathway），从顶部 Step4 触发分析
+      // If config is ready (import + mapping + pathway selected), trigger analysis from top Step4
       if (draftConfig) {
         handleAnalysisStart(draftConfig);
       }
@@ -479,8 +479,8 @@ function App() {
               leftPanelView === 'chart' ? (
                 chartViewMode === 'ma' && !hasMAData ? (
                   <div className="empty-state">
-                    当前数据没有平均表达量（如 BaseMean 或 Ctrl/Exp 分组），
-                    暂不支持 MA 图，请切换到 Volcano 或 Ranked 视图。
+                    Current data does not have mean expression values (e.g., BaseMean or Ctrl/Exp groups).
+                    MA plot is not supported. Please switch to Volcano or Ranked view.
                   </div>
                 ) : (
                   <VolcanoPlot

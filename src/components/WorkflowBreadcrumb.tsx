@@ -18,7 +18,7 @@ const STEPS: { key: WorkflowStep; label: string }[] = [
 ];
 
 export const WorkflowBreadcrumb: React.FC<Props> = ({ currentStep, onStepClick, ...props }) => {
-    // 简化的逻辑判断
+    // Simplified logic
     const stepOrder = ['upload', 'mapping', 'gallery', 'viz'];
     const currentIndex = stepOrder.indexOf(currentStep);
 

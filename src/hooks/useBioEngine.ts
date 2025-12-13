@@ -75,8 +75,8 @@ export function useBioEngine(): UseBioEngineReturn {
             unlistenOutput = await listen<string>('sidecar-output', (event) => {
                 const payload = event.payload ?? '';
 
-                // 有些情况下一条 stdout 事件里会包含多行 JSON，
-                // 这里按换行拆开逐条解析，避免整块解析失败。
+                // Sometimes a single stdout event contains multiple lines of JSON,
+                // split by newline and parse each line to avoid whole-block parse failure.
                 const lines = payload.split(/\r?\n/);
 
                 for (const rawLine of lines) {
@@ -139,7 +139,7 @@ export function useBioEngine(): UseBioEngineReturn {
                             setError(response.message || 'Unknown error');
                         }
                     } catch (e) {
-                        // 只对当前行记录错误，不影响后续行解析
+                        // Only log error for this line, don't affect parsing of following lines
                         console.error('[BioViz] Failed to parse response line:', e, line.slice(0, 200));
                     }
                 }

@@ -1,9 +1,9 @@
 export type EntityKind = 'gene' | 'protein' | 'cell' | 'other';
 
 export interface EntityLabels {
-  /** 单数形式：Gene / Protein / Cell / Marker */
+  /** Singular form: Gene / Protein / Cell / Marker */
   labelSingular: string;
-  /** 复数形式：Genes / Proteins / Cells / Markers */
+  /** Plural form: Genes / Proteins / Cells / Markers */
   labelPlural: string;
 }
 
@@ -35,8 +35,8 @@ export const ENTITY_META: Record<EntityKind, EntityMeta> = {
 };
 
 /**
- * 根据后端传来的 data_type / 前端 config.dataType 推断实体类型。
- * 不改动现有 IPC，只在前端做一层语义映射。
+ * Infer entity type based on backend data_type / frontend config.dataType.
+ * Does not modify existing IPC, only adds semantic mapping on frontend.
  */
 export function resolveEntityKind(
   pathwayDataType?: string,
@@ -59,8 +59,8 @@ export interface ExternalResource {
 }
 
 /**
- * 针对不同实体类型的外部资源入口。
- * 目前基因保留 NCBI / GeneCards，其余类型预留扩展位。
+ * External resource links for different entity types.
+ * Currently Gene uses NCBI / GeneCards, others reserved for future extension.
  */
 export const EXTERNAL_RESOURCES: Record<EntityKind, ExternalResource[]> = {
   gene: [
@@ -88,7 +88,7 @@ export const EXTERNAL_RESOURCES: Record<EntityKind, ExternalResource[]> = {
     },
   ],
   cell: [
-    // 预留位：例如 CellMarker / PanglaoDB 等
+    // Reserved: e.g., CellMarker / PanglaoDB
   ],
   other: [],
 };
