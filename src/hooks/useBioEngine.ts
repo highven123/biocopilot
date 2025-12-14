@@ -8,6 +8,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen, UnlistenFn } from '@tauri-apps/api/event';
+import { AIActionResponse, isProposal } from '../types/aiSafety';
 
 /** Response structure from the Python sidecar */
 export interface SidecarResponse {
@@ -30,12 +31,16 @@ export interface UseBioEngineReturn {
     lastResponse: SidecarResponse | null;
     /** Last error message */
     error: string | null;
+    /** Active AI PROPOSAL awaiting user confirmation (Safety Guard) */
+    activeProposal: AIActionResponse | null;
     /** Send a command to the Python sidecar */
     sendCommand: (cmd: string, data?: Record<string, unknown>, waitForResponse?: boolean) => Promise<SidecarResponse | void>;
     /** Send a heartbeat to check connection */
     checkHealth: () => Promise<boolean>;
     /** Restart the sidecar process */
     restartSidecar: () => Promise<void>;
+    /** Resolve (confirm or reject) an active proposal */
+    resolveProposal: (proposalId: string, accepted: boolean) => Promise<void>;
 }
 
 /**
@@ -55,6 +60,9 @@ export function useBioEngine(): UseBioEngineReturn {
     const [isLoading, setIsLoading] = useState(false);
     const [lastResponse, setLastResponse] = useState<SidecarResponse | null>(null);
     const [error, setError] = useState<string | null>(null);
+
+    // Safety Guard: Active PROPOSAL awaiting user confirmation
+    const [activeProposal, setActiveProposal] = useState<AIActionResponse | null>(null);
 
     type PendingRequest = {
         resolve: (response: SidecarResponse) => void;
@@ -86,6 +94,21 @@ export function useBioEngine(): UseBioEngineReturn {
                     try {
                         const response = JSON.parse(line) as SidecarResponse;
                         console.log('[BioViz] Sidecar JSON:', response);
+
+                        // ============================================
+                        // SAFETY GUARD: Intercept PROPOSAL actions
+                        // ============================================
+                        // If this is a PROPOSAL type (Yellow/Red Zone), 
+                        // STOP all normal processing and activate the Safety Guard.
+                        // The backend will NOT execute until we send CHAT_CONFIRM.
+                        const aiResponse = response as unknown as AIActionResponse;
+                        if (aiResponse.type === 'PROPOSAL' && isProposal(aiResponse)) {
+                            console.log('[BioViz] 🛡️ SAFETY GUARD: Intercepted PROPOSAL:', aiResponse.proposal_id);
+                            setActiveProposal(aiResponse);
+                            // Do NOT set as lastResponse - this is intercepted
+                            continue; // Skip normal processing for this message
+                        }
+                        // ============================================
 
                         setLastResponse(response);
                         setError(null);
@@ -315,14 +338,53 @@ export function useBioEngine(): UseBioEngineReturn {
         }
     }, []);
 
+    /**
+     * Resolve (confirm or reject) an active AI proposal.
+     * This is the ONLY way an AI_CONFIRM command can be sent.
+     * 
+     * @param proposalId The UUID of the proposal
+     * @param accepted True to confirm and execute, False to reject
+     */
+    const resolveProposal = useCallback(async (proposalId: string, accepted: boolean): Promise<void> => {
+        if (!activeProposal || activeProposal.proposal_id !== proposalId) {
+            console.warn('[BioViz] resolveProposal called with mismatched proposal ID');
+            setActiveProposal(null);
+            return;
+        }
+
+        if (accepted) {
+            // Send confirmation to backend - this is the ONLY way to execute Yellow Zone actions
+            console.log('[BioViz] 🟢 User CONFIRMED proposal:', proposalId);
+            try {
+                await sendCommand('CHAT_CONFIRM', { proposal_id: proposalId }, true);
+            } catch (e) {
+                console.error('[BioViz] Failed to confirm proposal:', e);
+                setError(`Failed to confirm proposal: ${e}`);
+            }
+        } else {
+            // User rejected - send rejection to backend for logging
+            console.log('[BioViz] 🔴 User REJECTED proposal:', proposalId);
+            try {
+                await sendCommand('CHAT_REJECT', { proposal_id: proposalId }, false);
+            } catch (e) {
+                console.error('[BioViz] Failed to reject proposal:', e);
+            }
+        }
+
+        // Clear the active proposal
+        setActiveProposal(null);
+    }, [activeProposal, sendCommand]);
+
     return {
         isConnected,
         isLoading,
         lastResponse,
         error,
+        activeProposal,
         sendCommand,
         checkHealth,
         restartSidecar,
+        resolveProposal,
     };
 }
 

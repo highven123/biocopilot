@@ -8,6 +8,7 @@ import { DataTable } from './components/DataTable';
 import { ResultTabs } from './components/ResultTabs';
 import { WorkflowBreadcrumb, WorkflowStep } from './components/WorkflowBreadcrumb';
 import { SplashScreen } from './components/SplashScreen'; // New Import
+import { SafetyGuardModal } from './components/SafetyGuardModal';
 import { ENTITY_META, resolveEntityKind, EntityKind } from './entityTypes';
 import { openPath } from '@tauri-apps/plugin-opener';
 import { save, ask } from '@tauri-apps/plugin-dialog';
@@ -48,7 +49,7 @@ function getBaseName(filePath: string | undefined | null): string {
 function App() {
   const [showSplash, setShowSplash] = useState(true); // Splash State
 
-  const { isConnected, isLoading: engineLoading, sendCommand } = useBioEngine();
+  const { isConnected, isLoading: engineLoading, sendCommand, activeProposal, resolveProposal } = useBioEngine();
 
   // --- State ---
   const [draftConfig, setDraftConfig] = useState<AnalysisConfig | null>(null);
@@ -356,6 +357,11 @@ function App() {
 
   return (
     <div className="workbench-container">
+      {/* SAFETY GUARD: Blocks all interaction when active */}
+      <SafetyGuardModal
+        proposal={activeProposal}
+        onRespond={resolveProposal}
+      />
       {/* ... keeping the rest of the layout same ... */}
 
       {/* Header */}
