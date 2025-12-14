@@ -1117,6 +1117,110 @@ def handle_load_analysis(payload: Dict[str, Any]) -> None:
         send_error(f"Failed to load analysis: {str(e)}")
 
 
+# ========================
+# AI Chat Handlers (Logic Lock)
+# ========================
+
+def handle_chat(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Process a user query through the AI Logic Lock system.
+    
+    Payload:
+        query: str - The user's message
+        history: list - Optional conversation history
+        context: dict - Optional context (e.g., current gene_expression data)
+    
+    Returns:
+        AIAction as dict with type: CHAT, EXECUTE, or PROPOSAL
+    """
+    try:
+        from ai_core import process_query
+        
+        query = payload.get("query", "")
+        history = payload.get("history", [])
+        context = payload.get("context", {})
+        
+        if not query:
+            return {"status": "error", "message": "Query is required"}
+        
+        action = process_query(query, history, context)
+        
+        return {
+            "status": "ok",
+            **action.model_dump()
+        }
+        
+    except ImportError as e:
+        return {
+            "status": "error",
+            "message": f"AI module not available: {str(e)}. Please install openai and pydantic."
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": f"AI error: {str(e)}"
+        }
+
+
+def handle_chat_confirm(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Confirm and execute a previously proposed action.
+    
+    Payload:
+        proposal_id: str - UUID of the proposal to confirm
+        context: dict - Optional context
+    """
+    try:
+        from ai_core import execute_proposal
+        
+        proposal_id = payload.get("proposal_id")
+        context = payload.get("context", {})
+        
+        if not proposal_id:
+            return {"status": "error", "message": "proposal_id is required"}
+        
+        action = execute_proposal(proposal_id, context)
+        
+        return {
+            "status": "ok",
+            **action.model_dump()
+        }
+        
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": f"Error confirming proposal: {str(e)}"
+        }
+
+
+def handle_chat_reject(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Reject a previously proposed action.
+    
+    Payload:
+        proposal_id: str - UUID of the proposal to reject
+    """
+    try:
+        from ai_core import reject_proposal
+        
+        proposal_id = payload.get("proposal_id")
+        
+        if not proposal_id:
+            return {"status": "error", "message": "proposal_id is required"}
+        
+        action = reject_proposal(proposal_id)
+        
+        return {
+            "status": "ok",
+            **action.model_dump()
+        }
+        
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": f"Error rejecting proposal: {str(e)}"
+        }
+
 def process_command(command_obj: Dict[str, Any]) -> None:
     """Route command to appropriate handler."""
     global CURRENT_REQUEST_ID, CURRENT_CMD
@@ -1137,6 +1241,10 @@ def process_command(command_obj: Dict[str, Any]) -> None:
             "COLOR_PATHWAY": handle_color_pathway,
             "SEARCH_PATHWAY": handle_search_pathways,
             "DOWNLOAD_PATHWAY": handle_download_pathway,
+            # AI Chat handlers (Logic Lock)
+            "CHAT": handle_chat,
+            "CHAT_CONFIRM": handle_chat_confirm,
+            "CHAT_REJECT": handle_chat_reject,
         }
 
         # Handlers that send response directly (new style)

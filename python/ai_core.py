@@ -1,0 +1,229 @@
+"""
+BioViz Local - AI Core Engine
+Implements the Logic Lock system using OpenAI SDK.
+"""
+
+import os
+import json
+import sys
+from typing import Any, Dict, List, Optional
+
+from openai import OpenAI
+from ai_protocol import AIAction, SafetyLevel, store_proposal
+from ai_tools import (
+    get_openai_tools_schema,
+    get_tool,
+    execute_tool,
+    get_green_zone_tools,
+    get_yellow_zone_tools
+)
+
+
+# --- Configuration ---
+
+def get_openai_client() -> OpenAI:
+    """
+    Initialize OpenAI client.
+    Supports:
+    - OpenAI API: Set OPENAI_API_KEY
+    - Local Ollama: Set OPENAI_BASE_URL=http://localhost:11434/v1
+    """
+    api_key = os.environ.get("OPENAI_API_KEY", "ollama")  # Default for Ollama
+    base_url = os.environ.get("OPENAI_BASE_URL")  # e.g., http://localhost:11434/v1
+    
+    if base_url:
+        return OpenAI(api_key=api_key, base_url=base_url)
+    else:
+        return OpenAI(api_key=api_key)
+
+
+def get_model_name() -> str:
+    """Get the model name to use."""
+    return os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
+
+
+# --- System Prompt ---
+
+SYSTEM_PROMPT = """You are BioViz AI, an intelligent assistant for biological pathway analysis.
+
+You help users:
+- Visualize gene expression data on KEGG pathways
+- Understand pathway statistics and biological significance
+- Navigate and explore pathway templates
+
+Available tools:
+- render_pathway: Color a pathway with expression data
+- get_pathway_stats: Get statistics for a pathway
+- list_pathways: List available pathway templates
+- explain_pathway: Describe what a pathway does
+- update_thresholds: Modify analysis thresholds (requires confirmation)
+- export_data: Export data to file (requires confirmation)
+
+When users ask about pathways or data visualization, use the appropriate tools.
+Be concise and helpful. Focus on biological insights."""
+
+
+# --- Main Processing Function ---
+
+def process_query(
+    user_query: str,
+    history: Optional[List[Dict[str, str]]] = None,
+    context: Optional[Dict[str, Any]] = None
+) -> AIAction:
+    """
+    Process a user query through the Logic Lock system.
+    
+    Args:
+        user_query: The user's message
+        history: Optional conversation history
+        context: Optional context (e.g., current expression data)
+    
+    Returns:
+        AIAction indicating CHAT, EXECUTE, or PROPOSAL
+    """
+    history = history or []
+    context = context or {}
+    
+    # Build messages
+    messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+    
+    # Add history
+    for msg in history[-10:]:  # Keep last 10 messages
+        messages.append(msg)
+    
+    # Add current query
+    messages.append({"role": "user", "content": user_query})
+    
+    # Get client and tools
+    client = get_openai_client()
+    tools = get_openai_tools_schema()
+    
+    try:
+        # Call OpenAI
+        response = client.chat.completions.create(
+            model=get_model_name(),
+            messages=messages,
+            tools=tools,
+            tool_choice="auto"
+        )
+        
+        message = response.choices[0].message
+        
+        # --- Logic Lock Decision ---
+        
+        # Case 1: Pure text response (no tool call)
+        if not message.tool_calls:
+            return AIAction.chat(message.content or "I'm not sure how to help with that.")
+        
+        # Case 2: Tool call requested
+        tool_call = message.tool_calls[0]
+        tool_name = tool_call.function.name
+        tool_args = json.loads(tool_call.function.arguments)
+        
+        tool_def = get_tool(tool_name)
+        if not tool_def:
+            return AIAction.chat(f"Unknown tool requested: {tool_name}")
+        
+        # Case 2a: Green Zone - Execute immediately
+        if tool_def.safety_level == SafetyLevel.GREEN:
+            try:
+                # Inject context if needed (e.g., current expression data)
+                if "gene_expression" in tool_args and not tool_args.get("gene_expression"):
+                    if context.get("gene_expression"):
+                        tool_args["gene_expression"] = context["gene_expression"]
+                
+                result = execute_tool(tool_name, tool_args)
+                
+                # Generate summary based on tool
+                if tool_name == "render_pathway":
+                    stats = result.get("statistics", {})
+                    summary = f"Rendered pathway with {stats.get('total_nodes', 0)} nodes: {stats.get('upregulated', 0)} upregulated, {stats.get('downregulated', 0)} downregulated."
+                elif tool_name == "get_pathway_stats":
+                    summary = f"Statistics: {result.get('upregulated', 0)} upregulated, {result.get('downregulated', 0)} downregulated out of {result.get('total_nodes', 0)} nodes."
+                elif tool_name == "list_pathways":
+                    summary = f"Found {len(result)} available pathway templates."
+                elif tool_name == "explain_pathway":
+                    summary = result
+                else:
+                    summary = f"Executed {tool_name} successfully."
+                
+                return AIAction.execute(tool_name, tool_args, result, summary)
+                
+            except Exception as e:
+                return AIAction.chat(f"Error executing {tool_name}: {str(e)}")
+        
+        # Case 2b: Yellow Zone - Create proposal (DO NOT EXECUTE)
+        elif tool_def.safety_level == SafetyLevel.YELLOW:
+            # Determine reason for confirmation
+            if tool_name == "update_thresholds":
+                reason = "This will modify your analysis thresholds, which may affect all visualizations."
+            elif tool_name == "export_data":
+                reason = f"This will write data to: {tool_args.get('output_path', 'unknown path')}"
+            else:
+                reason = "This action may modify your data or settings."
+            
+            proposal = AIAction.proposal(tool_name, tool_args, reason)
+            store_proposal(proposal)  # Store for later execution
+            return proposal
+        
+        else:
+            return AIAction.chat(f"Unknown safety level for tool: {tool_name}")
+    
+    except Exception as e:
+        error_msg = str(e)
+        print(f"[AI Core] Error: {error_msg}", file=sys.stderr)
+        return AIAction.chat(f"Sorry, I encountered an error: {error_msg}")
+
+
+def execute_proposal(proposal_id: str, context: Optional[Dict[str, Any]] = None) -> AIAction:
+    """
+    Execute a previously proposed action after user confirmation.
+    
+    Args:
+        proposal_id: The UUID of the proposal to execute
+        context: Optional context data
+    
+    Returns:
+        AIAction with execution result
+    """
+    from ai_protocol import get_proposal, remove_proposal
+    
+    proposal = get_proposal(proposal_id)
+    if not proposal:
+        return AIAction.chat(f"Proposal {proposal_id} not found or expired.")
+    
+    try:
+        # Execute the tool
+        result = execute_tool(proposal.tool_name, proposal.tool_args)
+        
+        # Remove from pending
+        remove_proposal(proposal_id)
+        
+        return AIAction.execute(
+            proposal.tool_name,
+            proposal.tool_args,
+            result,
+            f"Confirmed and executed: {proposal.tool_name}"
+        )
+        
+    except Exception as e:
+        return AIAction.chat(f"Error executing confirmed proposal: {str(e)}")
+
+
+def reject_proposal(proposal_id: str) -> AIAction:
+    """
+    Reject a proposal (remove without executing).
+    
+    Args:
+        proposal_id: The UUID of the proposal to reject
+    
+    Returns:
+        AIAction confirming rejection
+    """
+    from ai_protocol import remove_proposal
+    
+    proposal = remove_proposal(proposal_id)
+    if proposal:
+        return AIAction.chat(f"Action cancelled: {proposal.tool_name}")
+    else:
+        return AIAction.chat(f"Proposal {proposal_id} not found.")
