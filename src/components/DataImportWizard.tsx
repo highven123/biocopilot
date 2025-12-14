@@ -344,8 +344,8 @@ export const DataImportWizard: React.FC<DataImportWizardProps> = ({
                     if (fallback) {
                         addLog(`⚠️ P-value column '${selectedPValueCol}' not found in ${f.path}, using '${fallback}'`);
                     } else {
-                        alert(`P-value column '${selectedPValueCol}' not found in file: ${f.path}`);
-                        return;
+                        // P-value is optional - just log a warning, don't block
+                        addLog(`ℹ️ P-value column '${selectedPValueCol}' not found in ${f.path}. Will proceed without p-values.`);
                     }
                 }
             } else {
