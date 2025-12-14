@@ -9,6 +9,7 @@ import { ResultTabs } from './components/ResultTabs';
 import { WorkflowBreadcrumb, WorkflowStep } from './components/WorkflowBreadcrumb';
 import { SplashScreen } from './components/SplashScreen'; // New Import
 import { SafetyGuardModal } from './components/SafetyGuardModal';
+import { AIChatPanel } from './components/AIChatPanel';
 import { ENTITY_META, resolveEntityKind, EntityKind } from './entityTypes';
 import { openPath } from '@tauri-apps/plugin-opener';
 import { save, ask } from '@tauri-apps/plugin-dialog';
@@ -61,7 +62,7 @@ function App() {
   const [filteredGenes, setFilteredGenes] = useState<string[]>([]);
   const [activeGene, setActiveGene] = useState<string | null>(null);
   const [logs, setLogs] = useState<string[]>([]);
-  const [leftPanelView, setLeftPanelView] = useState<'chart' | 'table' | 'evidence'>('chart');
+  const [leftPanelView, setLeftPanelView] = useState<'chart' | 'table' | 'evidence' | 'ai-chat'>('chart');
   const [chartViewMode, setChartViewMode] = useState<VolcanoViewMode>('volcano');
 
   const activeAnalysis = analysisResults[activeResultIndex] || null;
@@ -740,18 +741,56 @@ function App() {
           onMouseDown={(e) => startResize(1, e)}
         />
 
-        {/* Right Panel: Evidence */}
+        {/* Right Panel: Evidence / AI Chat */}
         <div className="panel-col">
-          <div className="panel-header">
-            Evidence
+          <div className="panel-header" style={{ display: 'flex', gap: '8px', padding: '8px 12px' }}>
+            <button
+              onClick={() => setLeftPanelView('evidence')}
+              style={{
+                flex: 1,
+                padding: '8px',
+                background: leftPanelView === 'evidence' ? 'var(--brand-primary)' : 'transparent',
+                color: leftPanelView === 'evidence' ? 'white' : 'var(--text-dim)',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontSize: '13px',
+                fontWeight: 500
+              }}
+            >
+              Evidence
+            </button>
+            <button
+              onClick={() => setLeftPanelView('ai-chat')}
+              style={{
+                flex: 1,
+                padding: '8px',
+                background: leftPanelView === 'ai-chat' ? 'var(--brand-primary)' : 'transparent',
+                color: leftPanelView === 'ai-chat' ? 'white' : 'var(--text-dim)',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontSize: '13px',
+                fontWeight: 500
+              }}
+            >
+              🤖 AI Chat
+            </button>
           </div>
           <div className="panel-body">
-            <EvidencePanel
-              gene={activeGene}
-              geneData={activeGeneDetail}
-              entityKind={entityKind}
-              labels={entityLabels}
-            />
+            {leftPanelView === 'evidence' ? (
+              <EvidencePanel
+                gene={activeGene}
+                geneData={activeGeneDetail}
+                entityKind={entityKind}
+                labels={entityLabels}
+              />
+            ) : (
+              <AIChatPanel
+                sendCommand={async (cmd, data) => { await sendCommand(cmd, data, false); }}
+                isConnected={isConnected}
+              />
+            )}
           </div>
         </div>
 
