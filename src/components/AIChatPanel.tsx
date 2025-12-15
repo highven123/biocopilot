@@ -45,9 +45,9 @@ export const AIChatPanel: React.FC<AIChatPanelProps> = ({ sendCommand, isConnect
         try {
             console.log('[AIChatPanel] Response type:', lastResponse.type, 'cmd:', lastResponse.cmd);
 
-            // Only handle CHAT responses
-            if (lastResponse.cmd === 'CHAT' && lastResponse.type === 'CHAT') {
-                console.log('[AIChatPanel] Processing CHAT response, content:', lastResponse.content?.substring(0, 50));
+            // Handle both CHAT and EXECUTE responses
+            if (lastResponse.cmd === 'CHAT' && (lastResponse.type === 'CHAT' || lastResponse.type === 'EXECUTE')) {
+                console.log('[AIChatPanel] Processing AI response, content:', lastResponse.content?.substring(0, 50));
 
                 setMessages(prev => {
                     // Remove the last "Processing..." message if it exists
@@ -55,10 +55,18 @@ export const AIChatPanel: React.FC<AIChatPanelProps> = ({ sendCommand, isConnect
 
                     console.log('[AIChatPanel] Filtered messages count:', filtered.length);
 
+                    // Build response content
+                    let responseContent = lastResponse.content;
+
+                    // If this is an EXECUTE action, add tool execution details
+                    if (lastResponse.type === 'EXECUTE' && lastResponse.tool_name) {
+                        responseContent += `\n\n*[Executed: ${lastResponse.tool_name}]*`;
+                    }
+
                     // Add AI response
                     return [...filtered, {
                         role: 'assistant',
-                        content: lastResponse.content,
+                        content: responseContent,
                         timestamp: Date.now()
                     }];
                 });
