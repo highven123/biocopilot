@@ -25,7 +25,11 @@ from ai_tools import (
 # ============================================
 # Configure via environment variables:
 # 
-# For DeepSeek:
+# For Alibaba Cloud Bailian DeepSeek:
+#   export DEEPSEEK_API_KEY="your-key-here"
+#   export AI_PROVIDER="bailian"
+#
+# For DeepSeek Official:
 #   export DEEPSEEK_API_KEY="your-key-here"
 #   export AI_PROVIDER="deepseek"
 #
@@ -44,7 +48,20 @@ def get_ai_client() -> OpenAI:
     """
     provider = os.getenv("AI_PROVIDER", "ollama").lower()
     
-    if provider == "deepseek":
+    if provider == "bailian":
+        # Alibaba Cloud Bailian DeepSeek API
+        api_key = os.getenv("DEEPSEEK_API_KEY")
+        if not api_key:
+            print("[AI Core] Warning: DEEPSEEK_API_KEY not set. Using placeholder.", file=sys.stderr)
+            api_key = "sk-placeholder"
+        
+        return OpenAI(
+            api_key=api_key,
+            base_url="https://dashscope.aliyuncs.com/compatible-mode/v1"
+        )
+    
+    elif provider == "deepseek":
+        # DeepSeek Official API
         api_key = os.getenv("DEEPSEEK_API_KEY")
         if not api_key:
             print("[AI Core] Warning: DEEPSEEK_API_KEY not set. Using placeholder.", file=sys.stderr)
@@ -80,8 +97,8 @@ def get_model_name() -> str:
     """Get the model name based on provider."""
     provider = os.getenv("AI_PROVIDER", "ollama").lower()
     
-    if provider == "deepseek":
-        return os.getenv("DEEPSEEK_MODEL", "deepseek-chat")
+    if provider in ["bailian", "deepseek"]:
+        return os.getenv("DEEPSEEK_MODEL", "deepseek-v3")
     elif provider == "openai":
         return os.getenv("OPENAI_MODEL", "gpt-4o-mini")
     elif provider == "ollama":
