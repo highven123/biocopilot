@@ -172,11 +172,29 @@ fn spawn_sidecar(app_handle: &AppHandle, state: &State<'_, AppState>) -> Result<
                 "[BioViz] Dev mode: spawning Python engine from source: {}",
                 script.display()
             );
-            app_handle
+            
+            // Pass AI configuration environment variables to Python sidecar
+            let mut cmd = app_handle
                 .shell()
                 .command(python)
                 .args([script.to_string_lossy().to_string()])
-                .env("BIOVIZ_USE_SOURCE", "1")
+                .env("BIOVIZ_USE_SOURCE", "1");
+            
+            // Pass AI provider configuration
+            if let Ok(provider) = std::env::var("AI_PROVIDER") {
+                cmd = cmd.env("AI_PROVIDER", provider);
+            }
+            if let Ok(key) = std::env::var("DASHSCOPE_API_KEY") {
+                cmd = cmd.env("DASHSCOPE_API_KEY", key);
+            }
+            if let Ok(key) = std::env::var("DEEPSEEK_API_KEY") {
+                cmd = cmd.env("DEEPSEEK_API_KEY", key);
+            }
+            if let Ok(model) = std::env::var("DEEPSEEK_MODEL") {
+                cmd = cmd.env("DEEPSEEK_MODEL", model);
+            }
+            
+            cmd
         } else {
             app_handle
                 .shell()
