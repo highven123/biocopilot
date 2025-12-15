@@ -11,6 +11,10 @@ import { SplashScreen } from './components/SplashScreen'; // New Import
 import { SafetyGuardModal } from './components/SafetyGuardModal';
 import { AIChatPanel } from './components/AIChatPanel';
 import { InsightBadges } from './components/InsightBadges';
+import { GSEAPanel } from './components/GSEAPanel';
+import { ImageUploader } from './components/ImageUploader';
+import { AIEventPanel } from './components/AIEventPanel';
+import { eventBus, BioVizEvents } from './stores/eventBus';
 import { ENTITY_META, resolveEntityKind, EntityKind } from './entityTypes';
 import { AnalysisInsights } from './types/insights';
 import { openPath } from '@tauri-apps/plugin-opener';
@@ -65,7 +69,7 @@ function App() {
   const [filteredGenes, setFilteredGenes] = useState<string[]>([]);
   const [activeGene, setActiveGene] = useState<string | null>(null);
   const [logs, setLogs] = useState<string[]>([]);
-  const [leftPanelView, setLeftPanelView] = useState<'chart' | 'table' | 'evidence' | 'ai-chat'>('chart');
+  const [leftPanelView, setLeftPanelView] = useState<'chart' | 'table' | 'evidence' | 'ai-chat' | 'gsea' | 'images'>('chart');
   const [chartViewMode, setChartViewMode] = useState<VolcanoViewMode>('volcano');
 
   const activeAnalysis = analysisResults[activeResultIndex] || null;
@@ -249,6 +253,13 @@ function App() {
 
         setAnalysisResults((prev) => [...prev, result]);
         successCount += 1;
+
+        // v2.0: Emit event for AI proactive suggestions
+        eventBus.emit(BioVizEvents.ANALYSIS_COMPLETE, {
+          statistics: response.statistics,
+          pathwayName: response.pathway.name || response.pathway.title,
+          geneCount: volcano.length,
+        });
 
         const pathwayName =
           response.pathway.name ||
@@ -790,16 +801,49 @@ function App() {
             >
               🤖 AI Chat
             </button>
+            <button
+              onClick={() => setLeftPanelView('gsea')}
+              style={{
+                flex: 1,
+                padding: '8px',
+                background: leftPanelView === 'gsea' ? 'var(--brand-primary)' : 'transparent',
+                color: leftPanelView === 'gsea' ? 'white' : 'var(--text-dim)',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontSize: '13px',
+                fontWeight: 500
+              }}
+            >
+              🧬 GSEA
+            </button>
+            <button
+              onClick={() => setLeftPanelView('images')}
+              style={{
+                flex: 1,
+                padding: '8px',
+                background: leftPanelView === 'images' ? 'var(--brand-primary)' : 'transparent',
+                color: leftPanelView === 'images' ? 'white' : 'var(--text-dim)',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontSize: '13px',
+                fontWeight: 500
+              }}
+            >
+              🖼️ Images
+            </button>
           </div>
           <div className="panel-body">
-            {leftPanelView === 'evidence' ? (
+            {leftPanelView === 'evidence' && (
               <EvidencePanel
                 gene={activeGene}
                 geneData={activeGeneDetail}
                 entityKind={entityKind}
                 labels={entityLabels}
               />
-            ) : (
+            )}
+            {leftPanelView === 'ai-chat' && (
               <AIChatPanel
                 sendCommand={async (cmd, data) => { await sendCommand(cmd, data, false); }}
                 isConnected={isConnected}
@@ -809,6 +853,19 @@ function App() {
                   volcanoData: activeAnalysis.volcano_data,
                   statistics: activeAnalysis.statistics
                 } : undefined}
+              />
+            )}
+            {leftPanelView === 'gsea' && (
+              <GSEAPanel
+                sendCommand={async (cmd, data) => { await sendCommand(cmd, data, false); }}
+                volcanoData={activeAnalysis?.volcano_data}
+                isConnected={isConnected}
+              />
+            )}
+            {leftPanelView === 'images' && (
+              <ImageUploader
+                sendCommand={async (cmd, data) => { await sendCommand(cmd, data, false); }}
+                isConnected={isConnected}
               />
             )}
           </div>
@@ -830,6 +887,12 @@ function App() {
           <span style={{ color: 'var(--brand-primary)' }}>Last:</span> {logs.length > 0 ? logs[logs.length - 1] : 'Ready'}
         </div>
       </footer>
+
+      {/* v2.0: AI Event Panel for proactive suggestions */}
+      <AIEventPanel
+        sendCommand={async (cmd, data) => { await sendCommand(cmd, data, false); }}
+        isConnected={isConnected}
+      />
 
     </div>
   );
