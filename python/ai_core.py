@@ -152,21 +152,58 @@ def process_query(
     context: Optional[Dict[str, Any]] = None
 ) -> AIAction:
     """
-    Process a user query through the Logic Lock system.
+    Process a user query through the AI Logic Lock system.
     
     Args:
-        user_query: The user's message
-        history: Optional conversation history
-        context: Optional context (e.g., current expression data)
+        user_query: The user's question/request
+        history: Previous conversation messages
+        context: Optional context data (e.g., current pathway, gene expression data)
     
     Returns:
-        AIAction indicating CHAT, EXECUTE, or PROPOSAL
+        AIAction indicating what the AI wants to do
     """
     history = history or []
     context = context or {}
     
-    # Build messages
-    messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+    # Debug: Log context data
+    print(f"[AI Core] Processing query: {user_query[:50]}...", file=sys.stderr)
+    if context:
+        print(f"[AI Core] Context keys: {list(context.keys())}", file=sys.stderr)
+        if 'pathway' in context and context['pathway']:
+            pathway_id = context['pathway'].get('id', 'unknown')
+            pathway_name = context['pathway'].get('name', 'unknown')
+            print(f"[AI Core] Current pathway: {pathway_id} - {pathway_name}", file=sys.stderr)
+        if 'volcanoData' in context:
+            print(f"[AI Core] Volcano data points: {len(context.get('volcanoData', []))}", file=sys.stderr)
+    else:
+        print(f"[AI Core] No context provided", file=sys.stderr)
+    
+    # Build system message with context awareness
+    system_message = SYSTEM_PROMPT
+    
+    # Add context information to system message if available
+    if context and context.get('pathway'):
+        pathway = context['pathway']
+        pathway_info = f"\n\n**CURRENT CONTEXT:**\n"
+        pathway_info += f"- Current Pathway: {pathway.get('name', 'Unknown')} (ID: {pathway.get('id', 'unknown')})\n"
+        
+        if context.get('statistics'):
+            stats = context['statistics']
+            pathway_info += f"- Total Nodes: {stats.get('total_nodes', 0)}\n"
+            pathway_info += f"- Upregulated: {stats.get('upregulated', 0)}\n"
+            pathway_info += f"- Downregulated: {stats.get('downregulated', 0)}\n"
+        
+        if context.get('volcanoData'):
+            volcano_data = context['volcanoData']
+            pathway_info += f"- Gene Expression Data: {len(volcano_data)} genes loaded\n"
+            # Show top hits
+            sorted_genes = sorted(volcano_data, key=lambda x: abs(x.get('x', 0)), reverse=True)[:5]
+            pathway_info += f"- Top Hits: {', '.join([g.get('gene', 'unknown') for g in sorted_genes])}\n"
+        
+        system_message += pathway_info
+        print(f"[AI Core] Added context to system message", file=sys.stderr)
+    
+    messages = [{"role": "system", "content": system_message}]
     
     # Add history
     for msg in history[-10:]:  # Keep last 10 messages
