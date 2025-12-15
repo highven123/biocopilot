@@ -1186,7 +1186,6 @@ def handle_chat(payload: Dict[str, Any]) -> Dict[str, Any]:
         error_msg = f"AI error: {str(e)}"
         print(f"[BioCore] Error: {error_msg}", file=sys.stderr)
         import traceback
-        import sys # Ensure sys is imported for stderr
         traceback.print_exc(file=sys.stderr) # Print traceback to stderr
         return {
             "status": "ok",
