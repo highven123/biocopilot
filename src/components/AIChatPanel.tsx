@@ -30,6 +30,42 @@ export const AIChatPanel: React.FC<AIChatPanelProps> = ({ sendCommand, isConnect
         scrollToBottom();
     }, [messages]);
 
+    // Listen for AI responses from backend
+    useEffect(() => {
+        const handleSidecarOutput = (event: any) => {
+            try {
+                const response = JSON.parse(event.payload);
+
+                // Only handle CHAT responses
+                if (response.cmd === 'CHAT' && response.type === 'CHAT') {
+                    setMessages(prev => {
+                        // Remove the last "Processing..." message if it exists
+                        const filtered = prev.filter(m => m.content !== 'Processing your request...');
+
+                        // Add AI response
+                        return [...filtered, {
+                            role: 'assistant',
+                            content: response.content,
+                            timestamp: Date.now()
+                        }];
+                    });
+                    setIsLoading(false);
+                }
+            } catch (error) {
+                console.error('Failed to parse AI response:', error);
+            }
+        };
+
+        // Subscribe to sidecar output events
+        import('@tauri-apps/api/event').then(({ listen }) => {
+            listen('sidecar-output', handleSidecarOutput);
+        });
+
+        return () => {
+            // Cleanup handled by Tauri
+        };
+    }, []);
+
     const handleSend = async () => {
         if (!input.trim() || !isConnected || isLoading) return;
 
@@ -53,14 +89,13 @@ export const AIChatPanel: React.FC<AIChatPanelProps> = ({ sendCommand, isConnect
                 }))
             });
 
-            // Note: Response will be handled by useBioEngine's listener
-            // For now, add a placeholder
-            const assistantMessage: Message = {
+            // Add placeholder while waiting for response
+            const placeholderMessage: Message = {
                 role: 'assistant',
                 content: 'Processing your request...',
                 timestamp: Date.now()
             };
-            setMessages(prev => [...prev, assistantMessage]);
+            setMessages(prev => [...prev, placeholderMessage]);
         } catch (error) {
             console.error('Failed to send message:', error);
             const errorMessage: Message = {
@@ -69,7 +104,6 @@ export const AIChatPanel: React.FC<AIChatPanelProps> = ({ sendCommand, isConnect
                 timestamp: Date.now()
             };
             setMessages(prev => [...prev, errorMessage]);
-        } finally {
             setIsLoading(false);
         }
     };
