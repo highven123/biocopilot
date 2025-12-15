@@ -33,14 +33,22 @@ export const AIChatPanel: React.FC<AIChatPanelProps> = ({ sendCommand, isConnect
 
     // Listen for AI responses from useBioEngine's lastResponse
     useEffect(() => {
+        console.log('[AIChatPanel] lastResponse changed:', lastResponse);
+
         if (!lastResponse) return;
 
         try {
+            console.log('[AIChatPanel] Response type:', lastResponse.type, 'cmd:', lastResponse.cmd);
+
             // Only handle CHAT responses
             if (lastResponse.cmd === 'CHAT' && lastResponse.type === 'CHAT') {
+                console.log('[AIChatPanel] Processing CHAT response, content:', lastResponse.content?.substring(0, 50));
+
                 setMessages(prev => {
                     // Remove the last "Processing..." message if it exists
                     const filtered = prev.filter(m => m.content !== 'Processing your request...');
+
+                    console.log('[AIChatPanel] Filtered messages count:', filtered.length);
 
                     // Add AI response
                     return [...filtered, {
@@ -50,9 +58,11 @@ export const AIChatPanel: React.FC<AIChatPanelProps> = ({ sendCommand, isConnect
                     }];
                 });
                 setIsLoading(false);
+            } else {
+                console.log('[AIChatPanel] Ignoring non-CHAT response');
             }
         } catch (error) {
-            console.error('Failed to process AI response:', error);
+            console.error('[AIChatPanel] Failed to process AI response:', error);
         }
     }, [lastResponse]);
 
