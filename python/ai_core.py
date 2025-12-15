@@ -203,9 +203,14 @@ def process_query(
         if context.get('volcanoData'):
             volcano_data = context['volcanoData']
             pathway_info += f"- Gene Expression Data: {len(volcano_data)} genes loaded\n"
-            # Show top hits
-            sorted_genes = sorted(volcano_data, key=lambda x: abs(x.get('x', 0)), reverse=True)[:5]
-            pathway_info += f"- Top Hits: {', '.join([g.get('gene', 'unknown') for g in sorted_genes])}\n"
+            
+            # Show ALL gene expression data, not just top hits
+            pathway_info += "\n**Gene Expression Values:**\n"
+            for gene in volcano_data:
+                gene_name = gene.get('gene', 'unknown')
+                logfc = gene.get('x', 0)
+                status = gene.get('status', 'NS')
+                pathway_info += f"  - {gene_name}: LogFC={logfc:.2f} ({status})\n"
         
         system_message += pathway_info
         print(f"[AI Core] Added context to system message: {pathway_name}", file=sys.stderr)
