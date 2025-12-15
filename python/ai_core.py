@@ -185,7 +185,8 @@ def process_query(
     if context and context.get('pathway'):
         pathway = context['pathway']
         pathway_info = f"\n\n**CURRENT CONTEXT:**\n"
-        pathway_info += f"- Current Pathway: {pathway.get('name', 'Unknown')} (ID: {pathway.get('id', 'unknown')})\n"
+        pathway_name = pathway.get('title') or pathway.get('name', 'Unknown')
+        pathway_info += f"- Current Pathway: {pathway_name} (ID: {pathway.get('id', 'unknown')})\n"
         
         if context.get('statistics'):
             stats = context['statistics']
@@ -201,7 +202,7 @@ def process_query(
             pathway_info += f"- Top Hits: {', '.join([g.get('gene', 'unknown') for g in sorted_genes])}\n"
         
         system_message += pathway_info
-        print(f"[AI Core] Added context to system message", file=sys.stderr)
+        print(f"[AI Core] Added context to system message: {pathway_name}", file=sys.stderr)
     
     messages = [{"role": "system", "content": system_message}]
     
