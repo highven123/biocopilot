@@ -892,6 +892,34 @@ function App() {
                 isConnected={isConnected}
                 currentFilePath={activeAnalysis?.sourceFilePath}
                 lastResponse={lastResponse}
+                onSampleGroupChange={(groupName, groupData) => {
+                  // When sample group changes, update the volcano data for pathway visualization
+                  if (activeAnalysis && groupData.length > 0) {
+                    // Convert multi-sample group data to volcano format
+                    const newVolcanoData = groupData.map(d => ({
+                      gene: d.gene,
+                      x: d.logfc,
+                      y: -Math.log10(d.pvalue),
+                      status: d.logfc > 0 && d.pvalue < 0.05 ? 'UP' as const :
+                        (d.logfc < 0 && d.pvalue < 0.05 ? 'DOWN' as const : 'NS' as const)
+                    }));
+
+                    // Update the active analysis with new volcano data
+                    setAnalysisResults(prev => {
+                      const updated = [...prev];
+                      if (updated[activeResultIndex]) {
+                        updated[activeResultIndex] = {
+                          ...updated[activeResultIndex],
+                          volcanoData: newVolcanoData,
+                          sourceFilePath: `${activeAnalysis.sourceFilePath} (${groupName})`
+                        };
+                      }
+                      return updated;
+                    });
+
+                    addLog(`📊 Switched to sample group: ${groupName} (${groupData.length} genes)`);
+                  }
+                }}
               />
             )}
           </div>
