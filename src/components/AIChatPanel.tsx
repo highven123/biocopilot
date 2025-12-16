@@ -48,6 +48,61 @@ export const AIChatPanel: React.FC<AIChatPanelProps> = ({
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     };
 
+    // Format AI content: convert markdown-style lists to HTML
+    const formatAIContent = (content: string) => {
+        // Split into lines
+        const lines = content.split('\n');
+        const elements: React.ReactNode[] = [];
+        let currentList: string[] = [];
+        let listType: 'ul' | 'ol' | null = null;
+
+        const flushList = () => {
+            if (currentList.length > 0 && listType) {
+                const ListTag = listType === 'ol' ? 'ol' : 'ul';
+                elements.push(
+                    <ListTag key={elements.length} className="ai-list">
+                        {currentList.map((item, i) => <li key={i}>{item}</li>)}
+                    </ListTag>
+                );
+                currentList = [];
+                listType = null;
+            }
+        };
+
+        lines.forEach((line, idx) => {
+            const trimmed = line.trim();
+
+            // Check for bullet list items (-, *, •)
+            const bulletMatch = trimmed.match(/^[-*•]\s+(.+)/);
+            // Check for numbered list items (1., 2., etc.)
+            const numMatch = trimmed.match(/^\d+[.)]\s+(.+)/);
+            // Check for bold headers (**text**)
+            const boldMatch = trimmed.match(/^\*\*(.+?)\*\*/);
+
+            if (bulletMatch) {
+                if (listType !== 'ul') flushList();
+                listType = 'ul';
+                currentList.push(bulletMatch[1]);
+            } else if (numMatch) {
+                if (listType !== 'ol') flushList();
+                listType = 'ol';
+                currentList.push(numMatch[1]);
+            } else {
+                flushList();
+                if (boldMatch) {
+                    elements.push(<strong key={idx} className="ai-bold">{boldMatch[1]}</strong>);
+                    const rest = trimmed.replace(/^\*\*(.+?)\*\*:?\s*/, '');
+                    if (rest) elements.push(<span key={`${idx}-rest`}>{rest}</span>);
+                } else if (trimmed) {
+                    elements.push(<p key={idx} className="ai-paragraph">{trimmed}</p>);
+                }
+            }
+        });
+
+        flushList();
+        return elements.length > 0 ? elements : content;
+    };
+
     useEffect(() => {
         scrollToBottom();
     }, [messages]);
@@ -252,7 +307,9 @@ export const AIChatPanel: React.FC<AIChatPanelProps> = ({
                             {msg.role === 'user' ? '👤' : '🤖'}
                         </div>
                         <div className="message-content">
-                            <div className="message-text">{msg.content}</div>
+                            <div className="message-text">
+                                {msg.role === 'assistant' ? formatAIContent(msg.content) : msg.content}
+                            </div>
                             <div className="message-time">
                                 {new Date(msg.timestamp).toLocaleTimeString()}
                             </div>

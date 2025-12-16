@@ -536,15 +536,17 @@ function App() {
         className="workbench-layout"
         style={{
           display: workflowStep === 'viz' ? 'grid' : 'none',
-          gridTemplateColumns: `
-            ${showLeftPanel ? '1fr' : '0'}
-            ${showLeftPanel && showCenterPanel ? '6px' : '0'}
-            ${showCenterPanel ? '2fr' : '0'}
-            ${showCenterPanel && showRightPanel ? '6px' : '0'}
-            ${showRightPanel ? '1fr' : '0'}
-          `,
+          gridTemplateColumns: (() => {
+            // Calculate visible panel widths
+            const leftW = showLeftPanel ? colSizes[0] : 0;
+            const rightW = showRightPanel ? colSizes[2] : 0;
+            const centerW = showCenterPanel ? (100 - leftW - rightW) : 0;
+            const leftGutter = showLeftPanel && showCenterPanel ? '6px' : '0';
+            const rightGutter = showCenterPanel && showRightPanel ? '6px' : '0';
+            return `${leftW}% ${leftGutter} ${centerW}% ${rightGutter} ${rightW}%`;
+          })(),
           gap: '0',
-          transition: 'grid-template-columns 0.3s ease',
+          transition: dragIdx !== null ? 'none' : 'grid-template-columns 0.2s ease',
         }}
         ref={containerRef}
       >
