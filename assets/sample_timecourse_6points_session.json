@@ -1,0 +1,2102 @@
+{
+  "pathway": {
+    "id": "hsa04066",
+    "name": "HIF-1 signaling pathway",
+    "description": "Imported from KEGG: HIF-1 signaling pathway",
+    "nodes": [
+      {
+        "id": "6",
+        "name": "CUL2",
+        "kegg_id": "hsa:8453",
+        "x": 746,
+        "y": 265,
+        "category": "Gene",
+        "internal_id": "6",
+        "color": "#95a5a6",
+        "value": 1,
+        "expression": null,
+        "hit_name": null
+      },
+      {
+        "id": "7",
+        "name": "RBX1",
+        "kegg_id": "hsa:9978",
+        "x": 746,
+        "y": 248,
+        "category": "Gene",
+        "internal_id": "7",
+        "color": "#95a5a6",
+        "value": 1,
+        "expression": null,
+        "hit_name": null
+      },
+      {
+        "id": "8",
+        "name": "ELOB",
+        "kegg_id": "hsa:6923",
+        "x": 700,
+        "y": 282,
+        "category": "Gene",
+        "internal_id": "8",
+        "color": "#95a5a6",
+        "value": 1,
+        "expression": null,
+        "hit_name": null
+      },
+      {
+        "id": "9",
+        "name": "ELOC",
+        "kegg_id": "hsa:6921",
+        "x": 700,
+        "y": 265,
+        "category": "Gene",
+        "internal_id": "9",
+        "color": "#95a5a6",
+        "value": 1,
+        "expression": null,
+        "hit_name": null
+      },
+      {
+        "id": "10",
+        "name": "VEGFA",
+        "kegg_id": "hsa:7422",
+        "x": 1099,
+        "y": 363,
+        "category": "Gene",
+        "internal_id": "10",
+        "color": "#f6f6ff",
+        "value": 0.9,
+        "expression": 0.9,
+        "hit_name": "VEGFA"
+      },
+      {
+        "id": "11",
+        "name": "EGLN2",
+        "kegg_id": "hsa:112398 hsa:112399 hsa:54583",
+        "x": 688,
+        "y": 351,
+        "category": "Gene",
+        "internal_id": "11",
+        "color": "#95a5a6",
+        "value": 1,
+        "expression": null,
+        "hit_name": null
+      },
+      {
+        "id": "12",
+        "name": "VHL",
+        "kegg_id": "hsa:7428",
+        "x": 700,
+        "y": 248,
+        "category": "Gene",
+        "internal_id": "12",
+        "color": "#95a5a6",
+        "value": 1,
+        "expression": null,
+        "hit_name": null
+      },
+      {
+        "id": "13",
+        "name": "ARNT",
+        "kegg_id": "hsa:405",
+        "x": 947,
+        "y": 417,
+        "category": "Gene",
+        "internal_id": "13",
+        "color": "#95a5a6",
+        "value": 1,
+        "expression": null,
+        "hit_name": null
+      },
+      {
+        "id": "14",
+        "name": "CREBBP",
+        "kegg_id": "hsa:1387 hsa:2033",
+        "x": 959,
+        "y": 485,
+        "category": "Gene",
+        "internal_id": "14",
+        "color": "#95a5a6",
+        "value": 1,
+        "expression": null,
+        "hit_name": null
+      },
+      {
+        "id": "15",
+        "name": "HIF1A",
+        "kegg_id": "hsa:3091",
+        "x": 550,
+        "y": 379,
+        "category": "Gene",
+        "internal_id": "15",
+        "color": "#ffd5d5",
+        "value": 1.2,
+        "expression": 1.2,
+        "hit_name": "HIF1A"
+      },
+      {
+        "id": "16",
+        "name": "SLC2A1",
+        "kegg_id": "hsa:6513",
+        "x": 1099,
+        "y": 615,
+        "category": "Gene",
+        "internal_id": "16",
+        "color": "#d5d5ff",
+        "value": 0.7,
+        "expression": 0.7,
+        "hit_name": "SLC2A1"
+      },
+      {
+        "id": "17",
+        "name": "EGF",
+        "kegg_id": "hsa:1950 hsa:3479 hsa:3630",
+        "x": 87,
+        "y": 272,
+        "category": "Gene",
+        "internal_id": "17",
+        "color": "#95a5a6",
+        "value": 1,
+        "expression": null,
+        "hit_name": null
+      },
+      {
+        "id": "32",
+        "name": "EGFR",
+        "kegg_id": "hsa:1956 hsa:2064 hsa:3480 hsa:3643",
+        "x": 169,
+        "y": 272,
+        "category": "Gene",
+        "internal_id": "32",
+        "color": "#95a5a6",
+        "value": 1,
+        "expression": null,
+        "hit_name": null
+      },
+      {
+        "id": "33",
+        "name": "P3R3URF-PIK3R3",
+        "kegg_id": "hsa:110117499 hsa:5290 hsa:5291 hsa:5293 hsa:5295 hsa:5296 hsa:8503",
+        "x": 260,
+        "y": 310,
+        "category": "Gene",
+        "internal_id": "33",
+        "color": "#95a5a6",
+        "value": 1,
+        "expression": null,
+        "hit_name": null
+      },
+      {
+        "id": "34",
+        "name": "AKT3",
+        "kegg_id": "hsa:10000 hsa:207 hsa:208",
+        "x": 260,
+        "y": 353,
+        "category": "Gene",
+        "internal_id": "34",
+        "color": "#95a5a6",
+        "value": 1,
+        "expression": null,
+        "hit_name": null
+      },
+      {
+        "id": "35",
+        "name": "MTOR",
+        "kegg_id": "hsa:2475",
+        "x": 333,
+        "y": 353,
+        "category": "Gene",
+        "internal_id": "35",
+        "color": "#95a5a6",
+        "value": 1,
+        "expression": null,
+        "hit_name": null
+      },
+      {
+        "id": "39",
+        "name": "CYBB",
+        "kegg_id": "hsa:1536",
+        "x": 336,
+        "y": 563,
+        "category": "Gene",
+        "internal_id": "39",
+        "color": "#95a5a6",
+        "value": 1,
+        "expression": null,
+        "hit_name": null
+      },
+      {
+        "id": "40",
+        "name": "PLCG1",
+        "kegg_id": "hsa:5335 hsa:5336",
+        "x": 421,
+        "y": 526,
+        "category": "Gene",
+        "internal_id": "40",
+        "color": "#95a5a6",
+        "value": 1,
+        "expression": null,
+        "hit_name": null
+      },
+      {
+        "id": "41",
+        "name": "PRKCA",
+        "kegg_id": "hsa:5578 hsa:5579 hsa:5582",
+        "x": 421,
+        "y": 433,
+        "category": "Gene",
+        "internal_id": "41",
+        "color": "#95a5a6",
+        "value": 1,
+        "expression": null,
+        "hit_name": null
+      },
+      {
+        "id": "42",
+        "name": "C00165",
+        "kegg_id": "cpd:C00165",
+        "x": 420,
+        "y": 477,
+        "category": "Compound",
+        "internal_id": "42",
+        "color": "#95a5a6",
+        "value": 1,
+        "expression": null,
+        "hit_name": null
+      },
+      {
+        "id": "43",
+        "name": "C01245",
+        "kegg_id": "cpd:C01245",
+        "x": 515,
+        "y": 480,
+        "category": "Compound",
+        "internal_id": "43",
+        "color": "#95a5a6",
+        "value": 1,
+        "expression": null,
+        "hit_name": null
+      },
+      {
+        "id": "44",
+        "name": "C00704",
+        "kegg_id": "cpd:C00704",
+        "x": 422,
+        "y": 563,
+        "category": "Compound",
+        "internal_id": "44",
+        "color": "#95a5a6",
+        "value": 1,
+        "expression": null,
+        "hit_name": null
+      },
+      {
+        "id": "53",
+        "name": "SLC2A1",
+        "kegg_id": "hsa:6513",
+        "x": 171,
+        "y": 710,
+        "category": "Gene",
+        "internal_id": "53",
+        "color": "#d5d5ff",
+        "value": 0.7,
+        "expression": 0.7,
+        "hit_name": "SLC2A1"
+      },
+      {
+        "id": "54",
+        "name": "LDHAL6A",
+        "kegg_id": "hsa:160287 hsa:3939 hsa:3945 hsa:3948 hsa:92483",
+        "x": 1099,
+        "y": 809,
+        "category": "Gene",
+        "internal_id": "54",
+        "color": "#95a5a6",
+        "value": 1,
+        "expression": null,
+        "hit_name": null
+      },
+      {
+        "id": "55",
+        "name": "PDK1",
+        "kegg_id": "hsa:5163",
+        "x": 1099,
+        "y": 652,
+        "category": "Gene",
+        "internal_id": "55",
+        "color": "#e6e6ff",
+        "value": 0.8,
+        "expression": 0.8,
+        "hit_name": "PDK1"
+      },
+      {
+        "id": "56",
+        "name": "C00031",
+        "kegg_id": "cpd:C00031",
+        "x": 114,
+        "y": 708,
+        "category": "Compound",
+        "internal_id": "56",
+        "color": "#95a5a6",
+        "value": 1,
+        "expression": null,
+        "hit_name": null
+      },
+      {
+        "id": "57",
+        "name": "C00022",
+        "kegg_id": "cpd:C00022",
+        "x": 319,
+        "y": 711,
+        "category": "Compound",
+        "internal_id": "57",
+        "color": "#95a5a6",
+        "value": 1,
+        "expression": null,
+        "hit_name": null
+      },
+      {
+        "id": "58",
+        "name": "C00186",
+        "kegg_id": "cpd:C00186",
+        "x": 319,
+        "y": 865,
+        "category": "Compound",
+        "internal_id": "58",
+        "color": "#95a5a6",
+        "value": 1,
+        "expression": null,
+        "hit_name": null
+      },
+      {
+        "id": "60",
+        "name": "LDHAL6A",
+        "kegg_id": "hsa:160287 hsa:3939 hsa:3945 hsa:3948 hsa:92483",
+        "x": 353,
+        "y": 808,
+        "category": "Gene",
+        "internal_id": "60",
+        "color": "#95a5a6",
+        "value": 1,
+        "expression": null,
+        "hit_name": null
+      },
+      {
+        "id": "64",
+        "name": "C00024",
+        "kegg_id": "cpd:C00024",
+        "x": 502,
+        "y": 713,
+        "category": "Compound",
+        "internal_id": "64",
+        "color": "#95a5a6",
+        "value": 1,
+        "expression": null,
+        "hit_name": null
+      },
+      {
+        "id": "66",
+        "name": "PDHA1",
+        "kegg_id": "hsa:5160 hsa:5161 hsa:5162",
+        "x": 447,
+        "y": 695,
+        "category": "Gene",
+        "internal_id": "66",
+        "color": "#95a5a6",
+        "value": 1,
+        "expression": null,
+        "hit_name": null
+      },
+      {
+        "id": "67",
+        "name": "PDK1",
+        "kegg_id": "hsa:5163",
+        "x": 447,
+        "y": 653,
+        "category": "Gene",
+        "internal_id": "67",
+        "color": "#e6e6ff",
+        "value": 0.8,
+        "expression": 0.8,
+        "hit_name": "PDK1"
+      },
+      {
+        "id": "75",
+        "name": "C00002",
+        "kegg_id": "cpd:C00002",
+        "x": 745,
+        "y": 712,
+        "category": "Compound",
+        "internal_id": "75",
+        "color": "#95a5a6",
+        "value": 1,
+        "expression": null,
+        "hit_name": null
+      },
+      {
+        "id": "77",
+        "name": "C00076",
+        "kegg_id": "cpd:C00076",
+        "x": 746,
+        "y": 483,
+        "category": "Compound",
+        "internal_id": "77",
+        "color": "#95a5a6",
+        "value": 1,
+        "expression": null,
+        "hit_name": null
+      },
+      {
+        "id": "78",
+        "name": "CAMK2A",
+        "kegg_id": "hsa:815 hsa:816 hsa:817 hsa:818",
+        "x": 811,
+        "y": 483,
+        "category": "Gene",
+        "internal_id": "78",
+        "color": "#95a5a6",
+        "value": 1,
+        "expression": null,
+        "hit_name": null
+      },
+      {
+        "id": "84",
+        "name": "HK1",
+        "kegg_id": "hsa:3098 hsa:3099 hsa:3101 hsa:80201",
+        "x": 1099,
+        "y": 688,
+        "category": "Gene",
+        "internal_id": "84",
+        "color": "#c5c5ff",
+        "value": 0.6,
+        "expression": 0.6,
+        "hit_name": "HK1"
+      },
+      {
+        "id": "85",
+        "name": "PFKL",
+        "kegg_id": "hsa:5211 hsa:5213 hsa:5214",
+        "x": 1160,
+        "y": 688,
+        "category": "Gene",
+        "internal_id": "85",
+        "color": "#95a5a6",
+        "value": 1,
+        "expression": null,
+        "hit_name": null
+      },
+      {
+        "id": "86",
+        "name": "GAPDH",
+        "kegg_id": "hsa:2597",
+        "x": 1099,
+        "y": 719,
+        "category": "Gene",
+        "internal_id": "86",
+        "color": "#a4a4ff",
+        "value": 0.4,
+        "expression": 0.4,
+        "hit_name": "GAPDH"
+      },
+      {
+        "id": "87",
+        "name": "ALDOA",
+        "kegg_id": "hsa:226 hsa:229 hsa:230",
+        "x": 1160,
+        "y": 719,
+        "category": "Gene",
+        "internal_id": "87",
+        "color": "#c5c5ff",
+        "value": 0.6,
+        "expression": 0.6,
+        "hit_name": "ALDOA"
+      },
+      {
+        "id": "88",
+        "name": "ENO1",
+        "kegg_id": "hsa:2023 hsa:2026 hsa:2027",
+        "x": 1099,
+        "y": 749,
+        "category": "Gene",
+        "internal_id": "88",
+        "color": "#d5d5ff",
+        "value": 0.7,
+        "expression": 0.7,
+        "hit_name": "ENO1"
+      },
+      {
+        "id": "89",
+        "name": "PGK1",
+        "kegg_id": "hsa:5230 hsa:5232",
+        "x": 1160,
+        "y": 749,
+        "category": "Gene",
+        "internal_id": "89",
+        "color": "#b4b4ff",
+        "value": 0.5,
+        "expression": 0.5,
+        "hit_name": "PGK1"
+      },
+      {
+        "id": "90",
+        "name": "PFKFB3",
+        "kegg_id": "hsa:5209",
+        "x": 1099,
+        "y": 778,
+        "category": "Gene",
+        "internal_id": "90",
+        "color": "#95a5a6",
+        "value": 1,
+        "expression": null,
+        "hit_name": null
+      },
+      {
+        "id": "93",
+        "name": "EPO",
+        "kegg_id": "hsa:2056",
+        "x": 1099,
+        "y": 294,
+        "category": "Gene",
+        "internal_id": "93",
+        "color": "#95a5a6",
+        "value": 1,
+        "expression": null,
+        "hit_name": null
+      },
+      {
+        "id": "94",
+        "name": "TF",
+        "kegg_id": "hsa:7018",
+        "x": 1099,
+        "y": 326,
+        "category": "Gene",
+        "internal_id": "94",
+        "color": "#95a5a6",
+        "value": 1,
+        "expression": null,
+        "hit_name": null
+      },
+      {
+        "id": "95",
+        "name": "TFRC",
+        "kegg_id": "hsa:7037",
+        "x": 1160,
+        "y": 326,
+        "category": "Gene",
+        "internal_id": "95",
+        "color": "#95a5a6",
+        "value": 1,
+        "expression": null,
+        "hit_name": null
+      },
+      {
+        "id": "96",
+        "name": "FLT1",
+        "kegg_id": "hsa:2321",
+        "x": 1160,
+        "y": 363,
+        "category": "Gene",
+        "internal_id": "96",
+        "color": "#95a5a6",
+        "value": 1,
+        "expression": null,
+        "hit_name": null
+      },
+      {
+        "id": "97",
+        "name": "EGF",
+        "kegg_id": "hsa:1950",
+        "x": 1099,
+        "y": 389,
+        "category": "Gene",
+        "internal_id": "97",
+        "color": "#95a5a6",
+        "value": 1,
+        "expression": null,
+        "hit_name": null
+      },
+      {
+        "id": "98",
+        "name": "SERPINE1",
+        "kegg_id": "hsa:5054",
+        "x": 1160,
+        "y": 389,
+        "category": "Gene",
+        "internal_id": "98",
+        "color": "#95a5a6",
+        "value": 1,
+        "expression": null,
+        "hit_name": null
+      },
+      {
+        "id": "99",
+        "name": "ANGPT1",
+        "kegg_id": "hsa:284 hsa:285 hsa:51378",
+        "x": 1099,
+        "y": 415,
+        "category": "Gene",
+        "internal_id": "99",
+        "color": "#95a5a6",
+        "value": 1,
+        "expression": null,
+        "hit_name": null
+      },
+      {
+        "id": "100",
+        "name": "TEK",
+        "kegg_id": "hsa:7010",
+        "x": 1160,
+        "y": 415,
+        "category": "Gene",
+        "internal_id": "100",
+        "color": "#95a5a6",
+        "value": 1,
+        "expression": null,
+        "hit_name": null
+      },
+      {
+        "id": "101",
+        "name": "TIMP1",
+        "kegg_id": "hsa:7076",
+        "x": 1099,
+        "y": 442,
+        "category": "Gene",
+        "internal_id": "101",
+        "color": "#95a5a6",
+        "value": 1,
+        "expression": null,
+        "hit_name": null
+      },
+      {
+        "id": "106",
+        "name": "EDN1",
+        "kegg_id": "hsa:1906",
+        "x": 1099,
+        "y": 483,
+        "category": "Gene",
+        "internal_id": "106",
+        "color": "#95a5a6",
+        "value": 1,
+        "expression": null,
+        "hit_name": null
+      },
+      {
+        "id": "107",
+        "name": "NOS2",
+        "kegg_id": "hsa:4843",
+        "x": 1160,
+        "y": 483,
+        "category": "Gene",
+        "internal_id": "107",
+        "color": "#ffd5d5",
+        "value": 1.2,
+        "expression": 1.2,
+        "hit_name": "NOS2"
+      },
+      {
+        "id": "108",
+        "name": "NOS3",
+        "kegg_id": "hsa:4846",
+        "x": 1099,
+        "y": 510,
+        "category": "Gene",
+        "internal_id": "108",
+        "color": "#95a5a6",
+        "value": 1,
+        "expression": null,
+        "hit_name": null
+      },
+      {
+        "id": "109",
+        "name": "HMOX1",
+        "kegg_id": "hsa:3162",
+        "x": 1160,
+        "y": 510,
+        "category": "Gene",
+        "internal_id": "109",
+        "color": "#fff6f6",
+        "value": 1,
+        "expression": 1,
+        "hit_name": "HMOX1"
+      },
+      {
+        "id": "110",
+        "name": "NPPA",
+        "kegg_id": "hsa:4878",
+        "x": 1099,
+        "y": 538,
+        "category": "Gene",
+        "internal_id": "110",
+        "color": "#95a5a6",
+        "value": 1,
+        "expression": null,
+        "hit_name": null
+      },
+      {
+        "id": "114",
+        "name": "TIMP1",
+        "kegg_id": "hsa:7076",
+        "x": 1099,
+        "y": 195,
+        "category": "Gene",
+        "internal_id": "114",
+        "color": "#95a5a6",
+        "value": 1,
+        "expression": null,
+        "hit_name": null
+      },
+      {
+        "id": "115",
+        "name": "LTBR",
+        "kegg_id": "hsa:4055",
+        "x": 1099,
+        "y": 221,
+        "category": "Gene",
+        "internal_id": "115",
+        "color": "#95a5a6",
+        "value": 1,
+        "expression": null,
+        "hit_name": null
+      },
+      {
+        "id": "119",
+        "name": "C00007",
+        "kegg_id": "cpd:C00007",
+        "x": 628,
+        "y": 788,
+        "category": "Compound",
+        "internal_id": "119",
+        "color": "#95a5a6",
+        "value": 1,
+        "expression": null,
+        "hit_name": null
+      },
+      {
+        "id": "120",
+        "name": "TLR4",
+        "kegg_id": "hsa:7099",
+        "x": 169,
+        "y": 156,
+        "category": "Gene",
+        "internal_id": "120",
+        "color": "#95a5a6",
+        "value": 1,
+        "expression": null,
+        "hit_name": null
+      },
+      {
+        "id": "121",
+        "name": "NFKB1",
+        "kegg_id": "hsa:4790 hsa:5970",
+        "x": 443,
+        "y": 158,
+        "category": "Gene",
+        "internal_id": "121",
+        "color": "#ffa4a4",
+        "value": 1.5,
+        "expression": 1.5,
+        "hit_name": "NFKB1"
+      },
+      {
+        "id": "123",
+        "name": "C00338",
+        "kegg_id": "cpd:C00338",
+        "x": 107,
+        "y": 154,
+        "category": "Compound",
+        "internal_id": "123",
+        "color": "#95a5a6",
+        "value": 1,
+        "expression": null,
+        "hit_name": null
+      },
+      {
+        "id": "126",
+        "name": "IFNG",
+        "kegg_id": "hsa:3458",
+        "x": 87,
+        "y": 196,
+        "category": "Gene",
+        "internal_id": "126",
+        "color": "#95a5a6",
+        "value": 1,
+        "expression": null,
+        "hit_name": null
+      },
+      {
+        "id": "127",
+        "name": "IFNGR1",
+        "kegg_id": "hsa:3459 hsa:3460",
+        "x": 169,
+        "y": 196,
+        "category": "Gene",
+        "internal_id": "127",
+        "color": "#95a5a6",
+        "value": 1,
+        "expression": null,
+        "hit_name": null
+      },
+      {
+        "id": "134",
+        "name": "IL6",
+        "kegg_id": "hsa:3569",
+        "x": 87,
+        "y": 125,
+        "category": "Gene",
+        "internal_id": "134",
+        "color": "#ff4141",
+        "value": 2.1,
+        "expression": 2.1,
+        "hit_name": "IL6"
+      },
+      {
+        "id": "135",
+        "name": "IL6R",
+        "kegg_id": "hsa:3570",
+        "x": 169,
+        "y": 125,
+        "category": "Gene",
+        "internal_id": "135",
+        "color": "#95a5a6",
+        "value": 1,
+        "expression": null,
+        "hit_name": null
+      },
+      {
+        "id": "136",
+        "name": "STAT3",
+        "kegg_id": "hsa:6774",
+        "x": 443,
+        "y": 126,
+        "category": "Gene",
+        "internal_id": "136",
+        "color": "#c5c5ff",
+        "value": 0.6,
+        "expression": 0.6,
+        "hit_name": "STAT3"
+      },
+      {
+        "id": "142",
+        "name": "C00533",
+        "kegg_id": "cpd:C00533",
+        "x": 635,
+        "y": 395,
+        "category": "Compound",
+        "internal_id": "142",
+        "color": "#95a5a6",
+        "value": 1,
+        "expression": null,
+        "hit_name": null
+      },
+      {
+        "id": "147",
+        "name": "C00007",
+        "kegg_id": "cpd:C00007",
+        "x": 719,
+        "y": 394,
+        "category": "Compound",
+        "internal_id": "147",
+        "color": "#95a5a6",
+        "value": 1,
+        "expression": null,
+        "hit_name": null
+      },
+      {
+        "id": "148",
+        "name": "C14818",
+        "kegg_id": "cpd:C14818",
+        "x": 750,
+        "y": 386,
+        "category": "Compound",
+        "internal_id": "148",
+        "color": "#95a5a6",
+        "value": 1,
+        "expression": null,
+        "hit_name": null
+      },
+      {
+        "id": "149",
+        "name": "C00072",
+        "kegg_id": "cpd:C00072",
+        "x": 783,
+        "y": 374,
+        "category": "Compound",
+        "internal_id": "149",
+        "color": "#95a5a6",
+        "value": 1,
+        "expression": null,
+        "hit_name": null
+      },
+      {
+        "id": "150",
+        "name": "C00026",
+        "kegg_id": "cpd:C00026",
+        "x": 807,
+        "y": 356,
+        "category": "Compound",
+        "internal_id": "150",
+        "color": "#95a5a6",
+        "value": 1,
+        "expression": null,
+        "hit_name": null
+      },
+      {
+        "id": "152",
+        "name": "EIF4EBP1",
+        "kegg_id": "hsa:1978",
+        "x": 419,
+        "y": 315,
+        "category": "Gene",
+        "internal_id": "152",
+        "color": "#95a5a6",
+        "value": 1,
+        "expression": null,
+        "hit_name": null
+      },
+      {
+        "id": "153",
+        "name": "EIF4E",
+        "kegg_id": "hsa:1977 hsa:253314 hsa:9470",
+        "x": 491,
+        "y": 315,
+        "category": "Gene",
+        "internal_id": "153",
+        "color": "#95a5a6",
+        "value": 1,
+        "expression": null,
+        "hit_name": null
+      },
+      {
+        "id": "154",
+        "name": "RPS6KB1",
+        "kegg_id": "hsa:6198 hsa:6199",
+        "x": 420,
+        "y": 353,
+        "category": "Gene",
+        "internal_id": "154",
+        "color": "#95a5a6",
+        "value": 1,
+        "expression": null,
+        "hit_name": null
+      },
+      {
+        "id": "155",
+        "name": "RPS6",
+        "kegg_id": "hsa:6194",
+        "x": 492,
+        "y": 353,
+        "category": "Gene",
+        "internal_id": "155",
+        "color": "#95a5a6",
+        "value": 1,
+        "expression": null,
+        "hit_name": null
+      },
+      {
+        "id": "166",
+        "name": "MAPK1",
+        "kegg_id": "hsa:5594 hsa:5595",
+        "x": 335,
+        "y": 254,
+        "category": "Gene",
+        "internal_id": "166",
+        "color": "#95a5a6",
+        "value": 1,
+        "expression": null,
+        "hit_name": null
+      },
+      {
+        "id": "167",
+        "name": "MAP2K1",
+        "kegg_id": "hsa:5604 hsa:5605",
+        "x": 260,
+        "y": 254,
+        "category": "Gene",
+        "internal_id": "167",
+        "color": "#95a5a6",
+        "value": 1,
+        "expression": null,
+        "hit_name": null
+      },
+      {
+        "id": "168",
+        "name": "MKNK2",
+        "kegg_id": "hsa:2872 hsa:8569",
+        "x": 419,
+        "y": 254,
+        "category": "Gene",
+        "internal_id": "168",
+        "color": "#95a5a6",
+        "value": 1,
+        "expression": null,
+        "hit_name": null
+      },
+      {
+        "id": "177",
+        "name": "BCL2",
+        "kegg_id": "hsa:596",
+        "x": 1099,
+        "y": 845,
+        "category": "Gene",
+        "internal_id": "177",
+        "color": "#3131ff",
+        "value": 0.3,
+        "expression": -0.3,
+        "hit_name": "BCL2"
+      },
+      {
+        "id": "178",
+        "name": "CDKN1A",
+        "kegg_id": "hsa:1026 hsa:1027",
+        "x": 1099,
+        "y": 870,
+        "category": "Gene",
+        "internal_id": "178",
+        "color": "#95a5a6",
+        "value": 1,
+        "expression": null,
+        "hit_name": null
+      },
+      {
+        "id": "180",
+        "name": "EPAS1",
+        "kegg_id": "hsa:2034",
+        "x": 550,
+        "y": 401,
+        "category": "Gene",
+        "internal_id": "180",
+        "color": "#95a5a6",
+        "value": 1,
+        "expression": null,
+        "hit_name": null
+      },
+      {
+        "id": "181",
+        "name": "undefined",
+        "kegg_id": "undefined",
+        "x": 723,
+        "y": 265,
+        "category": "Complex",
+        "internal_id": "181",
+        "color": "#95a5a6",
+        "value": 1,
+        "expression": null,
+        "hit_name": null
+      },
+      {
+        "id": "182",
+        "name": "undefined",
+        "kegg_id": "undefined",
+        "x": 754,
+        "y": 432,
+        "category": "Complex",
+        "internal_id": "182",
+        "color": "#95a5a6",
+        "value": 1,
+        "expression": null,
+        "hit_name": null
+      }
+    ],
+    "edges": [
+      {
+        "source": "134",
+        "target": "135",
+        "relation": "activation"
+      },
+      {
+        "source": "123",
+        "target": "120",
+        "relation": "activation"
+      },
+      {
+        "source": "126",
+        "target": "127",
+        "relation": "activation"
+      },
+      {
+        "source": "17",
+        "target": "32",
+        "relation": "activation"
+      },
+      {
+        "source": "167",
+        "target": "166",
+        "relation": "activation"
+      },
+      {
+        "source": "166",
+        "target": "168",
+        "relation": "activation"
+      },
+      {
+        "source": "33",
+        "target": "34",
+        "relation": "activation"
+      },
+      {
+        "source": "35",
+        "target": "154",
+        "relation": "activation"
+      },
+      {
+        "source": "154",
+        "target": "155",
+        "relation": "activation"
+      },
+      {
+        "source": "168",
+        "target": "153",
+        "relation": "activation"
+      },
+      {
+        "source": "44",
+        "target": "40",
+        "relation": "activation"
+      },
+      {
+        "source": "42",
+        "target": "41",
+        "relation": "activation"
+      },
+      {
+        "source": "41",
+        "target": "35",
+        "relation": "activation"
+      },
+      {
+        "source": "147",
+        "target": "11",
+        "relation": "activation"
+      },
+      {
+        "source": "148",
+        "target": "11",
+        "relation": "activation"
+      },
+      {
+        "source": "149",
+        "target": "11",
+        "relation": "activation"
+      },
+      {
+        "source": "150",
+        "target": "11",
+        "relation": "activation"
+      },
+      {
+        "source": "77",
+        "target": "78",
+        "relation": "activation"
+      },
+      {
+        "source": "78",
+        "target": "14",
+        "relation": "activation"
+      },
+      {
+        "source": "11",
+        "target": "15",
+        "relation": "activation"
+      },
+      {
+        "source": "181",
+        "target": "15",
+        "relation": "inhibition"
+      },
+      {
+        "source": "135",
+        "target": "136",
+        "relation": "activation"
+      },
+      {
+        "source": "120",
+        "target": "121",
+        "relation": "activation"
+      },
+      {
+        "source": "127",
+        "target": "121",
+        "relation": "activation"
+      },
+      {
+        "source": "41",
+        "target": "11",
+        "relation": "inhibition"
+      },
+      {
+        "source": "142",
+        "target": "11",
+        "relation": "inhibition"
+      },
+      {
+        "source": "166",
+        "target": "152",
+        "relation": "inhibition"
+      },
+      {
+        "source": "35",
+        "target": "152",
+        "relation": "inhibition"
+      },
+      {
+        "source": "67",
+        "target": "66",
+        "relation": "inhibition"
+      },
+      {
+        "source": "136",
+        "target": "15",
+        "relation": "activation"
+      },
+      {
+        "source": "121",
+        "target": "15",
+        "relation": "activation"
+      },
+      {
+        "source": "182",
+        "target": "114",
+        "relation": "activation"
+      },
+      {
+        "source": "182",
+        "target": "115",
+        "relation": "activation"
+      },
+      {
+        "source": "182",
+        "target": "93",
+        "relation": "activation"
+      },
+      {
+        "source": "182",
+        "target": "94",
+        "relation": "activation"
+      },
+      {
+        "source": "182",
+        "target": "95",
+        "relation": "activation"
+      },
+      {
+        "source": "182",
+        "target": "10",
+        "relation": "activation"
+      },
+      {
+        "source": "182",
+        "target": "96",
+        "relation": "activation"
+      },
+      {
+        "source": "182",
+        "target": "97",
+        "relation": "activation"
+      },
+      {
+        "source": "182",
+        "target": "98",
+        "relation": "activation"
+      },
+      {
+        "source": "182",
+        "target": "99",
+        "relation": "activation"
+      },
+      {
+        "source": "182",
+        "target": "100",
+        "relation": "activation"
+      },
+      {
+        "source": "182",
+        "target": "101",
+        "relation": "activation"
+      },
+      {
+        "source": "182",
+        "target": "106",
+        "relation": "activation"
+      },
+      {
+        "source": "182",
+        "target": "107",
+        "relation": "activation"
+      },
+      {
+        "source": "182",
+        "target": "108",
+        "relation": "activation"
+      },
+      {
+        "source": "182",
+        "target": "109",
+        "relation": "activation"
+      },
+      {
+        "source": "182",
+        "target": "110",
+        "relation": "activation"
+      },
+      {
+        "source": "182",
+        "target": "16",
+        "relation": "activation"
+      },
+      {
+        "source": "182",
+        "target": "55",
+        "relation": "activation"
+      },
+      {
+        "source": "182",
+        "target": "84",
+        "relation": "activation"
+      },
+      {
+        "source": "182",
+        "target": "85",
+        "relation": "activation"
+      },
+      {
+        "source": "182",
+        "target": "86",
+        "relation": "activation"
+      },
+      {
+        "source": "182",
+        "target": "87",
+        "relation": "activation"
+      },
+      {
+        "source": "182",
+        "target": "89",
+        "relation": "activation"
+      },
+      {
+        "source": "182",
+        "target": "90",
+        "relation": "activation"
+      },
+      {
+        "source": "182",
+        "target": "54",
+        "relation": "activation"
+      },
+      {
+        "source": "182",
+        "target": "177",
+        "relation": "activation"
+      },
+      {
+        "source": "182",
+        "target": "178",
+        "relation": "activation"
+      },
+      {
+        "source": "182",
+        "target": "88",
+        "relation": "activation"
+      },
+      {
+        "source": "32",
+        "target": "167",
+        "relation": "activation"
+      },
+      {
+        "source": "32",
+        "target": "33",
+        "relation": "activation"
+      },
+      {
+        "source": "34",
+        "target": "35",
+        "relation": "activation"
+      },
+      {
+        "source": "39",
+        "target": "44",
+        "relation": "activation"
+      },
+      {
+        "source": "40",
+        "target": "42",
+        "relation": "activation"
+      },
+      {
+        "source": "40",
+        "target": "43",
+        "relation": "activation"
+      },
+      {
+        "source": "152",
+        "target": "153",
+        "relation": "inhibition"
+      }
+    ],
+    "categories": {
+      "Gene": "#3498db",
+      "Compound": "#f1c40f",
+      "Complex": "#9b59b6",
+      "Unknown": "#95a5a6"
+    },
+    "metadata": {
+      "colored": true,
+      "gene_count": 42,
+      "min_expression": -0.6,
+      "max_expression": 2.5,
+      "log_fold_change": true,
+      "data_type": "gene"
+    }
+  },
+  "statistics": {
+    "total_nodes": 77,
+    "upregulated": 14,
+    "downregulated": 1,
+    "unchanged": 62,
+    "percent_upregulated": 18.181818181818183,
+    "percent_downregulated": 1.2987012987012987
+  },
+  "volcano_data": [
+    {
+      "gene": "IL6",
+      "x": 2.1,
+      "y": 3,
+      "pvalue": 0.001,
+      "status": "UP"
+    },
+    {
+      "gene": "TNF",
+      "x": 1.8,
+      "y": 2.699,
+      "pvalue": 0.002,
+      "status": "UP"
+    },
+    {
+      "gene": "IL1B",
+      "x": 1.5,
+      "y": 2.301,
+      "pvalue": 0.005,
+      "status": "UP"
+    },
+    {
+      "gene": "LDHA",
+      "x": 0.8,
+      "y": 1.301,
+      "pvalue": 0.05,
+      "status": "NS"
+    },
+    {
+      "gene": "PKM",
+      "x": 0.5,
+      "y": 1,
+      "pvalue": 0.1,
+      "status": "NS"
+    },
+    {
+      "gene": "HK1",
+      "x": 0.6,
+      "y": 1.0969,
+      "pvalue": 0.08,
+      "status": "NS"
+    },
+    {
+      "gene": "ENO1",
+      "x": 0.7,
+      "y": 1.2218,
+      "pvalue": 0.06,
+      "status": "NS"
+    },
+    {
+      "gene": "GAPDH",
+      "x": 0.4,
+      "y": 0.8239,
+      "pvalue": 0.15,
+      "status": "NS"
+    },
+    {
+      "gene": "PGK1",
+      "x": 0.5,
+      "y": 0.9208,
+      "pvalue": 0.12,
+      "status": "NS"
+    },
+    {
+      "gene": "ALDOA",
+      "x": 0.6,
+      "y": 1.0458,
+      "pvalue": 0.09,
+      "status": "NS"
+    },
+    {
+      "gene": "TPI1",
+      "x": 0.4,
+      "y": 0.7447,
+      "pvalue": 0.18,
+      "status": "NS"
+    },
+    {
+      "gene": "HIF1A",
+      "x": 1.2,
+      "y": 1.699,
+      "pvalue": 0.02,
+      "status": "UP"
+    },
+    {
+      "gene": "VEGFA",
+      "x": 0.9,
+      "y": 1.4559,
+      "pvalue": 0.035,
+      "status": "NS"
+    },
+    {
+      "gene": "SLC2A1",
+      "x": 0.7,
+      "y": 1.2218,
+      "pvalue": 0.06,
+      "status": "NS"
+    },
+    {
+      "gene": "PDK1",
+      "x": 0.8,
+      "y": 1.3468,
+      "pvalue": 0.045,
+      "status": "NS"
+    },
+    {
+      "gene": "FBP1",
+      "x": -0.5,
+      "y": 0.9208,
+      "pvalue": 0.12,
+      "status": "NS"
+    },
+    {
+      "gene": "PC",
+      "x": -0.4,
+      "y": 0.8239,
+      "pvalue": 0.15,
+      "status": "NS"
+    },
+    {
+      "gene": "PCK1",
+      "x": -0.6,
+      "y": 1.0458,
+      "pvalue": 0.09,
+      "status": "NS"
+    },
+    {
+      "gene": "G6PC",
+      "x": -0.5,
+      "y": 0.9586,
+      "pvalue": 0.11,
+      "status": "NS"
+    },
+    {
+      "gene": "BCL2",
+      "x": -0.3,
+      "y": 0.699,
+      "pvalue": 0.2,
+      "status": "NS"
+    },
+    {
+      "gene": "BAX",
+      "x": 0.5,
+      "y": 0.9586,
+      "pvalue": 0.11,
+      "status": "NS"
+    },
+    {
+      "gene": "CASP3",
+      "x": 0.4,
+      "y": 0.7959,
+      "pvalue": 0.16,
+      "status": "NS"
+    },
+    {
+      "gene": "TP53",
+      "x": 0.3,
+      "y": 0.6576,
+      "pvalue": 0.22,
+      "status": "NS"
+    },
+    {
+      "gene": "MYC",
+      "x": -0.2,
+      "y": 0.5229,
+      "pvalue": 0.3,
+      "status": "NS"
+    },
+    {
+      "gene": "CCND1",
+      "x": -0.3,
+      "y": 0.6576,
+      "pvalue": 0.22,
+      "status": "NS"
+    },
+    {
+      "gene": "CDK4",
+      "x": -0.4,
+      "y": 0.7447,
+      "pvalue": 0.18,
+      "status": "NS"
+    },
+    {
+      "gene": "RB1",
+      "x": -0.2,
+      "y": 0.5528,
+      "pvalue": 0.28,
+      "status": "NS"
+    },
+    {
+      "gene": "IFNA1",
+      "x": 2.5,
+      "y": 3.301,
+      "pvalue": 0.0005,
+      "status": "UP"
+    },
+    {
+      "gene": "IFNB1",
+      "x": 2.2,
+      "y": 3,
+      "pvalue": 0.001,
+      "status": "UP"
+    },
+    {
+      "gene": "IL12A",
+      "x": 1.8,
+      "y": 2.5229,
+      "pvalue": 0.003,
+      "status": "UP"
+    },
+    {
+      "gene": "STAT3",
+      "x": 0.6,
+      "y": 1.0458,
+      "pvalue": 0.09,
+      "status": "NS"
+    },
+    {
+      "gene": "JAK2",
+      "x": 0.5,
+      "y": 0.9586,
+      "pvalue": 0.11,
+      "status": "NS"
+    },
+    {
+      "gene": "NFKB1",
+      "x": 1.5,
+      "y": 2,
+      "pvalue": 0.01,
+      "status": "UP"
+    },
+    {
+      "gene": "RELA",
+      "x": 1.3,
+      "y": 1.8239,
+      "pvalue": 0.015,
+      "status": "UP"
+    },
+    {
+      "gene": "CXCL8",
+      "x": 2,
+      "y": 2.699,
+      "pvalue": 0.002,
+      "status": "UP"
+    },
+    {
+      "gene": "CCL2",
+      "x": 1.8,
+      "y": 2.5229,
+      "pvalue": 0.003,
+      "status": "UP"
+    },
+    {
+      "gene": "PTGS2",
+      "x": 1.6,
+      "y": 2.0969,
+      "pvalue": 0.008,
+      "status": "UP"
+    },
+    {
+      "gene": "NOS2",
+      "x": 1.2,
+      "y": 1.699,
+      "pvalue": 0.02,
+      "status": "UP"
+    },
+    {
+      "gene": "SOD2",
+      "x": 0.8,
+      "y": 1.3468,
+      "pvalue": 0.045,
+      "status": "NS"
+    },
+    {
+      "gene": "CAT",
+      "x": 0.6,
+      "y": 1.0458,
+      "pvalue": 0.09,
+      "status": "NS"
+    },
+    {
+      "gene": "GPX1",
+      "x": 0.5,
+      "y": 0.9208,
+      "pvalue": 0.12,
+      "status": "NS"
+    },
+    {
+      "gene": "HMOX1",
+      "x": 1,
+      "y": 1.5528,
+      "pvalue": 0.028,
+      "status": "NS"
+    }
+  ],
+  "has_pvalue": true,
+  "gene_map": {
+    "IL6": {
+      "gene": "IL6",
+      "x": 2.1,
+      "y": 3,
+      "pvalue": 0.001,
+      "status": "UP"
+    },
+    "TNF": {
+      "gene": "TNF",
+      "x": 1.8,
+      "y": 2.699,
+      "pvalue": 0.002,
+      "status": "UP"
+    },
+    "IL1B": {
+      "gene": "IL1B",
+      "x": 1.5,
+      "y": 2.301,
+      "pvalue": 0.005,
+      "status": "UP"
+    },
+    "LDHA": {
+      "gene": "LDHA",
+      "x": 0.8,
+      "y": 1.301,
+      "pvalue": 0.05,
+      "status": "NS"
+    },
+    "PKM": {
+      "gene": "PKM",
+      "x": 0.5,
+      "y": 1,
+      "pvalue": 0.1,
+      "status": "NS"
+    },
+    "HK1": {
+      "gene": "HK1",
+      "x": 0.6,
+      "y": 1.0969,
+      "pvalue": 0.08,
+      "status": "NS"
+    },
+    "ENO1": {
+      "gene": "ENO1",
+      "x": 0.7,
+      "y": 1.2218,
+      "pvalue": 0.06,
+      "status": "NS"
+    },
+    "GAPDH": {
+      "gene": "GAPDH",
+      "x": 0.4,
+      "y": 0.8239,
+      "pvalue": 0.15,
+      "status": "NS"
+    },
+    "PGK1": {
+      "gene": "PGK1",
+      "x": 0.5,
+      "y": 0.9208,
+      "pvalue": 0.12,
+      "status": "NS"
+    },
+    "ALDOA": {
+      "gene": "ALDOA",
+      "x": 0.6,
+      "y": 1.0458,
+      "pvalue": 0.09,
+      "status": "NS"
+    },
+    "TPI1": {
+      "gene": "TPI1",
+      "x": 0.4,
+      "y": 0.7447,
+      "pvalue": 0.18,
+      "status": "NS"
+    },
+    "HIF1A": {
+      "gene": "HIF1A",
+      "x": 1.2,
+      "y": 1.699,
+      "pvalue": 0.02,
+      "status": "UP"
+    },
+    "VEGFA": {
+      "gene": "VEGFA",
+      "x": 0.9,
+      "y": 1.4559,
+      "pvalue": 0.035,
+      "status": "NS"
+    },
+    "SLC2A1": {
+      "gene": "SLC2A1",
+      "x": 0.7,
+      "y": 1.2218,
+      "pvalue": 0.06,
+      "status": "NS"
+    },
+    "PDK1": {
+      "gene": "PDK1",
+      "x": 0.8,
+      "y": 1.3468,
+      "pvalue": 0.045,
+      "status": "NS"
+    },
+    "FBP1": {
+      "gene": "FBP1",
+      "x": -0.5,
+      "y": 0.9208,
+      "pvalue": 0.12,
+      "status": "NS"
+    },
+    "PC": {
+      "gene": "PC",
+      "x": -0.4,
+      "y": 0.8239,
+      "pvalue": 0.15,
+      "status": "NS"
+    },
+    "PCK1": {
+      "gene": "PCK1",
+      "x": -0.6,
+      "y": 1.0458,
+      "pvalue": 0.09,
+      "status": "NS"
+    },
+    "G6PC": {
+      "gene": "G6PC",
+      "x": -0.5,
+      "y": 0.9586,
+      "pvalue": 0.11,
+      "status": "NS"
+    },
+    "BCL2": {
+      "gene": "BCL2",
+      "x": -0.3,
+      "y": 0.699,
+      "pvalue": 0.2,
+      "status": "NS"
+    },
+    "BAX": {
+      "gene": "BAX",
+      "x": 0.5,
+      "y": 0.9586,
+      "pvalue": 0.11,
+      "status": "NS"
+    },
+    "CASP3": {
+      "gene": "CASP3",
+      "x": 0.4,
+      "y": 0.7959,
+      "pvalue": 0.16,
+      "status": "NS"
+    },
+    "TP53": {
+      "gene": "TP53",
+      "x": 0.3,
+      "y": 0.6576,
+      "pvalue": 0.22,
+      "status": "NS"
+    },
+    "MYC": {
+      "gene": "MYC",
+      "x": -0.2,
+      "y": 0.5229,
+      "pvalue": 0.3,
+      "status": "NS"
+    },
+    "CCND1": {
+      "gene": "CCND1",
+      "x": -0.3,
+      "y": 0.6576,
+      "pvalue": 0.22,
+      "status": "NS"
+    },
+    "CDK4": {
+      "gene": "CDK4",
+      "x": -0.4,
+      "y": 0.7447,
+      "pvalue": 0.18,
+      "status": "NS"
+    },
+    "RB1": {
+      "gene": "RB1",
+      "x": -0.2,
+      "y": 0.5528,
+      "pvalue": 0.28,
+      "status": "NS"
+    },
+    "IFNA1": {
+      "gene": "IFNA1",
+      "x": 2.5,
+      "y": 3.301,
+      "pvalue": 0.0005,
+      "status": "UP"
+    },
+    "IFNB1": {
+      "gene": "IFNB1",
+      "x": 2.2,
+      "y": 3,
+      "pvalue": 0.001,
+      "status": "UP"
+    },
+    "IL12A": {
+      "gene": "IL12A",
+      "x": 1.8,
+      "y": 2.5229,
+      "pvalue": 0.003,
+      "status": "UP"
+    },
+    "STAT3": {
+      "gene": "STAT3",
+      "x": 0.6,
+      "y": 1.0458,
+      "pvalue": 0.09,
+      "status": "NS"
+    },
+    "JAK2": {
+      "gene": "JAK2",
+      "x": 0.5,
+      "y": 0.9586,
+      "pvalue": 0.11,
+      "status": "NS"
+    },
+    "NFKB1": {
+      "gene": "NFKB1",
+      "x": 1.5,
+      "y": 2,
+      "pvalue": 0.01,
+      "status": "UP"
+    },
+    "RELA": {
+      "gene": "RELA",
+      "x": 1.3,
+      "y": 1.8239,
+      "pvalue": 0.015,
+      "status": "UP"
+    },
+    "CXCL8": {
+      "gene": "CXCL8",
+      "x": 2,
+      "y": 2.699,
+      "pvalue": 0.002,
+      "status": "UP"
+    },
+    "CCL2": {
+      "gene": "CCL2",
+      "x": 1.8,
+      "y": 2.5229,
+      "pvalue": 0.003,
+      "status": "UP"
+    },
+    "PTGS2": {
+      "gene": "PTGS2",
+      "x": 1.6,
+      "y": 2.0969,
+      "pvalue": 0.008,
+      "status": "UP"
+    },
+    "NOS2": {
+      "gene": "NOS2",
+      "x": 1.2,
+      "y": 1.699,
+      "pvalue": 0.02,
+      "status": "UP"
+    },
+    "SOD2": {
+      "gene": "SOD2",
+      "x": 0.8,
+      "y": 1.3468,
+      "pvalue": 0.045,
+      "status": "NS"
+    },
+    "CAT": {
+      "gene": "CAT",
+      "x": 0.6,
+      "y": 1.0458,
+      "pvalue": 0.09,
+      "status": "NS"
+    },
+    "GPX1": {
+      "gene": "GPX1",
+      "x": 0.5,
+      "y": 0.9208,
+      "pvalue": 0.12,
+      "status": "NS"
+    },
+    "HMOX1": {
+      "gene": "HMOX1",
+      "x": 1,
+      "y": 1.5528,
+      "pvalue": 0.028,
+      "status": "NS"
+    }
+  },
+  "config": {
+    "filePaths": [
+      "/Users/haifeng/BioViz-Local/assets/sample_timecourse_6points.csv"
+    ],
+    "mapping": {
+      "gene": "Gene",
+      "value": "4h_logfc",
+      "pvalue": "4h_pvalue"
+    },
+    "pathwayId": "hsa04066",
+    "dataType": "gene",
+    "analysisMethods": [
+      "auto"
+    ]
+  },
+  "entityKind": "gene",
+  "sourceFilePath": "/Users/haifeng/BioViz-Local/assets/sample_timecourse_6points.csv",
+  "insights": {
+    "summary": "Analysis of 42 genes shows strong upregulation (14 up, 1 down).",
+    "badges": [
+      {
+        "type": "HIGHLIGHT",
+        "message": "📈 Dominant Upregulation",
+        "detail": "14 upregulated vs 1 downregulated genes"
+      },
+      {
+        "type": "HIGHLIGHT",
+        "message": "⭐ Top Hits: IFNA1, IFNB1, IL6",
+        "detail": "IFNA1: LogFC=2.50, P=0.0005 | IFNB1: LogFC=2.20, P=0.0010 | IL6: LogFC=2.10, P=0.0010"
+      }
+    ]
+  },
+  "chatHistory": [
+    {
+      "role": "assistant",
+      "content": "基于您提供的HIF-1信号通路差异表达数据，我观察到以下几个重要的生物学趋势和调控模式：\n\n## 主要生物学趋势\n\n### 1. **强烈的免疫炎症反应激活**\n- **干扰素系统显著上调**：IFNA1(+2.50)和IFNB1(+2.20)大幅上调，表明强烈的抗病毒免疫应答\n- **促炎细胞因子全面激活**：IL6(+2.10)、TNF(+1.80)、IL1B(+1.50)、CXCL8(+2.00)等关键炎症因子显著上调\n- **趋化因子表达增强**：CXCL8和CCL2(+1.80)上调，促进免疫细胞募集\n\n### 2. **NF-κB信号通路活化**\n- **核心转录因子上调**：NFKB1(+1.50)和RELA(+1.30)同时上调，表明NF-κB信号通路被激活\n- **下游炎症基因表达**：该通路调控的多个炎症相关基因(IL6、TNF、IL1B等)均显著上调\n\n### 3. **HIF-1信号通路适度激活**\n- **主调控因子上调**：HIF1A(+1.20)适度上调，表明缺氧响应机制启动\n- **下游靶基因变化**：VEGFA(+0.90)和HMOX1(+1.00)轻微上调，但多数代谢酶基因变化不显著\n\n### 4. **氧化应激响应**\n- **一氧化氮合成酶上调**：NOS2(+1.20)上调，可能与炎症相关的氧化应激有关\n- **前列腺素合成酶上调**：PTGS2(+1.60)上调，促进炎症介质产生\n\n## 调控模式分析\n\n### **免疫主导型响应**\n数据呈现典型的免疫炎症主导模式，而非经典的缺氧代谢适应。干扰素和炎症因子的上调幅度明显超过HIF-1下游代谢基因。\n\n### **协同调控网络**\nNF-κB和HIF-1通路可能存在协同作用，共同调控炎症和应激响应基因的表达。\n\n### **代谢适应相对保守**\n糖酵解相关酶(LDHA、PKM、ENO1等)变化较小，表明在此条件下代谢适应不是主要响应机制。\n\n**总结**：该表达模式强烈提示样本处于**急性炎症/免疫激活状态**，可能由病毒感染或其他免疫刺激引起，而非单纯的缺氧应激。",
+      "timestamp": 1765887896679
+    },
+    {
+      "role": "assistant",
+      "content": "Executed run_enrichment successfully.\n\n**🔧 执行工具**: run_enrichment\n\n**富集分析结果**:\n• 基因数: 13\n• 基因库: KEGG_2021_Human\n• 富集条目: 121\n\n**Top 10 显著通路**:\n1. **Chagas disease**\n   - P-value: 2.58e-19\n   - Genes: 10/102\n2. **Influenza A**\n   - P-value: 2.87e-17\n   - Genes: 10/172\n3. **Toll-like receptor signaling pathway**\n   - P-value: 5.53e-17\n   - Genes: 9/104\n4. **Lipid and atherosclerosis**\n   - P-value: 1.40e-16\n   - Genes: 10/215\n5. **Human cytomegalovirus infection**\n   - P-value: 1.78e-16\n   - Genes: 10/225\n6. **Coronavirus disease**\n   - P-value: 2.03e-16\n   - Genes: 10/232\n7. **Pertussis**\n   - P-value: 6.51e-16\n   - Genes: 8/76\n8. **Tuberculosis**\n   - P-value: 2.79e-15\n   - Genes: 9/180\n9. **IL-17 signaling pathway**\n   - P-value: 2.79e-15\n   - Genes: 8/94\n10. **NOD-like receptor signaling pathway**\n   - P-value: 2.79e-15\n   - Genes: 9/181\n",
+      "timestamp": 1765887916135
+    },
+    {
+      "role": "assistant",
+      "content": "基于您提供的HIF-1信号通路差异表达数据，我观察到一些重要的生物学趋势模式：\n\n## 主要趋势分析\n\n### 1. **强烈的炎症和免疫反应激活**\n- **干扰素家族显著上调**：IFNA1(+2.50)和IFNB1(+2.20)是变化最显著的基因，表明强烈的抗病毒免疫反应\n- **炎症因子全面上调**：IL6(+2.10)、TNF(+1.80)、IL1B(+1.50)、CXCL8(+2.00)、CCL2(+1.80)\n- **免疫调节因子**：IL12A(+1.80)也显著上调\n\n### 2. **NF-κB信号通路激活**\n- NFKB1(+1.50)和RELA(+1.30)同时上调，表明经典的NF-κB信号通路被激活\n- 这与炎症因子的上调一致，形成正反馈环路\n\n### 3. **HIF-1通路核心激活**\n- HIF1A(+1.20)上调，虽然幅度相对较小，但结合其下游基因表达模式，表明缺氧响应被激活\n- 下游效应基因：VEGFA(+0.90)、HMOX1(+1.00)适度上调\n\n### 4. **氧化应激和血管生成相关**\n- NOS2(+1.20)上调表明一氧化氮合成增加\n- PTGS2(+1.60)上调（前列腺素内过氧化物合酶2，即COX-2）\n- VEGFA(+0.90)上调促进血管生成\n\n## 生物学意义\n\n这些表达模式强烈提示：\n- **急性炎症状态**：多种促炎因子同时上调\n- **缺氧应激响应**：HIF-1通路激活\n- **免疫细胞募集**：趋化因子CXCL8和CCL2上调促进白细胞迁移\n- **血管重塑**：VEGFA上调促进新生血管形成\n\n这种表达模式常见于**感染、组织损伤或肿瘤微环境**等情况，其中缺氧和炎症反应相互促进，形成复杂的调控网络。\n\n您希望我进一步分析这些基因在通路中的具体相互作用关系吗？",
+      "timestamp": 1765887964664
+    }
+  ]
+}

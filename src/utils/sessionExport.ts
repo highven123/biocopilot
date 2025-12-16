@@ -3,7 +3,7 @@
  * Uses Tauri native dialog for reliable file saving
  */
 
-import { save, open } from '@tauri-apps/plugin-dialog';
+import { save, open, ask } from '@tauri-apps/plugin-dialog';
 import { writeTextFile, readTextFile } from '@tauri-apps/plugin-fs';
 
 export interface AnalysisSession {
@@ -19,30 +19,39 @@ export async function exportSessionAsJSON(analysis: AnalysisSession): Promise<bo
     const baseName = analysis.sourceFilePath.split('/').pop()?.replace(/\.[^/.]+$/, '') || 'session';
     const defaultName = `${baseName}_session.json`;
 
+    console.log('[Export] exportSessionAsJSON starting, defaultName:', defaultName);
+
     try {
+        console.log('[Export] Calling save() dialog...');
         const filePath = await save({
             title: 'Save Analysis Session',
             defaultPath: defaultName,
             filters: [{ name: 'JSON', extensions: ['json'] }]
         });
+        console.log('[Export] save() returned:', filePath);
 
         if (!filePath) {
+            console.log('[Export] User cancelled or no path returned');
             return false; // User cancelled
         }
 
         const jsonData = JSON.stringify(analysis, null, 2);
+        console.log('[Export] Writing to file:', filePath);
         await writeTextFile(filePath, jsonData);
+        console.log('[Export] Write complete');
         return true;
     } catch (error) {
-        console.error('Failed to export JSON:', error);
+        console.error('[Export] Failed to export JSON:', error);
         alert(`Export failed: ${error}`);
         return false;
     }
 }
 
 export async function exportSessionAsMarkdown(analysis: AnalysisSession): Promise<boolean> {
+    console.log('[Export] === exportSessionAsMarkdown START ===');
     const baseName = analysis.sourceFilePath.split('/').pop()?.replace(/\.[^/.]+$/, '') || 'session';
     const defaultName = `${baseName}_report.md`;
+    console.log('[Export] Markdown defaultName:', defaultName);
 
     let markdown = `# BioViz Analysis Session\n\n`;
     markdown += `**Date**: ${new Date().toLocaleString()}\n`;
@@ -88,20 +97,41 @@ export async function exportSessionAsMarkdown(analysis: AnalysisSession): Promis
 }
 
 export async function exportSession(analysis: AnalysisSession): Promise<void> {
-    // Let user choose format
-    const format = confirm('Save as JSON? (OK = JSON for reimport, Cancel = Markdown report)');
+    console.log('=== [Export] exportSession START ===');
 
-    if (format) {
-        const success = await exportSessionAsJSON(analysis);
-        if (success) {
-            alert('Session saved successfully!');
-        }
-    } else {
-        const success = await exportSessionAsMarkdown(analysis);
-        if (success) {
-            alert('Report saved successfully!');
-        }
+    if (!analysis) {
+        alert('No analysis data to export!');
+        return;
     }
+
+    try {
+        // Ask user to choose format
+        const saveAsJson = await ask('选择导出格式：\n\n• JSON - 可重新导入继续分析\n• Markdown - 人类可读报告', {
+            title: '导出分析报告',
+            kind: 'info',
+            okLabel: 'JSON',
+            cancelLabel: 'Markdown'
+        });
+
+        console.log('[Export] User chose:', saveAsJson ? 'JSON' : 'Markdown');
+
+        if (saveAsJson) {
+            const success = await exportSessionAsJSON(analysis);
+            if (success) {
+                alert('Session saved successfully!');
+            }
+        } else {
+            const success = await exportSessionAsMarkdown(analysis);
+            if (success) {
+                alert('Report saved successfully!');
+            }
+        }
+    } catch (error) {
+        console.error('[Export] Error in exportSession:', error);
+        alert(`Export error: ${error}`);
+    }
+
+    console.log('=== [Export] exportSession END ===');
 }
 
 export async function importSession(): Promise<AnalysisSession | null> {
