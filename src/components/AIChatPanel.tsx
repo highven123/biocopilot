@@ -60,7 +60,29 @@ export const AIChatPanel: React.FC<AIChatPanelProps> = ({ sendCommand, isConnect
 
                     // If this is an EXECUTE action, add tool execution details
                     if (lastResponse.type === 'EXECUTE' && lastResponse.tool_name) {
-                        responseContent += `\n\n*[Executed: ${lastResponse.tool_name}]*`;
+                        responseContent += `\n\n**🔧 执行工具**: ${lastResponse.tool_name}`;
+
+                        // Format and display tool results
+                        if (lastResponse.tool_result) {
+                            const result = lastResponse.tool_result;
+
+                            if (lastResponse.tool_name === 'list_pathways' && Array.isArray(result)) {
+                                responseContent += `\n\n**可用通路列表** (${result.length}个):`;
+                                result.forEach((p: any) => {
+                                    responseContent += `\n• ${p.id}: ${p.name}`;
+                                });
+                            } else if (lastResponse.tool_name === 'render_pathway' && result.pathway) {
+                                const pathway = result.pathway;
+                                const stats = result.statistics || {};
+                                responseContent += `\n\n**通路**: ${pathway.title || pathway.id}`;
+                                responseContent += `\n**基因数**: ${stats.total_nodes || 0}`;
+                                responseContent += `\n**上调**: ${stats.upregulated || 0} | **下调**: ${stats.downregulated || 0}`;
+                            } else if (typeof result === 'object') {
+                                responseContent += `\n\n**结果**: ${JSON.stringify(result, null, 2)}`;
+                            } else {
+                                responseContent += `\n\n**结果**: ${String(result)}`;
+                            }
+                        }
                     }
 
                     // Add AI response
