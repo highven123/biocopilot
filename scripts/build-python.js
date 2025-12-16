@@ -100,7 +100,7 @@ function getExclusionList() {
         'notebook', 'nbformat',
         'xml.dom', 'xml.sax',
         'html.parser',
-        'email', 'calendar',
+        // NOTE: email and calendar KEPT - required by pkg_resources/setuptools
     ];
 }
 
