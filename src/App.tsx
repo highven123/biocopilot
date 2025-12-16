@@ -907,6 +907,21 @@ function App() {
                   volcanoData: activeAnalysis.volcano_data,
                   statistics: activeAnalysis.statistics
                 } : undefined}
+                chatHistory={activeAnalysis?.chatHistory || []}
+                onChatUpdate={(messages) => {
+                  if (activeAnalysis) {
+                    setAnalysisResults(prev => {
+                      const updated = [...prev];
+                      if (updated[activeResultIndex]) {
+                        updated[activeResultIndex] = {
+                          ...updated[activeResultIndex],
+                          chatHistory: messages
+                        };
+                      }
+                      return updated;
+                    });
+                  }
+                }}
               />
             )}
             {leftPanelView === 'gsea' && (

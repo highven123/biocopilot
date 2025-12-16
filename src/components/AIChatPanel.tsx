@@ -74,7 +74,7 @@ export const AIChatPanel: React.FC<AIChatPanelProps> = ({
             if (lastResponse.cmd === 'CHAT' && (lastResponse.type === 'CHAT' || lastResponse.type === 'EXECUTE')) {
                 console.log('[AIChatPanel] Processing AI response, content:', lastResponse.content?.substring(0, 50));
 
-                setMessages(prev => {
+                updateMessages(prev => {
                     // Remove the last "Processing..." message if it exists
                     const filtered = prev.filter(m => m.content !== 'Processing your request...');
 
@@ -154,7 +154,7 @@ export const AIChatPanel: React.FC<AIChatPanelProps> = ({
             timestamp: Date.now()
         };
 
-        setMessages(prev => [...prev, userMessage]);
+        updateMessages(prev => [...prev, userMessage]);
         setInput('');
         setIsLoading(true);
 
@@ -175,7 +175,7 @@ export const AIChatPanel: React.FC<AIChatPanelProps> = ({
                 content: 'Processing your request...',
                 timestamp: Date.now()
             };
-            setMessages(prev => [...prev, placeholderMessage]);
+            updateMessages(prev => [...prev, placeholderMessage]);
         } catch (error) {
             console.error('Failed to send message:', error);
             const errorMessage: Message = {
@@ -183,7 +183,7 @@ export const AIChatPanel: React.FC<AIChatPanelProps> = ({
                 content: 'Sorry, I encountered an error processing your request.',
                 timestamp: Date.now()
             };
-            setMessages(prev => [...prev, errorMessage]);
+            updateMessages(prev => [...prev, errorMessage]);
             setIsLoading(false);
         }
     };
