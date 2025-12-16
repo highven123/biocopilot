@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useBioEngine } from './hooks/useBioEngine';
 import { DataImportWizard, AnalysisConfig } from './components/DataImportWizard';
 import { VolcanoPlot, VolcanoPoint, VolcanoViewMode } from './components/VolcanoPlot';
-import { EvidencePanel, GeneDetail } from './components/EvidencePanel';
+import { EvidencePopup, GeneDetail } from './components/EvidencePopup';
 import { PathwayVisualizer, PathwayVisualizerRef } from './components/PathwayVisualizer';
 import { DataTable } from './components/DataTable';
 import { ResultTabs } from './components/ResultTabs';
@@ -70,7 +70,8 @@ function App() {
   const [filteredGenes, setFilteredGenes] = useState<string[]>([]);
   const [activeGene, setActiveGene] = useState<string | null>(null);
   const [logs, setLogs] = useState<string[]>([]);
-  const [leftPanelView, setLeftPanelView] = useState<'chart' | 'table' | 'evidence' | 'ai-chat' | 'gsea' | 'images' | 'multi-sample'>('chart');
+  const [leftPanelView, setLeftPanelView] = useState<'chart' | 'table' | 'ai-chat' | 'gsea' | 'images' | 'multi-sample'>('chart');
+  const [showEvidencePopup, setShowEvidencePopup] = useState(false);
   const [chartViewMode, setChartViewMode] = useState<VolcanoViewMode>('volcano');
 
   const activeAnalysis = analysisResults[activeResultIndex] || null;
@@ -349,6 +350,7 @@ function App() {
   const handlePathwayNodeClick = (name: string) => {
     setActiveGene(name);
     setFilteredGenes(name ? [name] : []);
+    if (name) setShowEvidencePopup(true);
   };
 
   const resultTabs = useMemo(() => {
@@ -767,25 +769,9 @@ function App() {
           onMouseDown={(e) => startResize(1, e)}
         />
 
-        {/* Right Panel: Evidence / AI Chat */}
+        {/* Right Panel: AI Chat */}
         <div className="panel-col">
           <div className="panel-header" style={{ display: 'flex', gap: '8px', padding: '8px 12px' }}>
-            <button
-              onClick={() => setLeftPanelView('evidence')}
-              style={{
-                flex: 1,
-                padding: '8px',
-                background: leftPanelView === 'evidence' ? 'var(--brand-primary)' : 'transparent',
-                color: leftPanelView === 'evidence' ? 'white' : 'var(--text-dim)',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                fontSize: '13px',
-                fontWeight: 500
-              }}
-            >
-              Evidence
-            </button>
             <button
               onClick={() => setLeftPanelView('ai-chat')}
               style={{
@@ -852,14 +838,6 @@ function App() {
             </button>
           </div>
           <div className="panel-body">
-            {leftPanelView === 'evidence' && (
-              <EvidencePanel
-                gene={activeGene}
-                geneData={activeGeneDetail}
-                entityKind={entityKind}
-                labels={entityLabels}
-              />
-            )}
             {leftPanelView === 'ai-chat' && (
               <AIChatPanel
                 sendCommand={async (cmd, data) => { await sendCommand(cmd, data, false); }}
@@ -910,7 +888,7 @@ function App() {
                       if (updated[activeResultIndex]) {
                         updated[activeResultIndex] = {
                           ...updated[activeResultIndex],
-                          volcanoData: newVolcanoData,
+                          volcano_data: newVolcanoData,
                           // Note: Don't modify sourceFilePath to avoid file loading errors
                         };
                       }
@@ -924,6 +902,20 @@ function App() {
             )}
           </div>
         </div>
+
+        {/* Evidence Popup Overlay */}
+        {showEvidencePopup && activeGene && (
+          <EvidencePopup
+            gene={activeGene}
+            geneData={activeGeneDetail}
+            entityKind={entityKind}
+            labels={entityLabels}
+            onClose={() => {
+              setShowEvidencePopup(false);
+              setActiveGene(null);
+            }}
+          />
+        )}
 
       </main>
 
