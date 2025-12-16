@@ -220,6 +220,38 @@ def process_query(
         system_message += pathway_info
         print(f"[AI Core] Added context to system message: {pathway_name}", file=sys.stderr)
     
+    # Handle multi-sample context for time-series comparison
+    if context and context.get('multiSample'):
+        sample_groups = context.get('sampleGroups', [])
+        expression_data = context.get('expressionData', {})
+        
+        multi_info = f"\n\n**MULTI-SAMPLE TIME-SERIES DATA:**\n"
+        multi_info += f"- Sample Groups: {', '.join(sample_groups)}\n\n"
+        
+        for group in sample_groups:
+            group_data = expression_data.get(group, [])
+            if group_data:
+                multi_info += f"**{group} Expression Data:**\n"
+                # Sort by absolute logfc
+                sorted_data = sorted(group_data, key=lambda x: abs(x.get('logfc', 0)), reverse=True)
+                for gene in sorted_data[:10]:  # Top 10 genes
+                    gene_name = gene.get('gene', 'unknown')
+                    logfc = gene.get('logfc', 0)
+                    pvalue = gene.get('pvalue', 1)
+                    status = "UP" if logfc > 0 and pvalue < 0.05 else ("DOWN" if logfc < 0 and pvalue < 0.05 else "NS")
+                    multi_info += f"  - {gene_name}: LogFC={logfc:.2f}, P={pvalue:.4f} ({status})\n"
+                multi_info += "\n"
+        
+        multi_info += """
+**请分析以上多时间点数据：**
+1. 识别持续上调或下调的基因
+2. 找出时间依赖性表达模式
+3. 推断可能的生物学通路变化
+4. 总结不同时间点之间的主要差异
+"""
+        system_message += multi_info
+        print(f"[AI Core] Added multi-sample context: {len(sample_groups)} groups", file=sys.stderr)
+    
     messages = [{"role": "system", "content": system_message}]
     
     # Add history

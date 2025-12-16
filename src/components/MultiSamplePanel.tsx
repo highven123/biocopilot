@@ -211,15 +211,33 @@ export const MultiSamplePanel: React.FC<MultiSamplePanelProps> = ({
                         <button
                             className="action-btn compare"
                             onClick={() => {
+                                // Build context with expression data for each time point
+                                const contextData: Record<string, unknown> = {};
+                                if (multiSampleData?.expression_data) {
+                                    sampleGroups.forEach(group => {
+                                        const groupData = multiSampleData.expression_data[group] || [];
+                                        contextData[group] = groupData.slice(0, 20).map(d => ({
+                                            gene: d.gene,
+                                            logfc: d.logfc,
+                                            pvalue: d.pvalue
+                                        }));
+                                    });
+                                }
+
                                 sendCommand('CHAT', {
-                                    query: `比较所有样本组 (${sampleGroups.join(', ')}) 的差异表达模式`,
+                                    query: `比较以下多时间点样本组的差异表达模式并进行生物学解读：${sampleGroups.join(', ')}`,
+                                    context: {
+                                        multiSample: true,
+                                        sampleGroups: sampleGroups,
+                                        expressionData: contextData
+                                    }
                                 });
                                 // Switch to AI Chat tab to show the response
                                 if (onNavigateToChat) {
                                     onNavigateToChat();
                                 }
                             }}
-                            disabled={!isConnected}
+                            disabled={!isConnected || !multiSampleData}
                         >
                             🔍 AI 对比分析
                         </button>
