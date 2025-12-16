@@ -117,12 +117,22 @@ def _run_enrichment(gene_list: List[str], gene_sets: str = "KEGG_2021_Human") ->
     print(f"[AI Tool] Running Enrichr with {len(gene_list)} genes on {gene_sets}", file=sys.stderr)
     
     try:
-        enriched_terms = gsea_module.run_enrichr(gene_list, gene_sets)
+        result = gsea_module.run_enrichr(gene_list, gene_sets)
+        
+        # run_enrichr returns a dict with 'status', 'enriched_terms', etc.
+        if result.get("status") == "error":
+            return {
+                "error": result.get("message", "Unknown error"),
+                "enriched_terms": []
+            }
+        
+        enriched_terms = result.get("enriched_terms", [])
+        
         return {
             "gene_sets": gene_sets,
             "input_genes": len(gene_list),
-            "enriched_terms": enriched_terms[:20],  # Top 20 results
-            "total_terms": len(enriched_terms)
+            "enriched_terms": enriched_terms[:20] if isinstance(enriched_terms, list) else [],
+            "total_terms": result.get("total_terms", len(enriched_terms))
         }
     except Exception as e:
         print(f"[AI Tool] Enrichment error: {e}", file=sys.stderr)
