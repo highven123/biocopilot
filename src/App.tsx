@@ -564,7 +564,7 @@ function App() {
           <div className="panel-header" style={{ justifyContent: 'space-between', paddingRight: '12px' }}>
             <div className="left-panel-toggle-group">
               <button
-                onClick={() => { setChartViewMode('volcano'); }}
+                onClick={() => { setLeftPanelView('chart'); setChartViewMode('volcano'); }}
                 className={`left-toggle-btn ${leftPanelView === 'chart' && chartViewMode === 'volcano' ? 'active' : ''}`}
               >
                 Volcano
@@ -572,7 +572,7 @@ function App() {
               <button
                 onClick={() => {
                   if (!hasMAData) return;
-                  // No need to set leftPanelView
+                  setLeftPanelView('chart');
                   setChartViewMode('ma');
                 }}
                 disabled={!hasMAData}
@@ -581,13 +581,13 @@ function App() {
                 MA
               </button>
               <button
-                onClick={() => { setChartViewMode('ranked'); }}
+                onClick={() => { setLeftPanelView('chart'); setChartViewMode('ranked'); }}
                 className={`left-toggle-btn ${leftPanelView === 'chart' && chartViewMode === 'ranked' ? 'active' : ''}`}
               >
                 Ranked
               </button>
               <button
-                onClick={() => {/* Table view - no panel switch */ }}
+                onClick={() => setLeftPanelView('table')}
                 className={`left-toggle-btn ${leftPanelView === 'table' ? 'active' : ''}`}
               >
                 Table
@@ -1016,6 +1016,34 @@ function App() {
                     });
 
                     addLog(`📊 Switched to sample group: ${groupName} (${groupData.length} genes)`);
+                  }
+                }}
+              />
+            )}
+            {/* Default: show AI Chat when leftPanelView is 'chart' or 'table' */}
+            {(leftPanelView === 'chart' || leftPanelView === 'table') && (
+              <AIChatPanel
+                sendCommand={async (cmd, data) => { await sendCommand(cmd, data, false); }}
+                isConnected={isConnected}
+                lastResponse={lastResponse}
+                analysisContext={activeAnalysis ? {
+                  pathway: activeAnalysis.pathway,
+                  volcanoData: activeAnalysis.volcano_data,
+                  statistics: activeAnalysis.statistics
+                } : undefined}
+                chatHistory={activeAnalysis?.chatHistory || []}
+                onChatUpdate={(messages) => {
+                  if (activeAnalysis) {
+                    setAnalysisResults(prev => {
+                      const updated = [...prev];
+                      if (updated[activeResultIndex]) {
+                        updated[activeResultIndex] = {
+                          ...updated[activeResultIndex],
+                          chatHistory: messages
+                        };
+                      }
+                      return updated;
+                    });
                   }
                 }}
               />
