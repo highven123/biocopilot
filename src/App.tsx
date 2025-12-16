@@ -87,7 +87,11 @@ function App() {
   const [filteredGenes, setFilteredGenes] = useState<string[]>([]);
   const [activeGene, setActiveGene] = useState<string | null>(null);
   const [logs, setLogs] = useState<string[]>([]);
-  const [leftPanelView, setLeftPanelView] = useState<'chart' | 'table' | 'ai-chat' | 'gsea' | 'images' | 'multi-sample'>('chart');
+
+  // Separate independent states for left and right panels
+  const [leftView, setLeftView] = useState<'chart' | 'table'>('chart');
+  const [rightPanelView, setRightPanelView] = useState<'ai-chat' | 'gsea' | 'images' | 'multi-sample'>('ai-chat');
+
   const [showEvidencePopup, setShowEvidencePopup] = useState(false);
   const [chartViewMode, setChartViewMode] = useState<VolcanoViewMode>('volcano');
 
@@ -440,18 +444,18 @@ function App() {
             {isConnected ? 'Engine Ready' : 'Connecting...'}
           </div>
           <button
-            onClick={() => setLeftPanelView('ai-chat')}
+            onClick={() => setRightPanelView('ai-chat')}
             style={{
               display: 'flex',
               alignItems: 'center',
               gap: '8px',
               fontSize: '13px',
-              color: leftPanelView === 'ai-chat' ? '#fff' : 'var(--text-secondary)',
+              color: rightPanelView === 'ai-chat' ? '#fff' : 'var(--text-secondary)',
               padding: '6px 14px',
-              background: leftPanelView === 'ai-chat'
+              background: rightPanelView === 'ai-chat'
                 ? 'rgba(102, 126, 234, 0.3)'
                 : 'rgba(102, 126, 234, 0.1)',
-              border: leftPanelView === 'ai-chat'
+              border: rightPanelView === 'ai-chat'
                 ? '1px solid rgba(102, 126, 234, 0.5)'
                 : '1px solid transparent',
               borderRadius: '12px',
@@ -459,12 +463,12 @@ function App() {
               transition: 'all 0.2s'
             }}
             onMouseEnter={(e) => {
-              if (leftPanelView !== 'ai-chat') {
+              if (rightPanelView !== 'ai-chat') {
                 e.currentTarget.style.background = 'rgba(102, 126, 234, 0.15)';
               }
             }}
             onMouseLeave={(e) => {
-              if (leftPanelView !== 'ai-chat') {
+              if (rightPanelView !== 'ai-chat') {
                 e.currentTarget.style.background = 'rgba(102, 126, 234, 0.1)';
               }
             }}
@@ -564,37 +568,37 @@ function App() {
           <div className="panel-header" style={{ justifyContent: 'space-between', paddingRight: '12px' }}>
             <div className="left-panel-toggle-group">
               <button
-                onClick={() => { setLeftPanelView('chart'); setChartViewMode('volcano'); }}
-                className={`left-toggle-btn ${leftPanelView === 'chart' && chartViewMode === 'volcano' ? 'active' : ''}`}
+                onClick={() => { setLeftView('chart'); setChartViewMode('volcano'); }}
+                className={`left-toggle-btn ${leftView === 'chart' && chartViewMode === 'volcano' ? 'active' : ''}`}
               >
                 Volcano
               </button>
               <button
                 onClick={() => {
                   if (!hasMAData) return;
-                  setLeftPanelView('chart');
+                  setLeftView('chart');
                   setChartViewMode('ma');
                 }}
                 disabled={!hasMAData}
-                className={`left-toggle-btn ${leftPanelView === 'chart' && chartViewMode === 'ma' ? 'active' : ''}`}
+                className={`left-toggle-btn ${leftView === 'chart' && chartViewMode === 'ma' ? 'active' : ''}`}
               >
                 MA
               </button>
               <button
-                onClick={() => { setLeftPanelView('chart'); setChartViewMode('ranked'); }}
-                className={`left-toggle-btn ${leftPanelView === 'chart' && chartViewMode === 'ranked' ? 'active' : ''}`}
+                onClick={() => { setLeftView('chart'); setChartViewMode('ranked'); }}
+                className={`left-toggle-btn ${leftView === 'chart' && chartViewMode === 'ranked' ? 'active' : ''}`}
               >
                 Ranked
               </button>
               <button
-                onClick={() => setLeftPanelView('table')}
-                className={`left-toggle-btn ${leftPanelView === 'table' ? 'active' : ''}`}
+                onClick={() => setLeftView('table')}
+                className={`left-toggle-btn ${leftView === 'table' ? 'active' : ''}`}
               >
                 Table
               </button>
             </div>
 
-            {filteredGenes.length > 0 && leftPanelView === 'chart' && (
+            {filteredGenes.length > 0 && leftView === 'chart' && (
               <span
                 style={{ fontSize: '11px', color: '#60a5fa', cursor: 'pointer', textDecoration: 'underline' }}
                 onClick={() => setFilteredGenes([])}
@@ -605,7 +609,7 @@ function App() {
           </div>
           <div className="panel-body">
             {activeAnalysis?.volcano_data ? (
-              leftPanelView === 'chart' ? (
+              leftView === 'chart' ? (
                 chartViewMode === 'ma' && !hasMAData ? (
                   <div className="empty-state">
                     Current data does not have mean expression values (e.g., BaseMean or Ctrl/Exp groups).
@@ -877,12 +881,12 @@ function App() {
         <div className="panel-col">
           <div className="panel-header" style={{ display: 'flex', gap: '8px', padding: '8px 12px' }}>
             <button
-              onClick={() => setLeftPanelView('ai-chat')}
+              onClick={() => setRightPanelView('ai-chat')}
               style={{
                 flex: 1,
                 padding: '8px',
-                background: leftPanelView === 'ai-chat' ? 'var(--brand-primary)' : 'transparent',
-                color: leftPanelView === 'ai-chat' ? 'white' : 'var(--text-dim)',
+                background: rightPanelView === 'ai-chat' ? 'var(--brand-primary)' : 'transparent',
+                color: rightPanelView === 'ai-chat' ? 'white' : 'var(--text-dim)',
                 border: 'none',
                 borderRadius: '4px',
                 cursor: 'pointer',
@@ -893,12 +897,12 @@ function App() {
               🤖 AI Chat
             </button>
             <button
-              onClick={() => setLeftPanelView('gsea')}
+              onClick={() => setRightPanelView('gsea')}
               style={{
                 flex: 1,
                 padding: '8px',
-                background: leftPanelView === 'gsea' ? 'var(--brand-primary)' : 'transparent',
-                color: leftPanelView === 'gsea' ? 'white' : 'var(--text-dim)',
+                background: rightPanelView === 'gsea' ? 'var(--brand-primary)' : 'transparent',
+                color: rightPanelView === 'gsea' ? 'white' : 'var(--text-dim)',
                 border: 'none',
                 borderRadius: '4px',
                 cursor: 'pointer',
@@ -909,12 +913,12 @@ function App() {
               🧬 GSEA
             </button>
             <button
-              onClick={() => setLeftPanelView('images')}
+              onClick={() => setRightPanelView('images')}
               style={{
                 flex: 1,
                 padding: '8px',
-                background: leftPanelView === 'images' ? 'var(--brand-primary)' : 'transparent',
-                color: leftPanelView === 'images' ? 'white' : 'var(--text-dim)',
+                background: rightPanelView === 'images' ? 'var(--brand-primary)' : 'transparent',
+                color: rightPanelView === 'images' ? 'white' : 'var(--text-dim)',
                 border: 'none',
                 borderRadius: '4px',
                 cursor: 'pointer',
@@ -925,12 +929,12 @@ function App() {
               🖼️ Images
             </button>
             <button
-              onClick={() => setLeftPanelView('multi-sample')}
+              onClick={() => setRightPanelView('multi-sample')}
               style={{
                 flex: 1,
                 padding: '8px',
-                background: leftPanelView === 'multi-sample' ? 'var(--brand-primary)' : 'transparent',
-                color: leftPanelView === 'multi-sample' ? 'white' : 'var(--text-dim)',
+                background: rightPanelView === 'multi-sample' ? 'var(--brand-primary)' : 'transparent',
+                color: rightPanelView === 'multi-sample' ? 'white' : 'var(--text-dim)',
                 border: 'none',
                 borderRadius: '4px',
                 cursor: 'pointer',
@@ -942,7 +946,7 @@ function App() {
             </button>
           </div>
           <div className="panel-body">
-            {leftPanelView === 'ai-chat' && (
+            {rightPanelView === 'ai-chat' && (
               <AIChatPanel
                 sendCommand={async (cmd, data) => { await sendCommand(cmd, data, false); }}
                 isConnected={isConnected}
@@ -969,7 +973,7 @@ function App() {
                 }}
               />
             )}
-            {leftPanelView === 'gsea' && (
+            {rightPanelView === 'gsea' && (
               <GSEAPanel
                 sendCommand={async (cmd, data) => { await sendCommand(cmd, data, false); }}
                 volcanoData={activeAnalysis?.volcano_data}
@@ -977,13 +981,13 @@ function App() {
                 lastResponse={lastResponse}
               />
             )}
-            {leftPanelView === 'images' && (
+            {rightPanelView === 'images' && (
               <ImageUploader
                 sendCommand={async (cmd, data) => { await sendCommand(cmd, data, false); }}
                 isConnected={isConnected}
               />
             )}
-            {leftPanelView === 'multi-sample' && (
+            {rightPanelView === 'multi-sample' && (
               <MultiSamplePanel
                 sendCommand={async (cmd, data) => { await sendCommand(cmd, data, false); }}
                 isConnected={isConnected}
@@ -1016,34 +1020,6 @@ function App() {
                     });
 
                     addLog(`📊 Switched to sample group: ${groupName} (${groupData.length} genes)`);
-                  }
-                }}
-              />
-            )}
-            {/* Default: show AI Chat when leftPanelView is 'chart' or 'table' */}
-            {(leftPanelView === 'chart' || leftPanelView === 'table') && (
-              <AIChatPanel
-                sendCommand={async (cmd, data) => { await sendCommand(cmd, data, false); }}
-                isConnected={isConnected}
-                lastResponse={lastResponse}
-                analysisContext={activeAnalysis ? {
-                  pathway: activeAnalysis.pathway,
-                  volcanoData: activeAnalysis.volcano_data,
-                  statistics: activeAnalysis.statistics
-                } : undefined}
-                chatHistory={activeAnalysis?.chatHistory || []}
-                onChatUpdate={(messages) => {
-                  if (activeAnalysis) {
-                    setAnalysisResults(prev => {
-                      const updated = [...prev];
-                      if (updated[activeResultIndex]) {
-                        updated[activeResultIndex] = {
-                          ...updated[activeResultIndex],
-                          chatHistory: messages
-                        };
-                      }
-                      return updated;
-                    });
                   }
                 }}
               />
@@ -1086,7 +1062,7 @@ function App() {
       <AIEventPanel
         sendCommand={async (cmd, data) => { await sendCommand(cmd, data, false); }}
         isConnected={isConnected}
-        onNavigateToGSEA={() => setLeftPanelView('gsea')}
+        onNavigateToGSEA={() => setRightPanelView('gsea')}
       />
 
     </div>
