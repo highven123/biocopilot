@@ -19,12 +19,20 @@ interface AIEventPanelProps {
     sendCommand: (cmd: string, data?: Record<string, unknown>) => Promise<void>;
     isConnected: boolean;
     onNavigateToGSEA?: () => void;
+    onExportSession?: () => void;
+    analysisContext?: {
+        pathway?: any;
+        volcanoData?: any[];
+        statistics?: any;
+    };
 }
 
 export const AIEventPanel: React.FC<AIEventPanelProps> = ({
     sendCommand,
     isConnected,
     onNavigateToGSEA,
+    onExportSession,
+    analysisContext,
 }) => {
     const [suggestions, setSuggestions] = useState<AISuggestion[]>([]);
     const [isMinimized, setIsMinimized] = useState(false);
@@ -139,50 +147,77 @@ export const AIEventPanel: React.FC<AIEventPanelProps> = ({
                             </button>
                             <button
                                 className="skill-card"
-                                onClick={() => {
-                                    // TODO: Implement enrichment
+                                onClick={async () => {
+                                    // Enrichment Analysis - extract genes and call AI
+                                    const genes = analysisContext?.volcanoData
+                                        ?.filter((g: any) => g.status === 'UP' || g.status === 'DOWN')
+                                        ?.map((g: any) => g.gene) || [];
+                                    if (genes.length > 0) {
+                                        await sendCommand('CHAT', {
+                                            query: `请对以下${genes.length}个差异表达基因运行富集分析: ${genes.slice(0, 50).join(', ')}${genes.length > 50 ? '...' : ''}`,
+                                            context: analysisContext
+                                        });
+                                    }
                                 }}
                                 title="运行Enrichr分析"
+                                disabled={!analysisContext?.volcanoData}
                             >
                                 <span className="skill-icon">📊</span>
                                 <span className="skill-name">富集分析</span>
                             </button>
                             <button
                                 className="skill-card"
-                                onClick={() => {
-                                    // TODO: Implement report export
-                                }}
+                                onClick={() => onExportSession?.()}
                                 title="导出分析报告"
+                                disabled={!analysisContext}
                             >
                                 <span className="skill-icon">📝</span>
                                 <span className="skill-name">生成报告</span>
                             </button>
                             <button
                                 className="skill-card"
-                                onClick={() => {
-                                    // TODO: Implement gene comparison
+                                onClick={async () => {
+                                    // Gene Comparison - compare UP vs DOWN
+                                    const upGenes = analysisContext?.volcanoData
+                                        ?.filter((g: any) => g.status === 'UP')
+                                        ?.map((g: any) => g.gene) || [];
+                                    const downGenes = analysisContext?.volcanoData
+                                        ?.filter((g: any) => g.status === 'DOWN')
+                                        ?.map((g: any) => g.gene) || [];
+                                    await sendCommand('CHAT', {
+                                        query: `请对比分析上调基因(${upGenes.length}个)和下调基因(${downGenes.length}个)的功能差异。上调: ${upGenes.slice(0, 20).join(', ')}; 下调: ${downGenes.slice(0, 20).join(', ')}`,
+                                        context: analysisContext
+                                    });
                                 }}
                                 title="对比上下调基因"
+                                disabled={!analysisContext?.volcanoData}
                             >
                                 <span className="skill-icon">🧬</span>
                                 <span className="skill-name">基因对比</span>
                             </button>
                             <button
-                                className="skill-card"
+                                className="skill-card disabled"
                                 onClick={() => {
-                                    // TODO: Implement trend analysis
+                                    // Trend Analysis - deferred (needs multi-timepoint data)
+                                    alert('趋势分析需要多时间点数据，敬请期待！');
                                 }}
-                                title="多时间点趋势"
+                                title="多时间点趋势 (敬请期待)"
                             >
                                 <span className="skill-icon">📈</span>
                                 <span className="skill-name">趋势分析</span>
                             </button>
                             <button
                                 className="skill-card"
-                                onClick={() => {
-                                    // TODO: Implement literature search
+                                onClick={async () => {
+                                    // Literature Search - AI query about pathway
+                                    const pathwayName = analysisContext?.pathway?.name || analysisContext?.pathway?.title || '当前通路';
+                                    await sendCommand('CHAT', {
+                                        query: `请介绍${pathwayName}的最新研究进展、临床意义和治疗靶点。`,
+                                        context: analysisContext
+                                    });
                                 }}
                                 title="搜索相关研究"
+                                disabled={!analysisContext?.pathway}
                             >
                                 <span className="skill-icon">🔍</span>
                                 <span className="skill-name">文献搜索</span>

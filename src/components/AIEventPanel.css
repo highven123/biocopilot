@@ -220,3 +220,16 @@
     color: #94a3b8;
     text-align: center;
 }
+
+.skill-card.disabled,
+.skill-card:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.skill-card.disabled:hover,
+.skill-card:disabled:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.1);
+    transform: none;
+}
