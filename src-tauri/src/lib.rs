@@ -167,7 +167,18 @@ fn spawn_sidecar(app_handle: &AppHandle, state: &State<'_, AppState>) -> Result<
         let script = repo_root.join("python").join("bio_engine.py");
 
         if script.exists() {
-            let python = if cfg!(target_os = "windows") { "python" } else { "python3" };
+            // Try miniconda Python first (has gseapy installed), fallback to system python3
+            let python = if cfg!(target_os = "windows") { 
+                "python".to_string() 
+            } else {
+                // Check if miniconda Python exists with required packages
+                let miniconda_python = std::path::Path::new("/Users/haifeng/miniconda3/bin/python3");
+                if miniconda_python.exists() {
+                    miniconda_python.to_string_lossy().to_string()
+                } else {
+                    "python3".to_string()
+                }
+            };
             println!(
                 "[BioViz] Dev mode: spawning Python engine from source: {}",
                 script.display()
