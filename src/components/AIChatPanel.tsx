@@ -77,6 +77,25 @@ export const AIChatPanel: React.FC<AIChatPanelProps> = ({ sendCommand, isConnect
                                 responseContent += `\n\n**通路**: ${pathway.title || pathway.id}`;
                                 responseContent += `\n**基因数**: ${stats.total_nodes || 0}`;
                                 responseContent += `\n**上调**: ${stats.upregulated || 0} | **下调**: ${stats.downregulated || 0}`;
+                            } else if (lastResponse.tool_name === 'run_enrichment') {
+                                if (result.error) {
+                                    responseContent += `\n\n**错误**: ${result.error}`;
+                                } else {
+                                    responseContent += `\n\n**富集分析结果**:`;
+                                    responseContent += `\n• 基因数: ${result.input_genes}`;
+                                    responseContent += `\n• 基因库: ${result.gene_sets}`;
+                                    responseContent += `\n• 富集条目: ${result.total_terms}\n`;
+
+                                    if (result.enriched_terms && result.enriched_terms.length > 0) {
+                                        responseContent += `\n**Top 10 显著通路**:\n`;
+                                        result.enriched_terms.slice(0, 10).forEach((term: any, idx: number) => {
+                                            const pval = term.adjusted_p_value || term.p_value;
+                                            responseContent += `${idx + 1}. **${term.term}**\n`;
+                                            responseContent += `   - P-value: ${pval.toExponential(2)}\n`;
+                                            responseContent += `   - Genes: ${term.overlap}\n`;
+                                        });
+                                    }
+                                }
                             } else if (typeof result === 'object') {
                                 responseContent += `\n\n**结果**: ${JSON.stringify(result, null, 2)}`;
                             } else {
