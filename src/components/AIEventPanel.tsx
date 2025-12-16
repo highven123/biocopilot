@@ -167,10 +167,7 @@ export const AIEventPanel: React.FC<AIEventPanelProps> = ({
                             </button>
                             <button
                                 className="skill-card"
-                                onClick={() => {
-                                    console.log('[AIEventPanel] Export button clicked, calling onExportSession');
-                                    onExportSession?.();
-                                }}
+                                onClick={() => onExportSession?.()}
                                 title="导出分析报告"
                                 disabled={!analysisContext}
                             >

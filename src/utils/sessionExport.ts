@@ -19,26 +19,26 @@ export async function exportSessionAsJSON(analysis: AnalysisSession): Promise<bo
     const baseName = analysis.sourceFilePath.split('/').pop()?.replace(/\.[^/.]+$/, '') || 'session';
     const defaultName = `${baseName}_session.json`;
 
-    console.log('[Export] exportSessionAsJSON starting, defaultName:', defaultName);
+
 
     try {
-        console.log('[Export] Calling save() dialog...');
+
         const filePath = await save({
             title: 'Save Analysis Session',
             defaultPath: defaultName,
             filters: [{ name: 'JSON', extensions: ['json'] }]
         });
-        console.log('[Export] save() returned:', filePath);
+
 
         if (!filePath) {
-            console.log('[Export] User cancelled or no path returned');
+
             return false; // User cancelled
         }
 
         const jsonData = JSON.stringify(analysis, null, 2);
-        console.log('[Export] Writing to file:', filePath);
+
         await writeTextFile(filePath, jsonData);
-        console.log('[Export] Write complete');
+
         return true;
     } catch (error) {
         console.error('[Export] Failed to export JSON:', error);
@@ -48,10 +48,10 @@ export async function exportSessionAsJSON(analysis: AnalysisSession): Promise<bo
 }
 
 export async function exportSessionAsMarkdown(analysis: AnalysisSession): Promise<boolean> {
-    console.log('[Export] === exportSessionAsMarkdown START ===');
+
     const baseName = analysis.sourceFilePath.split('/').pop()?.replace(/\.[^/.]+$/, '') || 'session';
     const defaultName = `${baseName}_report.md`;
-    console.log('[Export] Markdown defaultName:', defaultName);
+
 
     let markdown = `# BioViz Analysis Session\n\n`;
     markdown += `**Date**: ${new Date().toLocaleString()}\n`;
@@ -97,7 +97,7 @@ export async function exportSessionAsMarkdown(analysis: AnalysisSession): Promis
 }
 
 export async function exportSession(analysis: AnalysisSession): Promise<void> {
-    console.log('=== [Export] exportSession START ===');
+
 
     if (!analysis) {
         alert('No analysis data to export!');
@@ -113,7 +113,7 @@ export async function exportSession(analysis: AnalysisSession): Promise<void> {
             cancelLabel: 'Markdown'
         });
 
-        console.log('[Export] User chose:', saveAsJson ? 'JSON' : 'Markdown');
+
 
         if (saveAsJson) {
             const success = await exportSessionAsJSON(analysis);
@@ -131,7 +131,7 @@ export async function exportSession(analysis: AnalysisSession): Promise<void> {
         alert(`Export error: ${error}`);
     }
 
-    console.log('=== [Export] exportSession END ===');
+
 }
 
 export async function importSession(): Promise<AnalysisSession | null> {
