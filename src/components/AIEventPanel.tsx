@@ -113,9 +113,7 @@ export const AIEventPanel: React.FC<AIEventPanelProps> = ({
 
     const activeSuggestions = suggestions.filter((s) => !s.dismissed);
 
-    if (activeSuggestions.length === 0) {
-        return null; // Don't show panel if no suggestions
-    }
+    // Always show panel because we have Skills cards
 
     return (
         <div className={`ai-event-panel ${isMinimized ? 'minimized' : ''}`}>
@@ -127,6 +125,72 @@ export const AIEventPanel: React.FC<AIEventPanelProps> = ({
 
             {!isMinimized && (
                 <div className="ai-event-list">
+                    {/* Skills Cards */}
+                    <div className="ai-skills-section">
+                        <div className="skills-label">快捷技能</div>
+                        <div className="skills-grid">
+                            <button
+                                className="skill-card"
+                                onClick={() => onNavigateToGSEA?.()}
+                                title="基因集富集分析"
+                            >
+                                <span className="skill-icon">🔬</span>
+                                <span className="skill-name">GSEA分析</span>
+                            </button>
+                            <button
+                                className="skill-card"
+                                onClick={() => {
+                                    // TODO: Implement enrichment
+                                }}
+                                title="运行Enrichr分析"
+                            >
+                                <span className="skill-icon">📊</span>
+                                <span className="skill-name">富集分析</span>
+                            </button>
+                            <button
+                                className="skill-card"
+                                onClick={() => {
+                                    // TODO: Implement report export
+                                }}
+                                title="导出分析报告"
+                            >
+                                <span className="skill-icon">📝</span>
+                                <span className="skill-name">生成报告</span>
+                            </button>
+                            <button
+                                className="skill-card"
+                                onClick={() => {
+                                    // TODO: Implement gene comparison
+                                }}
+                                title="对比上下调基因"
+                            >
+                                <span className="skill-icon">🧬</span>
+                                <span className="skill-name">基因对比</span>
+                            </button>
+                            <button
+                                className="skill-card"
+                                onClick={() => {
+                                    // TODO: Implement trend analysis
+                                }}
+                                title="多时间点趋势"
+                            >
+                                <span className="skill-icon">📈</span>
+                                <span className="skill-name">趋势分析</span>
+                            </button>
+                            <button
+                                className="skill-card"
+                                onClick={() => {
+                                    // TODO: Implement literature search
+                                }}
+                                title="搜索相关研究"
+                            >
+                                <span className="skill-icon">🔍</span>
+                                <span className="skill-name">文献搜索</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Suggestions */}
                     {activeSuggestions.map((suggestion) => (
                         <div
                             key={suggestion.id}
