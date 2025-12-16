@@ -10,7 +10,6 @@ import { WorkflowBreadcrumb, WorkflowStep } from './components/WorkflowBreadcrum
 import { SplashScreen } from './components/SplashScreen'; // New Import
 import { SafetyGuardModal } from './components/SafetyGuardModal';
 import { AIChatPanel } from './components/AIChatPanel';
-import { AIAgentPanel } from './components/AIAgentPanel';
 import { InsightBadges } from './components/InsightBadges';
 import { GSEAPanel } from './components/GSEAPanel';
 import { ImageUploader } from './components/ImageUploader';

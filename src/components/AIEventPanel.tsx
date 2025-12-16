@@ -29,7 +29,6 @@ interface AIEventPanelProps {
 
 export const AIEventPanel: React.FC<AIEventPanelProps> = ({
     sendCommand,
-    isConnected,
     onNavigateToGSEA,
     onExportSession,
     analysisContext,

@@ -145,7 +145,7 @@ export const TemplatePicker: React.FC<TemplatePickerProps> = ({
     }
   };
 
-  const handleDownload = async (id: string, name: string, description: string) => {
+  const handleDownload = async (id: string, _name: string, _description: string) => {
     setDownloadingId(id);
     try {
       // @ts-ignore

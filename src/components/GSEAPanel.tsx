@@ -26,7 +26,6 @@ interface GSEAPanelProps {
 }
 
 type AnalysisMode = 'enrichr' | 'gsea';
-type GeneSetCategory = 'pathway' | 'go' | 'signature';
 
 const GENE_SET_OPTIONS = [
     { id: 'KEGG_2021_Human', name: 'KEGG Pathways', category: 'pathway' },

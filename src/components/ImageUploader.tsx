@@ -29,10 +29,10 @@ const IMAGE_TYPES = [
 export const ImageUploader: React.FC<ImageUploaderProps> = ({
     sendCommand,
     isConnected,
-    onImageAnalyzed,
+    onImageAnalyzed: _onImageAnalyzed,
 }) => {
     const [selectedType, setSelectedType] = useState('western_blot');
-    const [uploadedImages, setUploadedImages] = useState<ImageInfo[]>([]);
+    const [uploadedImages, _setUploadedImages] = useState<ImageInfo[]>([]);
     const [isUploading, setIsUploading] = useState(false);
     const [isAnalyzing, setIsAnalyzing] = useState<string | null>(null);
     const [previewImage, setPreviewImage] = useState<string | null>(null);
