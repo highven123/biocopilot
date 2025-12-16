@@ -98,6 +98,22 @@ def run_enrichr(
         }
 
 
+def _parse_gene_size(value) -> int:
+    """Parse gene size from various formats (int, float, percentage string)."""
+    if value is None:
+        return 0
+    if isinstance(value, (int, float)):
+        return int(value)
+    if isinstance(value, str):
+        # Handle percentage strings like "23.33%"
+        value = value.strip().rstrip('%')
+        try:
+            return int(float(value))
+        except (ValueError, TypeError):
+            return 0
+    return 0
+
+
 def run_gsea_prerank(
     gene_ranking: Dict[str, float],
     gene_sets: str = 'KEGG_2021_Human',
@@ -160,7 +176,7 @@ def run_gsea_prerank(
                 "p_value": float(row.get("NOM p-val", 1)),
                 "fdr": float(row.get("FDR q-val", 1)),
                 "fwer": float(row.get("FWER p-val", 1)),
-                "gene_size": int(row.get("Gene %", 0)),
+                "gene_size": _parse_gene_size(row.get("Gene %", row.get("Matched Size", 0))),
                 "lead_genes": row.get("Lead_genes", "").split(";")[:5] if row.get("Lead_genes") else []
             })
         
