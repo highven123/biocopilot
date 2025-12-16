@@ -564,7 +564,7 @@ function App() {
           <div className="panel-header" style={{ justifyContent: 'space-between', paddingRight: '12px' }}>
             <div className="left-panel-toggle-group">
               <button
-                onClick={() => { setLeftPanelView('chart'); setChartViewMode('volcano'); }}
+                onClick={() => { setChartViewMode('volcano'); }}
                 className={`left-toggle-btn ${leftPanelView === 'chart' && chartViewMode === 'volcano' ? 'active' : ''}`}
               >
                 Volcano
@@ -572,7 +572,7 @@ function App() {
               <button
                 onClick={() => {
                   if (!hasMAData) return;
-                  setLeftPanelView('chart');
+                  // No need to set leftPanelView
                   setChartViewMode('ma');
                 }}
                 disabled={!hasMAData}
@@ -581,13 +581,13 @@ function App() {
                 MA
               </button>
               <button
-                onClick={() => { setLeftPanelView('chart'); setChartViewMode('ranked'); }}
+                onClick={() => { setChartViewMode('ranked'); }}
                 className={`left-toggle-btn ${leftPanelView === 'chart' && chartViewMode === 'ranked' ? 'active' : ''}`}
               >
                 Ranked
               </button>
               <button
-                onClick={() => setLeftPanelView('table')}
+                onClick={() => {/* Table view - no panel switch */ }}
                 className={`left-toggle-btn ${leftPanelView === 'table' ? 'active' : ''}`}
               >
                 Table
