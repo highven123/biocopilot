@@ -1,13 +1,12 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import './TemplatePicker.css';
 import useBioEngine from '../hooks/useBioEngine';
-// @ts-ignore
-import { invoke } from '@tauri-apps/api/core';
 
 interface TemplatePickerProps {
   onSelect: (pathwayId: string) => void;
   disabled?: boolean;
   dataType?: 'gene' | 'protein' | 'cell';
+  sendCommand?: (cmd: string, data?: Record<string, unknown>, waitForResponse?: boolean) => Promise<any>;
 }
 
 interface PathwayTemplate {
@@ -41,18 +40,76 @@ const INITIAL_TEMPLATES: PathwayTemplate[] = [
   { id: 'hsa00010', name: 'Glycolysis / Gluconeogenesis', description: 'Glucose metabolism and ATP generation', icon: '🍞', types: ['gene', 'protein'] },
 ];
 
-export const TemplatePicker: React.FC<TemplatePickerProps> = ({ onSelect, disabled = false, dataType = 'gene' }) => {
+export const TemplatePicker: React.FC<TemplatePickerProps> = ({
+  onSelect,
+  disabled = false,
+  dataType = 'gene',
+  sendCommand: sendCommandProp
+}) => {
   const [selectedId, setSelectedId] = useState<string>('');
   const [isOnlineMode, setIsOnlineMode] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [isLoadingTemplates, setIsLoadingTemplates] = useState(false);
 
   // Manage templates in state so we can add new ones dynamically
   const [localTemplates, setLocalTemplates] = useState<PathwayTemplate[]>(INITIAL_TEMPLATES);
 
-  const { sendCommand } = useBioEngine();
+  const { sendCommand: hookSendCommand } = useBioEngine();
+  const command = useMemo(
+    () => sendCommandProp || hookSendCommand,
+    [sendCommandProp, hookSendCommand]
+  );
+
+  const mergeTemplates = useCallback((incoming: any[] = []) => {
+    const merged: PathwayTemplate[] = [];
+    const seen = new Set<string>();
+    const sources = Array.isArray(incoming) ? incoming : [];
+    const candidates = [...sources, ...INITIAL_TEMPLATES];
+
+    for (const tpl of candidates) {
+      if (!tpl) continue;
+      const id = tpl.id || tpl.path?.split('/').pop()?.replace('.json', '');
+      if (!id || seen.has(id)) continue;
+      const name = tpl.name || id;
+      const description = tpl.description || name;
+      const types: ('gene' | 'protein' | 'cell')[] = tpl.types && Array.isArray(tpl.types)
+        ? tpl.types
+        : ['gene', 'protein', 'cell'];
+      merged.push({
+        id,
+        name,
+        description,
+        icon: tpl.icon || '🧬',
+        types,
+      });
+      seen.add(id);
+    }
+    setLocalTemplates(merged);
+  }, []);
+
+  const refreshLocalTemplates = useCallback(async () => {
+    setIsLoadingTemplates(true);
+    try {
+      const res = await command('LIST_TEMPLATES', {}, true);
+      if (res && res.status === 'ok' && Array.isArray(res.templates)) {
+        mergeTemplates(res.templates);
+      } else {
+        mergeTemplates([]);
+      }
+    } catch (e) {
+      console.warn('Failed to load templates, fallback to defaults:', e);
+      mergeTemplates([]);
+    } finally {
+      setIsLoadingTemplates(false);
+    }
+  }, [command, mergeTemplates]);
+
+  useEffect(() => {
+    void refreshLocalTemplates();
+  }, [refreshLocalTemplates]);
 
   const handleSelect = (pathwayId: string) => {
     setSelectedId(pathwayId);
@@ -67,7 +124,7 @@ export const TemplatePicker: React.FC<TemplatePickerProps> = ({ onSelect, disabl
 
     try {
       // @ts-ignore
-      const res = await sendCommand('SEARCH_PATHWAY', { query: searchQuery }, true);
+      const res = await command('SEARCH_PATHWAY', { query: searchQuery }, true);
       // @ts-ignore
       if (res && res.status === 'ok' && Array.isArray(res.results)) {
         // @ts-ignore
@@ -92,29 +149,13 @@ export const TemplatePicker: React.FC<TemplatePickerProps> = ({ onSelect, disabl
     setDownloadingId(id);
     try {
       // @ts-ignore
-      const res = await sendCommand('DOWNLOAD_PATHWAY', { id }, true);
+      const res = await command('DOWNLOAD_PATHWAY', { id }, true);
       // @ts-ignore
       if (res && res.status === 'ok') {
-        // Add to local list
-        const newTemplate: PathwayTemplate = {
-          id: id,
-          name: name,
-          description: description,
-          icon: '📥',
-          types: ['gene', 'protein', 'cell'] // Assume generic support
-        };
-
-        setLocalTemplates(prev => {
-          if (prev.find(p => p.id === id)) return prev;
-          return [newTemplate, ...prev];
-        });
-
-        // Switch back to local view and select it
+        await refreshLocalTemplates();
         setIsOnlineMode(false);
+        // Delay select until list refreshed
         handleSelect(id);
-
-        // Show success alert? Or just switch backend
-        console.log("Downloaded:", (res as any).path);
       } else { // @ts-ignore
         alert(`Download failed: ${res?.message}`);
       }
@@ -143,6 +184,7 @@ export const TemplatePicker: React.FC<TemplatePickerProps> = ({ onSelect, disabl
           <p className="template-picker-hint">
             Choose a KEGG pathway layout for visualization; templates are filtered by data type.
           </p>
+          {isLoadingTemplates && <div className="template-loading">Loading local templates...</div>}
 
           <div className="template-grid">
             {localTemplates.filter(t => t.types.includes(dataType)).map((template) => (

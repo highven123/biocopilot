@@ -315,3 +315,80 @@
     color: #8b5cf6;
     font-weight: 500;
 }
+
+/* AI Analysis Results */
+.ai-analysis-result {
+    background: rgba(139, 92, 246, 0.1);
+    border: 1px solid rgba(139, 92, 246, 0.3);
+    border-radius: 10px;
+    margin-top: 12px;
+    overflow: hidden;
+}
+
+.ai-analysis-result .result-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 14px;
+    background: rgba(139, 92, 246, 0.15);
+    border-bottom: 1px solid rgba(139, 92, 246, 0.2);
+}
+
+.ai-analysis-result .result-header h4 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: #a78bfa;
+}
+
+.ai-analysis-result .close-btn {
+    background: transparent;
+    border: none;
+    color: #94a3b8;
+    cursor: pointer;
+    font-size: 14px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.ai-analysis-result .close-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #f8fafc;
+}
+
+.ai-analysis-result .result-content {
+    padding: 14px;
+    max-height: 400px;
+    overflow-y: auto;
+    font-size: 13px;
+    line-height: 1.6;
+    color: #e2e8f0;
+}
+
+.ai-analysis-result .result-content p {
+    margin: 0 0 8px 0;
+}
+
+.ai-analysis-result .result-content p:last-child {
+    margin-bottom: 0;
+}
+
+/* Scrollbar for result content */
+.ai-analysis-result .result-content::-webkit-scrollbar {
+    width: 6px;
+}
+
+.ai-analysis-result .result-content::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 3px;
+}
+
+.ai-analysis-result .result-content::-webkit-scrollbar-thumb {
+    background: rgba(139, 92, 246, 0.4);
+    border-radius: 3px;
+}
+
+.ai-analysis-result .result-content::-webkit-scrollbar-thumb:hover {
+    background: rgba(139, 92, 246, 0.6);
+}

@@ -33,6 +33,10 @@
 - **`LOAD_PATHWAY`**: 加载通路模板
 - **`COLOR_PATHWAY`**: 应用基因表达着色
 
+### 5. 动态模板加载与在线下载
+- 自动扫描本地模板：`~/.bioviz_local/templates` 与打包的 `assets/templates`，无需手动维护列表。
+- 支持在线搜索/下载 KEGG 通路（前端 “Search Online”），下载后的模板会自动加入本地库并可立即可视化。
+
 ## 🚀 使用流程
 
 ### 方式 A: 命令行测试

@@ -17,7 +17,6 @@ interface MultiSamplePanelProps {
     onSampleGroupChange?: (groupName: string, data: Array<{ gene: string; logfc: number; pvalue: number }>) => void;
     currentFilePath?: string;
     lastResponse?: any;
-    onNavigateToChat?: () => void;  // Callback to switch to AI Chat tab
 }
 
 export const MultiSamplePanel: React.FC<MultiSamplePanelProps> = ({
@@ -26,13 +25,14 @@ export const MultiSamplePanel: React.FC<MultiSamplePanelProps> = ({
     onSampleGroupChange,
     currentFilePath,
     lastResponse,
-    onNavigateToChat,
 }) => {
     const [multiSampleData, setMultiSampleData] = useState<MultiSampleData | null>(null);
     const [selectedGroup, setSelectedGroup] = useState<string>('');
     const [isLoading, setIsLoading] = useState(false);
+    const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [viewMode, setViewMode] = useState<'tabs' | 'slider'>('tabs');
+    const [aiAnalysisResult, setAiAnalysisResult] = useState<string | null>(null);
 
     // Handle responses from backend
     useEffect(() => {
@@ -51,7 +51,17 @@ export const MultiSamplePanel: React.FC<MultiSamplePanelProps> = ({
                 setError(lastResponse.message || 'Failed to load multi-sample data');
             }
         }
-    }, [lastResponse]);
+
+        // Handle AI CHAT response for inline display
+        if (lastResponse.cmd === 'CHAT' && isAnalyzing) {
+            setIsAnalyzing(false);
+            if (lastResponse.status === 'ok' && lastResponse.content) {
+                setAiAnalysisResult(lastResponse.content);
+            } else if (lastResponse.status === 'error') {
+                setError(lastResponse.message || 'AI analysis failed');
+            }
+        }
+    }, [lastResponse, isAnalyzing]);
 
     // Load multi-sample data when file path changes
     useEffect(() => {
@@ -211,12 +221,16 @@ export const MultiSamplePanel: React.FC<MultiSamplePanelProps> = ({
                         <button
                             className="action-btn compare"
                             onClick={() => {
+                                setIsAnalyzing(true);
+                                setAiAnalysisResult(null);
+                                setError(null);
+
                                 // Build context with expression data for each time point
                                 const contextData: Record<string, unknown> = {};
                                 if (multiSampleData?.expression_data) {
                                     sampleGroups.forEach(group => {
                                         const groupData = multiSampleData.expression_data[group] || [];
-                                        contextData[group] = groupData.slice(0, 20).map(d => ({
+                                        contextData[group] = groupData.map(d => ({
                                             gene: d.gene,
                                             logfc: d.logfc,
                                             pvalue: d.pvalue
@@ -232,16 +246,32 @@ export const MultiSamplePanel: React.FC<MultiSamplePanelProps> = ({
                                         expressionData: contextData
                                     }
                                 });
-                                // Switch to AI Chat tab to show the response
-                                if (onNavigateToChat) {
-                                    onNavigateToChat();
-                                }
                             }}
-                            disabled={!isConnected || !multiSampleData}
+                            disabled={!isConnected || !multiSampleData || isAnalyzing}
                         >
-                            🔍 AI 对比分析
+                            {isAnalyzing ? '⏳ 分析中...' : '🔍 AI 对比分析'}
                         </button>
                     </div>
+
+                    {/* AI Analysis Results - Inline Display */}
+                    {aiAnalysisResult && (
+                        <div className="ai-analysis-result">
+                            <div className="result-header">
+                                <h4>🤖 AI 分析结果</h4>
+                                <button
+                                    className="close-btn"
+                                    onClick={() => setAiAnalysisResult(null)}
+                                >
+                                    ✕
+                                </button>
+                            </div>
+                            <div className="result-content">
+                                {aiAnalysisResult.split('\n').map((line, idx) => (
+                                    <p key={idx}>{line || <br />}</p>
+                                ))}
+                            </div>
+                        </div>
+                    )}
                 </>
             )}
 

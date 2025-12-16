@@ -814,6 +814,7 @@ export const DataImportWizard: React.FC<DataImportWizardProps> = ({
                                 onSelect={handlePathwaySelect}
                                 disabled={!isConnected}
                                 dataType={uploadedFiles[0].dataType || 'gene'}
+                                sendCommand={sendCommand}
                             />
                         </div>
 
