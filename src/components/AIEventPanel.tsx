@@ -196,12 +196,26 @@ export const AIEventPanel: React.FC<AIEventPanelProps> = ({
                                 <span className="skill-name">基因对比</span>
                             </button>
                             <button
-                                className="skill-card disabled"
-                                onClick={() => {
-                                    // Trend Analysis - deferred (needs multi-timepoint data)
-                                    alert('趋势分析需要多时间点数据，敬请期待！');
+                                className="skill-card"
+                                onClick={async () => {
+                                    // Trend Analysis - analyze expression patterns
+                                    const genes = analysisContext?.volcanoData || [];
+                                    const upGenes = genes.filter((g: any) => g.status === 'UP');
+                                    const downGenes = genes.filter((g: any) => g.status === 'DOWN');
+
+                                    // Get top changed genes with their fold changes
+                                    const topChanges = [...genes]
+                                        .sort((a: any, b: any) => Math.abs(b.x) - Math.abs(a.x))
+                                        .slice(0, 15)
+                                        .map((g: any) => `${g.gene}(${g.x > 0 ? '+' : ''}${g.x.toFixed(2)})`);
+
+                                    await sendCommand('CHAT', {
+                                        query: `请分析当前差异表达数据的趋势模式：共${genes.length}个基因，其中${upGenes.length}个上调、${downGenes.length}个下调。变化最显著的基因：${topChanges.join(', ')}。请识别可能的生物学趋势和调控模式。`,
+                                        context: analysisContext
+                                    });
                                 }}
-                                title="多时间点趋势 (敬请期待)"
+                                title="表达趋势分析"
+                                disabled={!analysisContext?.volcanoData}
                             >
                                 <span className="skill-icon">📈</span>
                                 <span className="skill-name">趋势分析</span>
