@@ -946,7 +946,7 @@ function App() {
           </div>
           <div className="panel-body">
             {rightPanelView === 'ai-chat' && (
-              <AIAgentPanel
+              <AIChatPanel
                 sendCommand={async (cmd, data) => { await sendCommand(cmd, data, false); }}
                 isConnected={isConnected}
                 lastResponse={lastResponse}
@@ -971,7 +971,6 @@ function App() {
                   }
                 }}
                 onNavigateToGSEA={() => setRightPanelView('gsea')}
-                onExportSession={() => activeAnalysis && exportSession(activeAnalysis)}
               />
             )}
             {rightPanelView === 'gsea' && (

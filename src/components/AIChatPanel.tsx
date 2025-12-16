@@ -22,6 +22,7 @@ interface AIChatPanelProps {
     };
     chatHistory?: Message[];  // Chat history from parent
     onChatUpdate?: (messages: Message[]) => void;  // Callback to update parent
+    onNavigateToGSEA?: () => void;  // Navigate to GSEA panel
 }
 
 export const AIChatPanel: React.FC<AIChatPanelProps> = ({
@@ -30,7 +31,8 @@ export const AIChatPanel: React.FC<AIChatPanelProps> = ({
     lastResponse,
     analysisContext,
     chatHistory = [],
-    onChatUpdate
+    onChatUpdate,
+    onNavigateToGSEA
 }) => {
     const [messages, setMessages] = useState<Message[]>(chatHistory);
     const [input, setInput] = useState('');
@@ -220,6 +222,30 @@ export const AIChatPanel: React.FC<AIChatPanelProps> = ({
                     </div>
                 )}
 
+                {/* Analysis Summary Card - show when data is loaded */}
+                {analysisContext?.volcanoData && analysisContext.volcanoData.length > 0 && (
+                    <div className="analysis-summary-card">
+                        <div className="summary-header">
+                            <span className="summary-icon">🧬</span>
+                            <span className="summary-title">Analysis Complete</span>
+                        </div>
+                        <div className="summary-content">
+                            <p>
+                                Found <strong style={{ color: '#ef4444' }}>
+                                    {analysisContext.volcanoData.filter((g: any) => g.status === 'DOWN').length}
+                                </strong> downregulated and <strong style={{ color: '#22c55e' }}>
+                                    {analysisContext.volcanoData.filter((g: any) => g.status === 'UP').length}
+                                </strong> upregulated genes.
+                            </p>
+                            <p className="summary-hint">Would you like to run enrichment analysis?</p>
+                        </div>
+                        {onNavigateToGSEA && (
+                            <button className="gsea-btn" onClick={onNavigateToGSEA}>
+                                🔬 Open GSEA
+                            </button>
+                        )}
+                    </div>
+                )}
                 {messages.map((msg, idx) => (
                     <div key={idx} className={`message ${msg.role}`}>
                         <div className="message-avatar">
