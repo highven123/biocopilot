@@ -55,9 +55,28 @@ export const MultiSamplePanel: React.FC<MultiSamplePanelProps> = ({
         // Handle AI CHAT response for inline display
         if (lastResponse.cmd === 'CHAT' && isAnalyzing) {
             setIsAnalyzing(false);
-            if (lastResponse.status === 'ok' && lastResponse.content) {
-                setAiAnalysisResult(lastResponse.content);
-            } else if (lastResponse.status === 'error') {
+            if (lastResponse.status === 'ok') {
+                // Handle different response types
+                if (lastResponse.type === 'CHAT' && lastResponse.content) {
+                    setAiAnalysisResult(lastResponse.content);
+                } else if (lastResponse.type === 'EXECUTE' && lastResponse.content) {
+                    // AI executed a tool - show the result
+                    let resultText = lastResponse.content;
+                    if (lastResponse.tool_name && lastResponse.tool_result) {
+                        resultText += `\n\n📊 已执行工具: ${lastResponse.tool_name}`;
+                        if (lastResponse.tool_result.pathway) {
+                            const pathway = lastResponse.tool_result.pathway;
+                            resultText += `\n✅ 通路: ${pathway.title || pathway.id}`;
+                        }
+                        if (lastResponse.tool_result.statistics) {
+                            const stats = lastResponse.tool_result.statistics;
+                            resultText += `\n📈 统计: ${stats.upregulated} 上调, ${stats.downregulated} 下调 / ${stats.total_nodes} 总基因`;
+                        }
+                    }
+                    setAiAnalysisResult(resultText);
+                }
+            }
+            if (lastResponse.status === 'error') {
                 setError(lastResponse.message || 'AI analysis failed');
             }
         }
