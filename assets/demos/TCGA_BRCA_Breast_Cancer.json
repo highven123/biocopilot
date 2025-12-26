@@ -1,0 +1,169 @@
+{
+    "pathway": {
+        "id": "hsa05224",
+        "title": "Breast Cancer - Homo sapiens (human)",
+        "description": "Breast cancer is a complex disease involving multiple pathways including p53 signaling, ErbB signaling, and BRCA1/2 DNA repair mechanisms.",
+        "nodes": [
+            {
+                "id": "TP53",
+                "name": "TP53",
+                "type": "gene",
+                "expression": -2.5,
+                "value": 0.05
+            },
+            {
+                "id": "BRCA1",
+                "name": "BRCA1",
+                "type": "gene",
+                "expression": -1.8,
+                "value": 0.05
+            },
+            {
+                "id": "ERBB2",
+                "name": "ERBB2",
+                "type": "gene",
+                "expression": 2.8,
+                "value": 0.05
+            },
+            {
+                "id": "ESR1",
+                "name": "ESR1",
+                "type": "gene",
+                "expression": 1.5,
+                "value": 0.05
+            },
+            {
+                "id": "AKT1",
+                "name": "AKT1",
+                "type": "gene",
+                "expression": 1.2,
+                "value": 0.05
+            },
+            {
+                "id": "PIK3CA",
+                "name": "PIK3CA",
+                "type": "gene",
+                "expression": 1.4,
+                "value": 0.05
+            },
+            {
+                "id": "MYC",
+                "name": "MYC",
+                "type": "gene",
+                "expression": 2.1,
+                "value": 0.05
+            },
+            {
+                "id": "PTEN",
+                "name": "PTEN",
+                "type": "gene",
+                "expression": -1.5,
+                "value": 0.05
+            },
+            {
+                "id": "CCND1",
+                "name": "CCND1",
+                "type": "gene",
+                "expression": 1.9,
+                "value": 0.05
+            },
+            {
+                "id": "EGFR",
+                "name": "EGFR",
+                "type": "gene",
+                "expression": 1.3,
+                "value": 0.05
+            }
+        ],
+        "edges": [],
+        "metadata": {
+            "colored": true,
+            "gene_count": 100,
+            "data_type": "gene"
+        }
+    },
+    "statistics": {
+        "total_nodes": 120,
+        "upregulated": 45,
+        "downregulated": 30,
+        "unchanged": 45
+    },
+    "volcano_data": [
+        {
+            "gene": "ERBB2",
+            "x": 2.8,
+            "y": 5.2,
+            "pvalue": 0.00001,
+            "status": "UP"
+        },
+        {
+            "gene": "MYC",
+            "x": 2.1,
+            "y": 4.1,
+            "pvalue": 0.0001,
+            "status": "UP"
+        },
+        {
+            "gene": "CCND1",
+            "x": 1.9,
+            "y": 3.8,
+            "pvalue": 0.00015,
+            "status": "UP"
+        },
+        {
+            "gene": "ESR1",
+            "x": 1.5,
+            "y": 2.5,
+            "pvalue": 0.003,
+            "status": "UP"
+        },
+        {
+            "gene": "TP53",
+            "x": -2.5,
+            "y": 4.5,
+            "pvalue": 0.00003,
+            "status": "DOWN"
+        },
+        {
+            "gene": "BRCA1",
+            "x": -1.8,
+            "y": 3.2,
+            "pvalue": 0.0006,
+            "status": "DOWN"
+        },
+        {
+            "gene": "PTEN",
+            "x": -1.5,
+            "y": 2.8,
+            "pvalue": 0.0015,
+            "status": "DOWN"
+        },
+        {
+            "gene": "AKT1",
+            "x": 1.2,
+            "y": 2.1,
+            "pvalue": 0.008,
+            "status": "UP"
+        },
+        {
+            "gene": "PIK3CA",
+            "x": 1.4,
+            "y": 2.3,
+            "pvalue": 0.005,
+            "status": "UP"
+        },
+        {
+            "gene": "EGFR",
+            "x": 1.3,
+            "y": 2.2,
+            "pvalue": 0.006,
+            "status": "UP"
+        }
+    ],
+    "sourceFilePath": "demos/TCGA_BRCA_Breast_Cancer.csv",
+    "config": {
+        "analysisMethods": [
+            "Limma-Voom"
+        ]
+    }
+}

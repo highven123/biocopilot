@@ -40,6 +40,7 @@ from pathway.adapters.go_adapter import GOAdapter
 from pathway.auto_layout import PathwayAutoLayoutEngine
 from pathway.auto_layout import PathwayAutoLayoutEngine
 from pathway_helpers import _color_universal_pathway, _get_generic_statistics
+from license_validator import validator
 
 # ==================================================================================
 # CRITICAL FIX FOR PACKAGED APP IPC
@@ -72,20 +73,7 @@ class BioJSONEncoder(json.JSONEncoder):
             return obj.tolist()
         return super(BioJSONEncoder, self).default(obj)
 
-# Import v2.0 modules
-try:
-    from gsea_module import (
-        handle_run_enrichr,
-        handle_run_gsea,
-        handle_get_gene_sets,
-        check_gsea_available
-    )
-    GSEA_AVAILABLE = check_gsea_available()
-    logging.info(f"[INIT] GSEA module imported, available={GSEA_AVAILABLE}")
-except ImportError as e:
-    GSEA_AVAILABLE = False
-    logging.warning(f"[INIT] GSEA module not available: {e}")
-    print("[BioEngine] GSEA module not available", file=sys.stderr)
+# Legacy GSEA/Enrichr module is deprecated; kept out of the runtime handlers.
 
 try:
     from image_module import (
@@ -121,6 +109,15 @@ try:
 except ImportError as e:
     TEMPLATE_MANAGER = None
     logging.warning(f"[INIT] Template manager not available: {e}")
+
+# Project Memory (Knowledge Graph-lite)
+try:
+    from project_manager import ProjectManager
+    PROJECT_MANAGER = ProjectManager()
+    logging.info("[INIT] ProjectManager initialized")
+except Exception as e:
+    PROJECT_MANAGER = None
+    logging.warning(f"[INIT] ProjectManager not available: {e}")
 
 
 # Import Agent Runtime
@@ -1104,6 +1101,43 @@ def handle_analyze(payload: Dict[str, Any]) -> Dict[str, Any]:
         except Exception as e:
             print(f"[BioEngine] Failed to generate insights: {e}", file=sys.stderr)
             insights = {"summary": "", "badges": []}
+
+        # Persist project memory (best-effort)
+        if PROJECT_MANAGER is not None:
+            try:
+                top_genes = sorted(
+                    volcano_data,
+                    key=lambda d: abs(float(d.get("x") or 0.0)),
+                    reverse=True
+                )[:10]
+                top_genes_payload = [
+                    {
+                        "gene": g.get("gene"),
+                        "score": float(g.get("x") or 0.0),
+                        "direction": g.get("status")
+                    }
+                    for g in top_genes
+                    if g.get("gene")
+                ]
+                PROJECT_MANAGER.record_analysis(
+                    file_path=file_path,
+                    data_type=data_type,
+                    pathway_id=template_id,
+                    pathway_name=pathway_name,
+                    gene_count=len(gene_expression),
+                    has_pvalue=len(gene_pvalues) > 0,
+                    insights_summary=insights.get("summary"),
+                    top_genes=top_genes_payload,
+                    config={
+                        "mapping": mapping,
+                        "template_id": template_id,
+                        "pathway_name": pathway_name,
+                        "data_type": data_type,
+                        "filters": filters,
+                    },
+                )
+            except Exception as e:
+                logging.warning(f"[ProjectMemory] Failed to record analysis: {e}")
         
         # Return both pathway and volcano data with AI insights
         return {
@@ -1218,6 +1252,74 @@ def handle_visualize_pathway(payload: Dict[str, Any]) -> Dict[str, Any]:
             "message": f"Pathway visualization failed: {str(e)}",
             "traceback": traceback.format_exc()
         }
+
+
+def handle_list_projects(payload: Dict[str, Any]) -> Dict[str, Any]:
+    if PROJECT_MANAGER is None:
+        return {"status": "error", "message": "Project memory not available"}
+    limit = int(payload.get("limit", 8))
+    projects = PROJECT_MANAGER.list_recent(limit=limit)
+    return {"status": "ok", "projects": projects}
+
+
+def handle_list_pathway_frequency(payload: Dict[str, Any]) -> Dict[str, Any]:
+    if PROJECT_MANAGER is None:
+        return {"status": "error", "message": "Project memory not available"}
+    limit = int(payload.get("limit", 6))
+    pathways = PROJECT_MANAGER.list_pathway_frequency(limit=limit)
+    return {"status": "ok", "pathways": pathways}
+
+
+def handle_project_context(payload: Dict[str, Any]) -> Dict[str, Any]:
+    if PROJECT_MANAGER is None:
+        return {"status": "error", "message": "Project memory not available"}
+    genes = payload.get("genes") or []
+    if not isinstance(genes, list):
+        return {"status": "error", "message": "Invalid genes list"}
+    limit = int(payload.get("limit", 5))
+    context = PROJECT_MANAGER.get_gene_context([str(g) for g in genes], limit=limit)
+    return {"status": "ok", "context": context}
+
+
+def handle_list_enrichment_audits(payload: Dict[str, Any]) -> Dict[str, Any]:
+    if PROJECT_MANAGER is None:
+        return {"status": "error", "message": "Project memory not available"}
+    file_path = payload.get("file_path")
+    limit = int(payload.get("limit", 5))
+    audits = PROJECT_MANAGER.list_enrichment_audits(file_path=file_path, limit=limit)
+    return {"status": "ok", "audits": audits}
+
+
+def handle_de_analysis_audited(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """Run DE analysis and record audit metadata (best-effort)."""
+    try:
+        from de_analysis import handle_de_analysis
+    except ImportError as e:
+        return {"status": "error", "message": f"DE analysis not available: {e}"}
+
+    result = handle_de_analysis(payload)
+    if result.get("status") != "ok":
+        return result
+
+    if PROJECT_MANAGER is not None:
+        try:
+            file_path = payload.get("counts_path")
+            group1 = payload.get("group1_samples", [])
+            group2 = payload.get("group2_samples", [])
+            summary = result.get("summary") or {}
+            qc_report = result.get("qc_report")
+            PROJECT_MANAGER.record_de_analysis(
+                file_path=file_path,
+                method=result.get("method", "unknown"),
+                group1_samples=group1,
+                group2_samples=group2,
+                qc_report=qc_report,
+                summary=summary,
+            )
+        except Exception as e:
+            logging.warning(f"[ProjectMemory] Failed to record DE audit: {e}")
+
+    return result
 
 
 def handle_load_pathway(payload: Dict[str, Any]) -> Dict[str, Any]:
@@ -1420,6 +1522,10 @@ def handle_chat(payload: Dict[str, Any]) -> Dict[str, Any]:
         query = payload.get("query", "")
         history = payload.get("history", [])
         context = payload.get("context", {})
+        ui_language = payload.get("ui_language") or payload.get("language")
+        if ui_language:
+            context = dict(context or {})
+            context["ui_language"] = ui_language
         
         if not query:
             return {"status": "error", "message": "Query is required"}
@@ -1595,12 +1701,13 @@ def handle_summarize_enrichment(payload: Dict[str, Any]) -> Dict[str, Any]:
         enrichment_data = payload.get("enrichment_data") or payload.get("enriched_terms") or payload.get("data") or {}
         volcano_data = payload.get("volcano_data") or payload.get("volcanoData")
         context = payload.get("context") or {}
+        ui_language = payload.get("ui_language") or payload.get("language")
         metadata = {
             "pathway": payload.get("pathway") or context.get("pathway") or {},
             "statistics": payload.get("statistics") or context.get("statistics") or {},
         }
 
-        return summarize_enrichment(enrichment_data, volcano_data=volcano_data, metadata=metadata)
+        return summarize_enrichment(enrichment_data, volcano_data=volcano_data, metadata=metadata, ui_language=ui_language)
     except Exception as e:
         return {"status": "error", "message": f"Failed to summarize enrichment: {str(e)}"}
 
@@ -1612,7 +1719,8 @@ def handle_summarize_de(payload: Dict[str, Any]) -> Dict[str, Any]:
 
         volcano_data = payload.get("volcano_data") or payload.get("volcanoData") or []
         thresholds = payload.get("thresholds") or {}
-        return summarize_de_genes(volcano_data, thresholds)
+        ui_language = payload.get("ui_language") or payload.get("language")
+        return summarize_de_genes(volcano_data, thresholds, ui_language=ui_language)
     except Exception as e:
         return {"status": "error", "message": f"Failed to summarize differential expression: {str(e)}"}
 
@@ -1624,7 +1732,8 @@ def handle_parse_filter(payload: Dict[str, Any]) -> Dict[str, Any]:
 
         query = payload.get("query") or payload.get("text") or ""
         available_fields = payload.get("available_fields") or payload.get("columns") or []
-        return parse_filter_query(query, available_fields)
+        ui_language = payload.get("ui_language") or payload.get("language")
+        return parse_filter_query(query, available_fields, ui_language=ui_language)
     except Exception as e:
         return {"status": "error", "message": f"Failed to parse filter query: {str(e)}"}
 
@@ -1637,7 +1746,8 @@ def handle_generate_hypothesis(payload: Dict[str, Any]) -> Dict[str, Any]:
         significant_genes = payload.get("significant_genes") or payload.get("genes")
         pathways = payload.get("pathways") or payload.get("enriched_terms")
         volcano_data = payload.get("volcano_data") or payload.get("volcanoData")
-        return generate_hypothesis(significant_genes, pathways=pathways, volcano_data=volcano_data)
+        ui_language = payload.get("ui_language") or payload.get("language")
+        return generate_hypothesis(significant_genes, pathways=pathways, volcano_data=volcano_data, ui_language=ui_language)
     except Exception as e:
         return {"status": "error", "message": f"Failed to generate hypothesis: {str(e)}"}
 
@@ -1653,7 +1763,8 @@ def handle_discover_patterns(payload: Dict[str, Any]) -> Dict[str, Any]:
             or payload.get("volcano_data")
             or payload.get("volcanoData")
         )
-        return discover_patterns(expression_matrix)
+        ui_language = payload.get("ui_language") or payload.get("language")
+        return discover_patterns(expression_matrix, ui_language=ui_language)
     except Exception as e:
         return {"status": "error", "message": f"Failed to discover patterns: {str(e)}"}
 
@@ -1669,7 +1780,8 @@ def handle_describe_visualization(payload: Dict[str, Any]) -> Dict[str, Any]:
             or payload.get("volcano_data")
             or payload.get("volcanoData")
         )
-        return describe_visualization(table_data)
+        ui_language = payload.get("ui_language") or payload.get("language")
+        return describe_visualization(table_data, ui_language=ui_language)
     except Exception as e:
         return {"status": "error", "message": f"Failed to describe visualization: {str(e)}"}
 
@@ -1693,7 +1805,17 @@ def handle_agent_task(payload: Dict[str, Any]) -> Dict[str, Any]:
         return {"status": "error", "message": "Agent Runtime not loaded"}
     
     try:
-        logging.info(f"[AGENT] Received task: {payload.get('intent')}")
+        # License Gate (Pro Only)
+        if not validator.is_pro:
+            return {"status": "error", "message": "This feature requires a Pro license. Please activate to continue."}
+
+        # Map prompt to intent if needed
+        intent = payload.get('intent')
+        if not intent and payload.get('prompt'):
+            intent = payload.get('prompt')
+            payload['intent'] = intent  # Inject for downstream
+            
+        logging.info(f"[AGENT] Received task: {intent}")
         result = agent_runtime.process_intent(payload)
         return {"status": "ok", "result": result}
     except Exception as e:
@@ -1719,10 +1841,15 @@ def process_command(command_obj: Dict[str, Any]) -> None:
             "LOAD": handle_load,
             "ANALYZE": handle_analyze,
             "LOAD_PATHWAY": handle_load_pathway,
+            "VALIDATE_LICENSE": handle_validate_license,
             "COLOR_PATHWAY": handle_color_pathway,
             "SEARCH_PATHWAY": handle_search_pathways,
             "DOWNLOAD_PATHWAY": handle_download_pathway,
             "LIST_TEMPLATES": handle_list_templates,
+            "LIST_PROJECTS": handle_list_projects,
+            "LIST_PATHWAYS_FREQ": handle_list_pathway_frequency,
+            "PROJECT_CONTEXT": handle_project_context,
+            "LIST_ENRICHMENT_AUDITS": handle_list_enrichment_audits,
             # AI Chat handlers (Logic Lock)
             "CHAT": handle_chat,
             "CHAT_CONFIRM": handle_chat_confirm,
@@ -1738,22 +1865,7 @@ def process_command(command_obj: Dict[str, Any]) -> None:
             "AGENT_TASK": handle_agent_task,
         }
         
-        if GSEA_AVAILABLE:
-            from gsea_module import (
-                handle_run_enrichr,
-                handle_run_gsea,
-                handle_get_gene_sets,
-                handle_load_gmt,
-                handle_export_csv
-            )
-            return_handlers["ENRICHR"] = handle_run_enrichr
-            return_handlers["GSEA"] = handle_run_gsea
-            return_handlers["GET_GENE_SETS"] = handle_get_gene_sets
-            return_handlers["LOAD_GMT"] = handle_load_gmt
-            return_handlers["EXPORT_CSV"] = handle_export_csv
-            logging.debug("GSEA handlers available")
-        else:
-            logging.warning("GSEA handlers NOT available")
+        logging.info("Legacy GSEA/Enrichr handlers are disabled in v2.0 runtime.")
         
         # V2.0: Add Image handlers if available
         if IMAGE_AVAILABLE:
@@ -1772,13 +1884,9 @@ def process_command(command_obj: Dict[str, Any]) -> None:
         else:
             logging.warning("Multi-sample handlers NOT available")
         
-        # V2.0: Add DE Analysis handler
-        try:
-            from de_analysis import handle_de_analysis
-            return_handlers["DE_ANALYSIS"] = handle_de_analysis
-            logging.debug("DE Analysis handler registered")
-        except ImportError as e:
-            logging.warning(f"DE Analysis handler NOT available: {e}")
+        # V2.0: Add DE Analysis handler with audit
+        return_handlers["DE_ANALYSIS"] = handle_de_analysis_audited
+        logging.debug("DE Analysis handler registered (audited)")
         
         # V2.0: Add Enrichment Framework v2.0 handlers
         return_handlers["ENRICH_RUN"] = handle_enrich_run
@@ -1840,6 +1948,24 @@ def process_command(command_obj: Dict[str, Any]) -> None:
         CURRENT_REQUEST_ID = None
         CURRENT_CMD = None
 
+
+
+def handle_validate_license(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Validate a license key provided by the frontend.
+    Payload: {"key": "base64_string", "machineId": "optional"}
+    """
+    key = payload.get("key")
+    machine_id = payload.get("machineId")
+    
+    if not key:
+        return {"status": "error", "message": "Missing license key"}
+        
+    result = validator.validate(key, machine_id)
+    if result["valid"]:
+        return {"status": "ok", "valid": True, "data": result["data"]}
+    else:
+        return {"status": "error", "message": result.get("error", "Invalid license")}
 
 
 def run():
@@ -2245,6 +2371,10 @@ def handle_list_templates(_payload: Dict[str, Any]) -> Dict[str, Any]:
 # ============================================================================
 
 def handle_enrich_fusion_run(payload: Dict[str, Any]) -> Dict[str, Any]:
+    # License Gate (Pro Only)
+    if not validator.is_pro:
+        return {"status": "error", "message": "Fusion Analysis requires a Pro license."}
+
     """Run multi-source fusion enrichment analysis."""
     try:
         from enrichment.fusion import fusion_pipeline
@@ -2264,6 +2394,27 @@ def handle_enrich_fusion_run(payload: Dict[str, Any]) -> Dict[str, Any]:
             species=species,
             parameters=params
         )
+
+        # Persist enrichment audit (best-effort)
+        if PROJECT_MANAGER is not None:
+            try:
+                file_path = payload.get('file_path')
+                summary = {
+                    "method": method,
+                    "sources": sources,
+                    "total_modules": result.get("total_modules"),
+                    "total_terms": result.get("total_original_terms"),
+                }
+                PROJECT_MANAGER.record_enrichment_run(
+                    file_path=file_path,
+                    method=method,
+                    gene_set_source="fusion",
+                    metadata=result.get("metadata"),
+                    summary=summary,
+                )
+            except Exception as e:
+                logging.warning(f"[ProjectMemory] Failed to record fusion audit: {e}")
+
         return result
     except Exception as e:
         logging.error(f"Fusion enrichment failed: {e}", exc_info=True)
@@ -2367,6 +2518,27 @@ def handle_enrich_run(payload: Dict[str, Any]) -> Dict[str, Any]:
         }
         
         result['standard_summary'] = result['intelligence_report']['summary']
+
+        # Persist enrichment audit (best-effort)
+        if PROJECT_MANAGER is not None:
+            try:
+                file_path = payload.get('file_path')
+                summary = {
+                    "method": method,
+                    "total_results": len(all_res),
+                    "significant_results": sig_count,
+                    "gene_set_source": gene_set_source,
+                }
+                PROJECT_MANAGER.record_enrichment_run(
+                    file_path=file_path,
+                    method=method,
+                    gene_set_source=gene_set_source,
+                    metadata=result.get('metadata'),
+                    summary=summary,
+                )
+            except Exception as e:
+                logging.warning(f"[ProjectMemory] Failed to record enrichment audit: {e}")
+
         return result
         
     except Exception as e:
@@ -2948,8 +3120,3 @@ def _download_reactome_pathway(pathway_name: str, pathway_id: Optional[str], spe
 
 if __name__ == "__main__":
     run()
-
-
-
-
-

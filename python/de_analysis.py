@@ -248,6 +248,9 @@ def auto_de_analysis(
             method = "ttest"
             logging.info("pyDESeq2 not available, using simple t-test")
     
+    # QC report (best-effort; doesn't block analysis)
+    qc_report = build_qc_report(counts, group1_samples, group2_samples)
+
     # Run analysis
     if method == "deseq2":
         # Create metadata
@@ -278,7 +281,8 @@ def auto_de_analysis(
                 "downregulated": int((results_df['status'] == 'DOWN').sum()),
                 "not_significant": int((results_df['status'] == 'NS').sum())
             },
-            "warning": None
+            "warning": None,
+            "qc_report": qc_report
         }
     
     elif method == "ttest":
@@ -298,7 +302,8 @@ def auto_de_analysis(
                 "downregulated": int((results_df['status'] == 'DOWN').sum()),
                 "not_significant": int((results_df['status'] == 'NS').sum())
             },
-            "warning": "Simple t-test used. For publication, use DESeq2 or edgeR in R."
+            "warning": "Simple t-test used. For publication, use DESeq2 or edgeR in R.",
+            "qc_report": qc_report
         }
     
     else:
@@ -370,3 +375,68 @@ def handle_de_analysis(payload: Dict[str, Any]) -> Dict[str, Any]:
             "status": "error",
             "message": f"DE analysis failed: {str(e)}"
         }
+
+
+def build_qc_report(
+    counts: pd.DataFrame,
+    group1_samples: List[str],
+    group2_samples: List[str]
+) -> Dict[str, Any]:
+    """
+    Build QC report with library size stats and PCA (best-effort).
+    """
+    report: Dict[str, Any] = {
+        "library_size": {},
+        "pca": None,
+        "warnings": []
+    }
+
+    sample_cols = list(dict.fromkeys(group1_samples + group2_samples))
+    if not sample_cols:
+        report["warnings"].append("No samples provided for QC.")
+        return report
+
+    # Library sizes
+    try:
+        lib_sizes = counts[sample_cols].sum(axis=0)
+        mean_size = float(lib_sizes.mean()) if not lib_sizes.empty else 0.0
+        std_size = float(lib_sizes.std()) if not lib_sizes.empty else 0.0
+        outliers = []
+        if std_size > 0:
+            zscores = (lib_sizes - mean_size) / std_size
+            outliers = [s for s, z in zscores.items() if abs(z) >= 2.0]
+        report["library_size"] = {
+            "mean": mean_size,
+            "std": std_size,
+            "min": float(lib_sizes.min()) if not lib_sizes.empty else None,
+            "max": float(lib_sizes.max()) if not lib_sizes.empty else None,
+            "outliers": outliers,
+            "by_sample": {k: float(v) for k, v in lib_sizes.items()}
+        }
+    except Exception as e:
+        report["warnings"].append(f"Library size QC failed: {e}")
+
+    # PCA (best-effort)
+    try:
+        from sklearn.decomposition import PCA
+        matrix = counts[sample_cols].T
+        matrix = np.log1p(matrix)
+        pca = PCA(n_components=2)
+        coords = pca.fit_transform(matrix)
+        samples = []
+        for idx, name in enumerate(sample_cols):
+            group = "group1" if name in group1_samples else "group2"
+            samples.append({
+                "sample": name,
+                "pc1": float(coords[idx, 0]),
+                "pc2": float(coords[idx, 1]),
+                "group": group
+            })
+        report["pca"] = {
+            "variance": [float(v) for v in pca.explained_variance_ratio_],
+            "samples": samples
+        }
+    except Exception as e:
+        report["warnings"].append(f"PCA QC unavailable: {e}")
+
+    return report

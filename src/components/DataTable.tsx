@@ -1,5 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
+import { useI18n } from '../i18n';
 import { VolcanoPoint } from './VolcanoPlot';
 import { EntityMeta } from '../entityTypes';
 import './DataTable.css';
@@ -14,6 +15,7 @@ type SortField = 'gene' | 'x' | 'pvalue' | 'status';
 type SortOrder = 'asc' | 'desc';
 
 export const DataTable: React.FC<DataTableProps> = ({ data, onRowClick, labels }) => {
+    const { t } = useI18n();
     const [sortField, setSortField] = useState<SortField>('pvalue');
     const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
     const [filterText, setFilterText] = useState('');
@@ -66,13 +68,13 @@ export const DataTable: React.FC<DataTableProps> = ({ data, onRowClick, labels }
             <div className="data-table-header">
                 <input
                     type="text"
-                    placeholder={`Search ${pluralLabel}...`}
+                    placeholder={t('Search {label}...', { label: pluralLabel })}
                     value={filterText}
                     onChange={(e) => setFilterText(e.target.value)}
                     className="dt-search"
                 />
                 <div className="dt-stats">
-                    {sortedData.length} {pluralLabel}
+                    {t('{count} {label}', { count: sortedData.length, label: pluralLabel })}
                 </div>
             </div>
 
@@ -84,13 +86,13 @@ export const DataTable: React.FC<DataTableProps> = ({ data, onRowClick, labels }
                                 {labels.labelSingular} {sortField === 'gene' && (sortOrder === 'asc' ? '↑' : '↓')}
                             </th>
                             <th onClick={() => handleSort('x')} className={sortField === 'x' ? 'active' : ''}>
-                                LogFC {sortField === 'x' && (sortOrder === 'asc' ? '↑' : '↓')}
+                                {t('LogFC')} {sortField === 'x' && (sortOrder === 'asc' ? '↑' : '↓')}
                             </th>
                             <th onClick={() => handleSort('pvalue')} className={sortField === 'pvalue' ? 'active' : ''}>
-                                P-Value {sortField === 'pvalue' && (sortOrder === 'asc' ? '↑' : '↓')}
+                                {t('P-value')} {sortField === 'pvalue' && (sortOrder === 'asc' ? '↑' : '↓')}
                             </th>
                             <th onClick={() => handleSort('status')} className={sortField === 'status' ? 'active' : ''}>
-                                Status {sortField === 'status' && (sortOrder === 'asc' ? '↑' : '↓')}
+                                {t('Status')} {sortField === 'status' && (sortOrder === 'asc' ? '↑' : '↓')}
                             </th>
                         </tr>
                     </thead>
@@ -114,7 +116,7 @@ export const DataTable: React.FC<DataTableProps> = ({ data, onRowClick, labels }
                         {sortedData.length > 100 && (
                             <tr>
                                 <td colSpan={4} className="dt-more-row">
-                                    ... and {sortedData.length - 100} more
+                                    {t('... and {count} more', { count: sortedData.length - 100 })}
                                 </td>
                             </tr>
                         )}

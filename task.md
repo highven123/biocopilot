@@ -10,6 +10,10 @@ The user wants to search for KEGG pathways by name (e.g., "Cell Cycle") directly
     - [x] Refactor Agent Hub into unified [CHAT] and [ANALYZER] tabs 🔬
     - [x] Implement contextual "Instrument Bar" for skills and modules
     - [x] Remove redudant AI Assistant UI elements
+    - [x] **Refinement & Debugging (Session 271)**
+        - [x] Refine Synthesis Panel Layout (Clean look, consistency)
+        - [x] Fix Insight Panel Scrolling
+        - [x] Fix Backend `AGENT_TASK` "Unrecognized Intent" error
 - [ ] **Design & Planning**
     - [ ] Create implementation plan for backend search and KGML parsing
     - [ ] Define KGML to JSON mapping strategy
@@ -30,3 +34,35 @@ The user wants to search for KEGG pathways by name (e.g., "Cell Cycle") directly
     - [ ] Test searching for a common pathway (e.g., "Apoptosis")
     - [ ] Verify downloaded JSON structure matches existing templates
     - [ ] Verify visualization works with the new template
+
+- [ ] **Commercialization & Release Readiness**
+    - [ ] **Licensing System**
+        - [x] Implement RSA key validation (Offline capable)
+        - [x] Create `LicenseManager` and feature gating logic
+    - [ ] **Security & Signing**
+        - [ ] Configure macOS Code Signing & Notarization
+        - [ ] Implement JS obfuscation
+    - [ ] **Infrastructure**
+        - [ ] Configure Tauri Auto-Updater
+    - [ ] **Compliance**
+        - [ ] strict EULA & Privacy Policy modal on first launch
+
+- [ ] **Phase 1: Scientifc Onboarding (Immediate)**
+    - [x] **Environment Self-Check** (Hardware/dependencies check on startup)
+    - [x] **Data Import Hardening**
+        - [x] Add Template Download links (Excel/CSV)
+        - [x] Add "Smart Error Hints" for parsing failures (Backend Logic)
+    - [x] **Research Reports**
+        - [x] Implement Table + Plot + Methods structured export (HTML Light Mode)
+
+- [ ] **Phase 2: Trust & Reproducibility (Next Sprint)**
+    - [x] **"Glass Box" AI Citations** (Interactive Evidence)
+        - [x] Backend: Return structured `evidence_chain` from LLM.
+        - [x] Frontend: Clickable citations in Chat Panel highlighting Graph Nodes.
+    - [x] **Metadata Stamp**
+        - [x] Add App/DB/Model version to Report Footer.
+    - [x] **Standardized Demo Projects**
+        - [x] Ship with 3 "Gold Standard" datasets (TCGA, Alzheimer's, COVID-19).
+
+
+

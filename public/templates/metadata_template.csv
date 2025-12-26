@@ -1,0 +1,5 @@
+SampleID,Group,TimePoint,Batch
+Condition_A_1,Control,0h,B1
+Condition_A_2,Control,0h,B2
+Condition_B_1,Treated,24h,B1
+Condition_B_2,Treated,24h,B2

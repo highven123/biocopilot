@@ -208,6 +208,9 @@ def process_query(
     
     # Build system message with context awareness
     system_message = SYSTEM_PROMPT
+    lang_note = _language_system_note(context)
+    if lang_note:
+        system_message += f"\n\n{lang_note}"
     
     # Add context information to system message if available
     if context and context.get('pathway'):
@@ -443,3 +446,18 @@ def reject_proposal(proposal_id: str) -> AIAction:
         return AIAction.chat(f"Action cancelled: {proposal.tool_name}")
     else:
         return AIAction.chat(f"Proposal {proposal_id} not found.")
+# --- Language Guidance ---
+
+def _language_system_note(context: Dict[str, Any]) -> str:
+    lang = (context or {}).get("ui_language") or (context or {}).get("language") or ""
+    if not lang:
+        return ""
+    lang = str(lang).lower()
+    if lang.startswith("zh"):
+        return (
+            "Output language: Simplified Chinese. Keep gene/protein/pathway names, "
+            "database names, statistical symbols, and software names in English."
+        )
+    if lang.startswith("en"):
+        return "Output language: English."
+    return f"Output language: {lang}. Keep technical terms in English where appropriate."

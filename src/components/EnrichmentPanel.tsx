@@ -1,10 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useBioEngine } from '../hooks/useBioEngine';
 import GmtUploader from './GmtUploader';
+import UpSetPlot from './UpSetPlot';
 import './EnrichmentPanel.css';
+import { useI18n } from '../i18n';
 
 interface EnrichmentPanelProps {
     volcanoData?: any[];
+    filePath?: string;
+    multiSampleSets?: Array<{ label: string; genes: string[] }>;
     onEnrichmentComplete?: (results: any) => void;
     onPathwayClick?: (pathwayId: string, source: string, metadata?: { pathway_name?: string; hit_genes?: string[] }) => void;
 }
@@ -22,10 +26,13 @@ interface EnrichmentResult {
 
 export const EnrichmentPanel: React.FC<EnrichmentPanelProps> = ({
     volcanoData,
+    filePath,
+    multiSampleSets = [],
     onEnrichmentComplete,
     onPathwayClick
 }) => {
     const { sendCommand, lastResponse } = useBioEngine();
+    const { t } = useI18n();
 
     const [method, setMethod] = useState<'ORA' | 'GSEA'>('ORA');
     const [geneSetSource, setGeneSetSource] = useState('reactome');
@@ -37,15 +44,19 @@ export const EnrichmentPanel: React.FC<EnrichmentPanelProps> = ({
     const [isSummarizing, setIsSummarizing] = useState(false);
     const [feedback, setFeedback] = useState<{ type: 'success' | 'warning' | 'error'; message: string } | null>(null);
     const [metadata, setMetadata] = useState<any | null>(null);
+    const [viewMode, setViewMode] = useState<'table' | 'upset'>('table');
+    const [upsetSource, setUpsetSource] = useState<'current' | 'fusion' | 'multisample'>('current');
+    const [upsetMaxSets, setUpsetMaxSets] = useState(3);
+    const [upsetSelection, setUpsetSelection] = useState<string[]>([]);
 
     // Static list - could be dynamic from backend in future
     const availableSources = [
-        { id: 'fusion', name: '✨ BioViz Multi-Source Fusion' },
-        { id: 'reactome', name: 'Reactome Pathways' },
-        { id: 'wikipathways', name: 'WikiPathways' },
-        { id: 'go_bp', name: 'GO Biological Process' },
-        { id: 'kegg', name: 'KEGG (Custom GMT)' },
-        { id: 'custom', name: '📁 Upload Custom GMT' }
+        { id: 'fusion', name: t('✨ BioViz Multi-Source Fusion') },
+        { id: 'reactome', name: t('Reactome Pathways') },
+        { id: 'wikipathways', name: t('WikiPathways') },
+        { id: 'go_bp', name: t('GO Biological Process') },
+        { id: 'kegg', name: t('KEGG (Custom GMT)') },
+        { id: 'custom', name: t('📁 Upload Custom GMT') }
     ];
 
     const [customGmtPath, setCustomGmtPath] = useState<string | null>(null);
@@ -88,7 +99,10 @@ export const EnrichmentPanel: React.FC<EnrichmentPanelProps> = ({
                 const warnings = (lastResponse.warnings || []) as string[];
                 setFeedback({
                     type: warnings.length > 0 ? 'warning' : 'success',
-                    message: `Analysis complete. Found ${res.length} pathways. ${warnings.join('; ')}`
+                    message: t('Analysis complete. Found {count} pathways. {warnings}', {
+                        count: res.length,
+                        warnings: warnings.join('; ')
+                    })
                 });
 
                 if (onEnrichmentComplete) {
@@ -97,7 +111,7 @@ export const EnrichmentPanel: React.FC<EnrichmentPanelProps> = ({
             } else {
                 setFeedback({
                     type: 'error',
-                    message: lastResponse.message || 'Enrichment analysis failed'
+                    message: lastResponse.message || t('Enrichment analysis failed')
                 });
             }
         } else if (lastResponse.cmd === 'ENRICH_FUSION_RUN') {
@@ -121,14 +135,17 @@ export const EnrichmentPanel: React.FC<EnrichmentPanelProps> = ({
                 setMetadata(lastResponse.metadata || { sources: lastResponse.sources });
                 setFeedback({
                     type: 'success',
-                    message: `Fusion complete. Consolidated ${lastResponse.total_original_terms} terms into ${lastResponse.total_modules} biological modules.`
+                    message: t('Fusion complete. Consolidated {terms} terms into {modules} biological modules.', {
+                        terms: lastResponse.total_original_terms,
+                        modules: lastResponse.total_modules
+                    })
                 });
 
                 if (onEnrichmentComplete) {
                     onEnrichmentComplete(lastResponse);
                 }
             } else {
-                setFeedback({ type: 'error', message: lastResponse.message || 'Fusion analysis failed' });
+                setFeedback({ type: 'error', message: lastResponse.message || t('Fusion analysis failed') });
             }
         } else if (lastResponse.cmd === 'SUMMARIZE_ENRICHMENT') {
             setIsSummarizing(false);
@@ -164,6 +181,41 @@ export const EnrichmentPanel: React.FC<EnrichmentPanelProps> = ({
         }
     };
 
+    const availableUpSetSets = React.useMemo(() => {
+        if (upsetSource === 'multisample') {
+            return multiSampleSets || [];
+        }
+        if (!results || results.length === 0) return [];
+        return results
+            .filter(r => r.hit_genes && r.hit_genes.length > 0)
+            .map((r, idx) => {
+                const genes = Array.isArray(r.hit_genes)
+                    ? r.hit_genes
+                    : String(r.hit_genes || '').split(',').map(g => g.trim()).filter(Boolean);
+                return {
+                    label: r.pathway_name || `Set ${idx + 1}`,
+                    genes
+                };
+            });
+    }, [results, upsetSource, multiSampleSets]);
+
+    const buildUpSetSets = () => {
+        const limit = Math.max(2, Math.min(4, upsetMaxSets));
+        if (!availableUpSetSets.length) return [];
+        if (upsetSelection.length > 0) {
+            return availableUpSetSets
+                .filter((s) => upsetSelection.includes(s.label))
+                .slice(0, limit);
+        }
+        return availableUpSetSets.slice(0, limit);
+    };
+
+    useEffect(() => {
+        if (upsetSource === 'multisample') {
+            setViewMode('upset');
+        }
+    }, [upsetSource]);
+
     const handleRunEnrichment = async () => {
         const genes = method === 'ORA' ? getGeneList() : getGeneRanking();
 
@@ -171,7 +223,7 @@ export const EnrichmentPanel: React.FC<EnrichmentPanelProps> = ({
             (method === 'GSEA' && Object.keys(genes).length === 0)) {
             setFeedback({
                 type: 'warning',
-                message: 'No significant genes found. Load data first.'
+                message: t('No significant genes found. Load data first.')
             });
             return;
         }
@@ -190,7 +242,8 @@ export const EnrichmentPanel: React.FC<EnrichmentPanelProps> = ({
                     genes,
                     sources: ['reactome', 'kegg', 'wikipathways', 'go_bp'],
                     species,
-                    parameters: runParameters
+                    parameters: runParameters,
+                    file_path: filePath
                 });
             } else {
                 await sendCommand('ENRICH_RUN', {
@@ -199,7 +252,8 @@ export const EnrichmentPanel: React.FC<EnrichmentPanelProps> = ({
                     gene_set_source: geneSetSource,
                     species,
                     custom_gmt_path: geneSetSource === 'custom' ? customGmtPath : undefined,
-                    parameters: runParameters
+                    parameters: runParameters,
+                    file_path: filePath
                 });
             }
         } catch (err) {
@@ -214,24 +268,24 @@ export const EnrichmentPanel: React.FC<EnrichmentPanelProps> = ({
     return (
         <div className="enrichment-panel">
             <div className="enrichment-header">
-                <h3>🧬 Enrichment Analysis v2.0</h3>
+                <h3>🧬 {t('Enrichment Analysis')}</h3>
             </div>
 
             {/* Method Selection */}
             <div className="enrichment-method">
-                <label>Method</label>
+                <label>{t('Method')}</label>
                 <div className="method-toggle">
                     <button
                         className={method === 'ORA' ? 'active' : ''}
                         onClick={() => setMethod('ORA')}
                     >
-                        ORA
+                        {t('ORA')}
                     </button>
                     <button
                         className={method === 'GSEA' ? 'active' : ''}
                         onClick={() => setMethod('GSEA')}
                     >
-                        GSEA
+                        {t('GSEA')}
                     </button>
                 </div>
             </div>
@@ -239,7 +293,7 @@ export const EnrichmentPanel: React.FC<EnrichmentPanelProps> = ({
             {/* Source Selection */}
             <div className="enrichment-controls">
                 <label>
-                    Gene Set Source
+                    {t('Gene Set Source')}
                     <select
                         value={geneSetSource}
                         onChange={(e) => setGeneSetSource(e.target.value)}
@@ -260,7 +314,10 @@ export const EnrichmentPanel: React.FC<EnrichmentPanelProps> = ({
                                 setCustomGmtPath(path);
                                 setFeedback({
                                     type: 'success',
-                                    message: `Loaded ${stats.geneSets} gene sets (${stats.totalGenes} total genes)`
+                                    message: t('Loaded {sets} gene sets ({genes} total genes)', {
+                                        sets: stats.geneSets,
+                                        genes: stats.totalGenes
+                                    })
                                 });
                             }}
                             disabled={isLoading}
@@ -269,15 +326,15 @@ export const EnrichmentPanel: React.FC<EnrichmentPanelProps> = ({
                 )}
 
                 <label>
-                    Species
+                    {t('Species')}
                     <select
                         value={species}
                         onChange={(e) => setSpecies(e.target.value)}
                     >
-                        <option value="human">Human</option>
-                        <option value="mouse">Mouse</option>
-                        <option value="rat">Rat</option>
-                        <option value="auto">Auto-detect</option>
+                        <option value="human">{t('Human')}</option>
+                        <option value="mouse">{t('Mouse')}</option>
+                        <option value="rat">{t('Rat')}</option>
+                        <option value="auto">{t('Auto-detect')}</option>
                     </select>
                 </label>
             </div>
@@ -288,7 +345,7 @@ export const EnrichmentPanel: React.FC<EnrichmentPanelProps> = ({
                 onClick={handleRunEnrichment}
                 disabled={isLoading}
             >
-                {isLoading ? '⏳ Running...' : '▶️ Run Enrichment'}
+                {isLoading ? t('⏳ Running...') : t('▶️ Run Enrichment')}
             </button>
 
             {/* Feedback */}
@@ -305,7 +362,7 @@ export const EnrichmentPanel: React.FC<EnrichmentPanelProps> = ({
             {/* Info */}
             <div className="enrichment-info">
                 <span>📊 {volcanoData?.length || 0} genes loaded</span>
-                <span>✓ {method === 'ORA' ? 'Over-Representation' : 'Gene Set Enrichment'}</span>
+                <span>✓ {method === 'ORA' ? t('Over-Representation') : t('Gene Set Enrichment')}</span>
             </div>
 
             {/* Metadata & QC */}
@@ -313,13 +370,13 @@ export const EnrichmentPanel: React.FC<EnrichmentPanelProps> = ({
                 <div className="meta-row">
                     <span className="meta-pill primary">
                         {availableSources.find(s => s.id === geneSetSource)?.name || geneSetSource}
-                        {metadata?.gene_set_version ? ` • ${metadata.gene_set_version}` : ' • cache pending'}
+                        {metadata?.gene_set_version ? ` • ${metadata.gene_set_version}` : ` • ${t('cache pending')}`}
                     </span>
                     <span className="meta-pill">
-                        Species: {metadata?.input_summary?.species || species}
+                        {t('Species')}: {metadata?.input_summary?.species || species}
                     </span>
                     <span className="meta-pill">
-                        Background: {metadata?.input_summary?.total_genes || metadata?.output_summary?.total_pathways || 'auto-detect'}
+                        {t('Background')}: {metadata?.input_summary?.total_genes || metadata?.output_summary?.total_pathways || t('auto-detect')}
                     </span>
                     <span className="meta-pill accent">
                         p-threshold: {resolvedPCutoff.toFixed(2)} (FDR: {resolvedFdrMethod})
@@ -327,7 +384,7 @@ export const EnrichmentPanel: React.FC<EnrichmentPanelProps> = ({
                 </div>
                 {metadata?.gene_set_download_date && (
                     <div className="meta-sub">
-                        Downloaded: {metadata.gene_set_download_date} | Hash: {metadata.gene_set_hash || 'n/a'}
+                        {t('Downloaded')}: {metadata.gene_set_download_date} | {t('Hash')}: {metadata.gene_set_hash || 'n/a'}
                     </div>
                 )}
             </div>
@@ -345,7 +402,7 @@ export const EnrichmentPanel: React.FC<EnrichmentPanelProps> = ({
                                 className="ai-insight-btn"
                                 onClick={() => generateSummary(results)}
                             >
-                                ✨ AI Deep Analysis
+                                ✨ {t('AI Deep Analysis')}
                             </button>
                         )}
                     </div>
@@ -355,9 +412,9 @@ export const EnrichmentPanel: React.FC<EnrichmentPanelProps> = ({
                             <div className="insight-item">
                                 <span className="insight-icon">🎯</span>
                                 <div className="insight-content">
-                                    <div className="insight-label">Key Drivers</div>
+                                    <div className="insight-label">{t('Key Drivers')}</div>
                                     <div className="insight-value">{intelligenceReport.drivers.map((d: any) => d.gene).join(', ')}</div>
-                                    <div className="insight-note">Influencing {intelligenceReport.drivers[0].count} pathways</div>
+                                    <div className="insight-note">{t('Influencing {count} pathways', { count: intelligenceReport.drivers[0].count })}</div>
                                 </div>
                             </div>
                         )}
@@ -366,9 +423,9 @@ export const EnrichmentPanel: React.FC<EnrichmentPanelProps> = ({
                             <div className="insight-item">
                                 <span className="insight-icon">🔍</span>
                                 <div className="insight-content">
-                                    <div className="insight-label">Orphan Genes</div>
+                                    <div className="insight-label">{t('Orphan Genes')}</div>
                                     <div className="insight-value">{intelligenceReport.orphans.join(', ')}</div>
-                                    <div className="insight-note">High impact, but not in top pathways</div>
+                                    <div className="insight-note">{t('High impact, but not in top pathways')}</div>
                                 </div>
                             </div>
                         )}
@@ -377,9 +434,9 @@ export const EnrichmentPanel: React.FC<EnrichmentPanelProps> = ({
                             <div className="insight-item warning-insight">
                                 <span className="insight-icon">⚖️</span>
                                 <div className="insight-content">
-                                    <div className="insight-label">Antagonistic Regulation</div>
+                                    <div className="insight-label">{t('Antagonistic Regulation')}</div>
                                     <div className="insight-value">{intelligenceReport.antagonistic[0]}</div>
-                                    <div className="insight-note">Pathways with mixed up/down regulation</div>
+                                    <div className="insight-note">{t('Pathways with mixed up/down regulation')}</div>
                                 </div>
                             </div>
                         )}
@@ -388,9 +445,9 @@ export const EnrichmentPanel: React.FC<EnrichmentPanelProps> = ({
                             <div className="insight-item theme-insight">
                                 <span className="insight-icon">📚</span>
                                 <div className="insight-content">
-                                    <div className="insight-label">Systemic Redundancy</div>
+                                    <div className="insight-label">{t('Systemic Redundancy')}</div>
                                     <div className="insight-value">{intelligenceReport.redundant_themes.slice(0, 2).join(', ')}</div>
-                                    <div className="insight-note">Multiple hits in related functional hubs</div>
+                                    <div className="insight-note">{t('Multiple hits in related functional hubs')}</div>
                                 </div>
                             </div>
                         )}
@@ -399,9 +456,9 @@ export const EnrichmentPanel: React.FC<EnrichmentPanelProps> = ({
                             <div className="insight-item precise-insight">
                                 <span className="insight-icon">🎯</span>
                                 <div className="insight-content">
-                                    <div className="insight-label">Precise Regulation</div>
+                                    <div className="insight-label">{t('Precise Regulation')}</div>
                                     <div className="insight-value">{intelligenceReport.silent_paths[0]}</div>
-                                    <div className="insight-note">Significant despite very few active members</div>
+                                    <div className="insight-note">{t('Significant despite very few active members')}</div>
                                 </div>
                             </div>
                         )}
@@ -423,7 +480,7 @@ export const EnrichmentPanel: React.FC<EnrichmentPanelProps> = ({
                     <div className="report-header">
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                             <span className="report-icon">🤖</span>
-                            <h4>AI Deep Insight Report</h4>
+                            <h4>{t('AI Deep Insight Report')}</h4>
                         </div>
                         {intelligenceReport && (
                             <button
@@ -443,7 +500,7 @@ export const EnrichmentPanel: React.FC<EnrichmentPanelProps> = ({
                                     fontWeight: 'bold'
                                 }}
                             >
-                                🔍 Full Studio Report
+                                🔍 {t('Full Studio Report')}
                             </button>
                         )}
                         {isSummarizing && <div className="typing-dots"><span>.</span><span>.</span><span>.</span></div>}
@@ -462,72 +519,151 @@ export const EnrichmentPanel: React.FC<EnrichmentPanelProps> = ({
             {results.length > 0 && (
                 <div className="enrichment-results">
                     <div className="results-header">
-                        <h4>Top Enriched Pathways ({results.length})</h4>
-                        <button
-                            className="export-btn"
-                            onClick={async () => {
-                                console.log('[Export] Starting export, results count:', results.length);
+                        <h4>{t('Top Enriched Pathways')} ({results.length})</h4>
+                            <div className="results-actions">
+                                <div className="results-source">
+                                    <label>{t('UpSet Source')}</label>
+                                    <select
+                                        value={upsetSource}
+                                        onChange={(e) => setUpsetSource(e.target.value as any)}
+                                    >
+                                        <option value="current">{t('Current')}</option>
+                                        <option value="fusion">{t('Fusion')}</option>
+                                        <option value="multisample" disabled={!multiSampleSets.length}>{t('MultiSample')}</option>
+                                    </select>
+                                </div>
+                                <div className="results-source">
+                                    <label>{t('Max Sets')}</label>
+                                    <select
+                                        value={upsetMaxSets}
+                                        onChange={(e) => setUpsetMaxSets(Number(e.target.value))}
+                                    >
+                                        <option value={2}>2</option>
+                                        <option value={3}>3</option>
+                                        <option value={4}>4</option>
+                                    </select>
+                                </div>
+                                <div className="results-source">
+                                    <button
+                                        className="clear-btn"
+                                        type="button"
+                                        onClick={() => setUpsetSelection([])}
+                                        disabled={upsetSelection.length === 0}
+                                    >
+                                        {t('Clear')}
+                                    </button>
+                                </div>
+                                <div className="results-toggle">
+                                <button
+                                    className={`toggle-btn ${viewMode === 'table' ? 'active' : ''}`}
+                                    onClick={() => setViewMode('table')}
+                                >
+                                    {t('Table')}
+                                </button>
+                                <button
+                                    className={`toggle-btn ${viewMode === 'upset' ? 'active' : ''}`}
+                                    onClick={() => setViewMode('upset')}
+                                >
+                                    {t('UpSet')}
+                                </button>
+                            </div>
+                            <button
+                                className="export-btn"
+                                onClick={async () => {
+                                    console.log('[Export] Starting export, results count:', results.length);
 
-                                if (!results || results.length === 0) {
-                                    setFeedback({ type: 'error', message: 'No results to export' });
-                                    return;
-                                }
-
-                                try {
-                                    // Export results as CSV
-                                    const csvContent = [
-                                        ['Pathway', 'P-value', 'FDR', method === 'ORA' ? 'Odds Ratio' : 'NES', 'Overlap', 'Top Genes'].join(','),
-                                        ...results.map(r => [
-                                            `"${r.pathway_name}"`,
-                                            r.p_value?.toExponential(3) || '',
-                                            r.fdr?.toFixed(4) || '',
-                                            method === 'ORA' ? (r.odds_ratio?.toFixed(2) || '') : (r.nes?.toFixed(2) || ''),
-                                            r.overlap_ratio || '',
-                                            `"${(r.hit_genes || []).slice(0, 5).join(', ')}"`
-                                        ].join(','))
-                                    ].join('\n');
-
-                                    console.log('[Export] CSV generated, length:', csvContent.length);
-
-                                    // Use Tauri dialog API for cross-platform file saving
-                                    const { save } = await import('@tauri-apps/plugin-dialog');
-                                    const { writeTextFile } = await import('@tauri-apps/plugin-fs');
-
-                                    const defaultName = `enrichment_${geneSetSource}_${new Date().toISOString().slice(0, 10)}.csv`;
-                                    const filePath = await save({
-                                        defaultPath: defaultName,
-                                        filters: [{ name: 'CSV', extensions: ['csv'] }]
-                                    });
-
-                                    if (filePath) {
-                                        await writeTextFile(filePath, csvContent);
-                                        console.log('[Export] File saved to:', filePath);
-                                        setFeedback({ type: 'success', message: `Results exported to: ${filePath}` });
-                                    } else {
-                                        console.log('[Export] User cancelled save dialog');
+                                    if (!results || results.length === 0) {
+                                        setFeedback({ type: 'error', message: t('No results to export') });
+                                        return;
                                     }
-                                } catch (err) {
-                                    console.error('[Export] Error:', err);
-                                    setFeedback({ type: 'error', message: `Export failed: ${err}` });
-                                }
-                            }}
-                            title="Export to CSV"
-                        >
-                            📥 Export
-                        </button>
+
+                                    try {
+                                        // Export results as CSV
+                                        const csvContent = [
+                                            [t('Pathway'), t('P-value'), t('FDR'), method === 'ORA' ? t('Odds Ratio') : t('NES'), t('Overlap'), t('Top Genes')].join(','),
+                                            ...results.map(r => [
+                                                `"${r.pathway_name}"`,
+                                                r.p_value?.toExponential(3) || '',
+                                                r.fdr?.toFixed(4) || '',
+                                                method === 'ORA' ? (r.odds_ratio?.toFixed(2) || '') : (r.nes?.toFixed(2) || ''),
+                                                r.overlap_ratio || '',
+                                                `"${(r.hit_genes || []).slice(0, 5).join(', ')}"`
+                                            ].join(','))
+                                        ].join('\n');
+
+                                        console.log('[Export] CSV generated, length:', csvContent.length);
+
+                                        // Use Tauri dialog API for cross-platform file saving
+                                        const { save } = await import('@tauri-apps/plugin-dialog');
+                                        const { writeTextFile } = await import('@tauri-apps/plugin-fs');
+
+                                        const defaultName = `enrichment_${geneSetSource}_${new Date().toISOString().slice(0, 10)}.csv`;
+                                        const filePath = await save({
+                                            defaultPath: defaultName,
+                                            filters: [{ name: 'CSV', extensions: ['csv'] }]
+                                        });
+
+                                        if (filePath) {
+                                            await writeTextFile(filePath, csvContent);
+                                            console.log('[Export] File saved to:', filePath);
+                                            setFeedback({ type: 'success', message: `Results exported to: ${filePath}` });
+                                        } else {
+                                            console.log('[Export] User cancelled save dialog');
+                                        }
+                                    } catch (err) {
+                                        console.error('[Export] Error:', err);
+                                        setFeedback({ type: 'error', message: t('Export failed: {error}', { error: String(err) }) });
+                                    }
+                                }}
+                                title={t('Export to CSV')}
+                            >
+                                📥 {t('Export')}
+                            </button>
+                        </div>
                     </div>
 
+                    {viewMode === 'upset' ? (
+                        <div className="upset-container">
+                            <div className="upset-note">
+                                {upsetSelection.length > 0
+                                    ? t('Using custom selection ({count}).', { count: upsetSelection.length })
+                                    : t('Using top {count} sets for intersections.', { count: Math.max(2, Math.min(4, upsetMaxSets)) })}
+                            </div>
+                            {availableUpSetSets.length > 0 && (
+                                <div className="upset-picker">
+                                    {availableUpSetSets.slice(0, 12).map((set) => (
+                                        <button
+                                            key={set.label}
+                                            type="button"
+                                            className={`upset-option ${upsetSelection.includes(set.label) ? 'active' : ''}`}
+                                            onClick={() => {
+                                                setUpsetSelection((prev) => {
+                                                    const next = prev.includes(set.label)
+                                                        ? prev.filter((s) => s !== set.label)
+                                                        : [...prev, set.label];
+                                                    return next.slice(0, 4);
+                                                });
+                                            }}
+                                        >
+                                            {set.label}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                            <UpSetPlot sets={buildUpSetSets()} height={240} />
+                        </div>
+                    ) : (
                     <div className="results-table-container">
                         <table className="results-table">
                             <thead>
                                 <tr>
-                                    <th>Pathway / Module</th>
-                                    <th>P-value</th>
-                                    <th>FDR</th>
-                                    {method === 'ORA' && <th>Odds Ratio</th>}
-                                    {method === 'GSEA' && <th>NES</th>}
-                                    <th>{geneSetSource === 'fusion' ? 'Sources' : 'Overlap'}</th>
-                                    <th>Genes</th>
+                                    <th>{t('Pathway / Module')}</th>
+                                    <th>{t('P-value')}</th>
+                                    <th>{t('FDR')}</th>
+                                    {method === 'ORA' && <th>{t('Odds Ratio')}</th>}
+                                    {method === 'GSEA' && <th>{t('NES')}</th>}
+                                    <th>{geneSetSource === 'fusion' ? t('Sources') : t('Overlap')}</th>
+                                    <th>{t('Genes')}</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -569,8 +705,8 @@ export const EnrichmentPanel: React.FC<EnrichmentPanelProps> = ({
                                             <td className={result.fdr < 0.05 ? 'significant-fdr' : ''}>
                                                 {result.fdr.toFixed(4)}
                                             </td>
-                                            {method === 'ORA' && <td>{result.odds_ratio?.toFixed(2) || 'n/a'}</td>}
-                                            {method === 'GSEA' && <td>{result.nes?.toFixed(2) || 'n/a'}</td>}
+                                            {method === 'ORA' && <td>{result.odds_ratio?.toFixed(2) || t('n/a')}</td>}
+                                            {method === 'GSEA' && <td>{result.nes?.toFixed(2) || t('n/a')}</td>}
                                             <td>
                                                 {result.isFused ? (
                                                     <div className="source-badges">
@@ -592,13 +728,13 @@ export const EnrichmentPanel: React.FC<EnrichmentPanelProps> = ({
                                             <tr className="fusion-drilldown-row">
                                                 <td colSpan={7}>
                                                     <div className="fusion-members-container">
-                                                        <div className="fusion-members-label">Consolidated Terms:</div>
+                                                        <div className="fusion-members-label">{t('Consolidated Terms')}:</div>
                                                         <div className="fusion-members-list">
                                                             {result.members.map((m: any, midx: number) => (
                                                                 <div key={midx} className="fusion-member-item">
                                                                     <span className={`source-tag tag-${m.source}`}>{m.source}</span>
                                                                     <span className="member-name">{m.pathway_name}</span>
-                                                                    <span className="member-stats">FDR: {m.fdr?.toFixed(4)} | Overlap: {m.overlap_ratio}</span>
+                                                                    <span className="member-stats">{t('FDR')}: {m.fdr?.toFixed(4)} | {t('Overlap')}: {m.overlap_ratio}</span>
                                                                 </div>
                                                             ))}
                                                         </div>
@@ -611,6 +747,7 @@ export const EnrichmentPanel: React.FC<EnrichmentPanelProps> = ({
                             </tbody>
                         </table>
                     </div>
+                    )}
                 </div>
             )}
         </div>

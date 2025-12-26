@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useI18n } from '../i18n';
 import { eventBus, BioVizEvents } from '../stores/eventBus';
 import { SidecarResponse } from '../hooks/useBioEngine';
 import './AIEventPanel.css';
@@ -34,6 +35,7 @@ export const AIEventPanel: React.FC<AIEventPanelProps> = ({
     onExportSession,
     analysisContext,
 }) => {
+    const { t } = useI18n();
     const [suggestions, setSuggestions] = useState<AISuggestion[]>([]);
     const [isMinimized, setIsMinimized] = useState(true); // Start collapsed
 
@@ -69,10 +71,10 @@ export const AIEventPanel: React.FC<AIEventPanelProps> = ({
             const response = await sendCommand(cmd, payload, true) as SidecarResponse;
             const isOk = response && response.status === 'ok';
             const summary = (response && typeof response === 'object' ? (response as any).summary : null) as string | null;
-            const message = summary || (response as any)?.content || response?.message || emptyMessage || 'Completed.';
+            const message = summary || (response as any)?.content || response?.message || emptyMessage || t('Completed.');
             addSuggestion(title, message, isOk ? 'success' : 'warning');
         } catch (err: any) {
-            addSuggestion(title, `Failed: ${err?.message || String(err)}`, 'warning');
+            addSuggestion(title, t('Failed: {error}', { error: err?.message || String(err) }), 'warning');
         }
     };
 
@@ -225,7 +227,7 @@ export const AIEventPanel: React.FC<AIEventPanelProps> = ({
             const newSuggestion: AISuggestion = {
                 id: `sug_${Date.now()}`,
                 type: payload.type || 'info',
-                title: payload.title || 'AI Insight',
+                title: payload.title || t('AI Insight'),
                 message: payload.message,
                 timestamp: Date.now(),
                 actions: payload.actions,
@@ -238,7 +240,7 @@ export const AIEventPanel: React.FC<AIEventPanelProps> = ({
             const warning: AISuggestion = {
                 id: `warn_${Date.now()}`,
                 type: 'warning',
-                title: payload.title || '⚠️ Warning',
+                title: payload.title || t('⚠️ Warning'),
                 message: payload.message,
                 timestamp: Date.now(),
             };
@@ -252,8 +254,8 @@ export const AIEventPanel: React.FC<AIEventPanelProps> = ({
                 const qcResult: AISuggestion = {
                     id: `qc_${Date.now()}`,
                     type: 'success',
-                    title: '✅ Data Quality Check',
-                    message: `Loaded ${payload?.rows || 0} rows. No missing values detected.`,
+                    title: t('✅ Data Quality Check'),
+                    message: t('Loaded {rows} rows. No missing values detected.', { rows: payload?.rows || 0 }),
                     timestamp: Date.now(),
                 };
                 setSuggestions((prev) => [qcResult, ...prev].slice(0, 10));
@@ -266,12 +268,15 @@ export const AIEventPanel: React.FC<AIEventPanelProps> = ({
                 const analysisHint: AISuggestion = {
                     id: `analysis_${Date.now()}`,
                     type: 'action',
-                    title: '🧬 Analysis Complete',
-                    message: `Found ${payload?.statistics?.upregulated || 0} upregulated and ${payload?.statistics?.downregulated || 0} downregulated genes. Would you like to run enrichment analysis?`,
+                    title: t('🧬 Analysis Complete'),
+                    message: t('Found {up} upregulated and {down} downregulated genes. Would you like to run enrichment analysis?', {
+                        up: payload?.statistics?.upregulated || 0,
+                        down: payload?.statistics?.downregulated || 0
+                    }),
                     timestamp: Date.now(),
                     actions: [
                         {
-                            label: 'Open GSEA',
+                            label: t('Open GSEA'),
                             handler: () => {
                                 if (onNavigateToGSEA) {
                                     onNavigateToGSEA();
@@ -329,7 +334,7 @@ export const AIEventPanel: React.FC<AIEventPanelProps> = ({
                     setIsMinimized(true);
                 }
             }}>
-                <span className="ai-badge">🤖 AI Assistant</span>
+                <span className="ai-badge">🤖 {t('AI Assistant')}</span>
                 <span className="suggestion-count">{activeSuggestions.length}</span>
                 <button className="minimize-btn">{isMinimized ? '▲' : '▼'}</button>
             </div>
@@ -338,15 +343,15 @@ export const AIEventPanel: React.FC<AIEventPanelProps> = ({
                 <div className="ai-event-list">
                     {/* Skills Cards */}
                     <div className="ai-skills-section">
-                        <div className="skills-label">Skills</div>
+                        <div className="skills-label">{t('Skills')}</div>
                         <div className="skills-grid">
                             <button
                                 className="skill-card"
                                 onClick={() => onNavigateToGSEA?.()}
-                                title="Gene Set Enrichment Analysis"
+                                title={t('Gene Set Enrichment Analysis')}
                             >
                                 <span className="skill-icon">🔬</span>
-                                <span className="skill-name">GSEA</span>
+                                <span className="skill-name">{t('GSEA')}</span>
                             </button>
                             <button
                                 className="skill-card"
@@ -357,138 +362,142 @@ export const AIEventPanel: React.FC<AIEventPanelProps> = ({
                                         ?.map((g: any) => g.gene) || [];
                                     if (genes.length > 0) {
                                         await sendCommand('CHAT', {
-                                            query: `Please run enrichment analysis for these ${genes.length} differentially expressed genes: ${genes.slice(0, 50).join(', ')}${genes.length > 50 ? '...' : ''}`,
+                                            query: t('Please run enrichment analysis for these {count} differentially expressed genes: {genes}{more}', {
+                                                count: genes.length,
+                                                genes: genes.slice(0, 50).join(', '),
+                                                more: genes.length > 50 ? '...' : ''
+                                            }),
                                             context: analysisContext
                                         });
                                     }
                                 }}
-                                title="Run Enrichment Analysis"
+                                title={t('Run Enrichment Analysis')}
                                 disabled={!analysisContext?.volcanoData}
                             >
                                 <span className="skill-icon">📊</span>
-                                <span className="skill-name">Enrichment</span>
+                                <span className="skill-name">{t('Enrichment')}</span>
                             </button>
                             <button
                                 className="skill-card"
                                 onClick={async () => {
                                     await runSkillCommand(
-                                        'Enrichment Explanation',
+                                        t('Enrichment Explanation'),
                                         'SUMMARIZE_ENRICHMENT',
                                         {
                                             enrichment_data: analysisContext?.pathway?.enriched_terms || analysisContext?.statistics?.enriched_terms,
                                             volcano_data: volcanoData,
                                             statistics: analysisContext?.statistics,
                                         },
-                                        'Run enrichment first to explain the results.'
+                                        t('Run enrichment first to explain the results.')
                                     );
                                 }}
-                                title="Explain enrichment results with structured prompt"
+                                title={t('Explain enrichment results with structured prompt')}
                                 disabled={!analysisContext?.volcanoData}
                             >
                                 <span className="skill-icon">🧠</span>
-                                <span className="skill-name">Explain</span>
+                                <span className="skill-name">{t('Explain')}</span>
                             </button>
                             <button
                                 className="skill-card"
                                 onClick={async () => {
                                     await runSkillCommand(
-                                        'Differential Expression Summary',
+                                        t('Differential Expression Summary'),
                                         'SUMMARIZE_DE',
                                         { volcano_data: volcanoData },
-                                        'Load differential expression data first.'
+                                        t('Load differential expression data first.')
                                     );
                                 }}
-                                title="Summarize significant genes and thresholds"
+                                title={t('Summarize significant genes and thresholds')}
                                 disabled={!analysisContext?.volcanoData}
                             >
                                 <span className="skill-icon">🧾</span>
-                                <span className="skill-name">Summarize</span>
+                                <span className="skill-name">{t('Summarize')}</span>
                             </button>
                             <button
                                 className="skill-card"
                                 onClick={async () => {
                                     await runSkillCommand(
-                                        'Hypothesis (Phase 3)',
+                                        t('Hypothesis (Phase 3)'),
                                         'GENERATE_HYPOTHESIS',
                                         {
                                             significant_genes: significantGenes,
                                             pathways: analysisContext?.pathway?.enriched_terms,
                                             volcano_data: volcanoData,
                                         },
-                                        'Provide significant genes to generate a hypothesis.'
+                                        t('Provide significant genes to generate a hypothesis.')
                                     );
                                 }}
-                                title="Generate speculative mechanism hypotheses"
+                                title={t('Generate speculative mechanism hypotheses')}
                                 disabled={significantGenes.length === 0}
                             >
                                 <span className="skill-icon">💡</span>
-                                <span className="skill-name">Hypothesis</span>
+                                <span className="skill-name">{t('Hypothesis')}</span>
                             </button>
                             <button
                                 className="skill-card"
                                 onClick={async () => {
                                     await runSkillCommand(
-                                        'Pattern Discovery (Phase 3)',
+                                        t('Pattern Discovery (Phase 3)'),
                                         'DISCOVER_PATTERNS',
                                         {
                                             expression_matrix: volcanoData,
                                         },
-                                        'Load expression data to discover patterns.'
+                                        t('Load expression data to discover patterns.')
                                     );
                                 }}
-                                title="Discover co-expression patterns (exploratory)"
+                                title={t('Discover co-expression patterns (exploratory)')}
                                 disabled={!analysisContext?.volcanoData}
                             >
                                 <span className="skill-icon">🔍</span>
-                                <span className="skill-name">Patterns</span>
+                                <span className="skill-name">{t('Patterns')}</span>
                             </button>
                             <button
                                 className="skill-card"
                                 onClick={async () => {
                                     await runSkillCommand(
-                                        'Visualization Description',
+                                        t('Visualization Description'),
                                         'DESCRIBE_VISUALIZATION',
                                         {
                                             table_data: analysisContext?.pathway?.enriched_terms || volcanoData,
                                         },
-                                        'Load data to describe visualization trends.'
+                                        t('Load data to describe visualization trends.')
                                     );
                                 }}
-                                title="Describe chart/table trends"
+                                title={t('Describe chart/table trends')}
                                 disabled={!analysisContext?.volcanoData}
                             >
                                 <span className="skill-icon">📈</span>
-                                <span className="skill-name">Describe</span>
+                                <span className="skill-name">{t('Describe')}</span>
                             </button>
                             <button
                                 className="skill-card"
                                 onClick={async () => {
-                                    const filterQuery = prompt('Enter filter query (e.g., "log2FC > 2 and FDR < 0.01"):');
+                                    const filterQuery = prompt(t('Enter filter query (e.g., "log2FC > 2 and FDR < 0.01"):'));
                                     if (filterQuery) {
                                         await runSkillCommand(
-                                            'Parse Filter Query',
+                                            t('Parse Filter Query'),
                                             'PARSE_FILTER',
                                             {
                                                 query: filterQuery,
                                                 available_fields: ['gene', 'log2FC', 'pValue', 'FDR', 'status'],
                                             },
-                                            'Filter query parsed successfully.'
+                                            t('Filter query parsed successfully.')
                                         );
                                     }
                                 }}
-                                title="Parse natural language filters"
+                                title={t('Parse natural language filters')}
                             >
                                 <span className="skill-icon">🔎</span>
-                                <span className="skill-name">Filter</span>
+                                <span className="skill-name">{t('Filter')}</span>
                             </button>
                             <button
                                 className="skill-card"
                                 onClick={() => onExportSession?.()}
-                                title="Export Analysis Report"
+                                title={t('Export Analysis Report')}
                                 disabled={!analysisContext}
                             >
                                 <span className="skill-icon">📝</span>
-                                <span className="skill-name">Report</span>
+                                <span className="skill-name">{t('Report')}</span>
                             </button>
                             <button
                                 className="skill-card"
@@ -501,15 +510,20 @@ export const AIEventPanel: React.FC<AIEventPanelProps> = ({
                                         ?.filter((g: any) => g.status === 'DOWN')
                                         ?.map((g: any) => g.gene) || [];
                                     await sendCommand('CHAT', {
-                                        query: `Please compare the functional differences between upregulated genes (${upGenes.length}) and downregulated genes (${downGenes.length}). Up: ${upGenes.slice(0, 20).join(', ')}; Down: ${downGenes.slice(0, 20).join(', ')}`,
+                                        query: t('Please compare the functional differences between upregulated genes ({upCount}) and downregulated genes ({downCount}). Up: {upGenes}; Down: {downGenes}', {
+                                            upCount: upGenes.length,
+                                            downCount: downGenes.length,
+                                            upGenes: upGenes.slice(0, 20).join(', '),
+                                            downGenes: downGenes.slice(0, 20).join(', ')
+                                        }),
                                         context: analysisContext
                                     });
                                 }}
-                                title="Compare UP vs DOWN genes"
+                                title={t('Compare UP vs DOWN genes')}
                                 disabled={!analysisContext?.volcanoData}
                             >
                                 <span className="skill-icon">🧬</span>
-                                <span className="skill-name">Compare</span>
+                                <span className="skill-name">{t('Compare')}</span>
                             </button>
                             <button
                                 className="skill-card"
@@ -526,31 +540,36 @@ export const AIEventPanel: React.FC<AIEventPanelProps> = ({
                                         .map((g: any) => `${g.gene}(${g.x > 0 ? '+' : ''}${g.x.toFixed(2)})`);
 
                                     await sendCommand('CHAT', {
-                                        query: `Please analyze the trend patterns of the current differential expression data: Total ${genes.length} genes, ${upGenes.length} up, ${downGenes.length} down. Top changes: ${topChanges.join(', ')}. Please identify potential biological trends and regulatory patterns.`,
+                                        query: t('Please analyze the trend patterns of the current differential expression data: Total {total} genes, {up} up, {down} down. Top changes: {changes}. Please identify potential biological trends and regulatory patterns.', {
+                                            total: genes.length,
+                                            up: upGenes.length,
+                                            down: downGenes.length,
+                                            changes: topChanges.join(', ')
+                                        }),
                                         context: analysisContext
                                     });
                                 }}
-                                title="Expression Trend Analysis"
+                                title={t('Expression Trend Analysis')}
                                 disabled={!analysisContext?.volcanoData}
                             >
                                 <span className="skill-icon">📈</span>
-                                <span className="skill-name">Trends</span>
+                                <span className="skill-name">{t('Trends')}</span>
                             </button>
                             <button
                                 className="skill-card"
                                 onClick={async () => {
                                     // Literature Search - AI query about pathway
-                                    const pathwayName = analysisContext?.pathway?.name || analysisContext?.pathway?.title || 'current pathway';
+                                    const pathwayName = analysisContext?.pathway?.name || analysisContext?.pathway?.title || t('current pathway');
                                     await sendCommand('CHAT', {
-                                        query: `Please introduce the latest research progress, clinical significance, and therapeutic targets of ${pathwayName}.`,
+                                        query: t('Please introduce the latest research progress, clinical significance, and therapeutic targets of {pathway}.', { pathway: pathwayName }),
                                         context: analysisContext
                                     });
                                 }}
-                                title="Search Literature"
+                                title={t('Search Literature')}
                                 disabled={!analysisContext?.pathway}
                             >
                                 <span className="skill-icon">🔍</span>
-                                <span className="skill-name">Research</span>
+                                <span className="skill-name">{t('Research')}</span>
                             </button>
                         </div>
                     </div>

@@ -1,106 +1,63 @@
-# AI Scientific Analysis Prompt System
+# Phase 3: Commercial Capabilities - Licensing System
 
-将6种科研分析 Prompt Templates 集成到 BioViz 现有AI系统中，提供结构化的科研级输出。
+**Goal**: Transform BioViz-Local into a commercial product by implementing a robust licensing system to manage access and feature gating.
+
+## User Review Required
+> [!IMPORTANT]
+> **License Key Strategy**: I propose using **RSA-2048 Signed Keys** (JWT-like format) for offline validation.
+> *   **Format**: `LICENSE_KEY_STRING` (Base64 encoded JSON with signature).
+> *   **Validation**: The app will have the **Public Key** embedded. It verifies the signature of the license key offline.
+> *   **Binding**: Keys will be bound to a unique **Machine ID** to prevent sharing.
+
+> [!WARNING]
+> **Implementation Scope**: This plan covers the **Client-Side Validation** only. A separate "License Generator" script (for you, the admin) is needed to issue keys, which I will provide as a Python script.
 
 ## Proposed Changes
 
-### Python Backend
+### 1. Licensing Logic (Frontend)
+#### [NEW] [src/utils/licenseManager.ts]
+*   **`LicenseManager` Class**:
+    *   `validateLicense(key: string): Promise<LicenseResult>`
+    *   `getMachineId(): Promise<string>` (Uses `@tauri-apps/plugin-os` or fallback).
+    *   `saveLicense(key: string)` / `loadLicense()`
+    *   **Public Key**: Hardcoded here (for verification).
 
----
+#### [MODIFY] [src/App.tsx](file:///Users/haifeng/BioViz-Local/src/App.tsx)
+*   **State**: Add `isPro` state (loaded from `LicenseManager` on startup).
+*   **UI**: Replace hardcoded `isPro = true` with dynamic check.
+*   **License Modal**: Add a "Register Product" modal in the Help menu or popup on startup if trial expired.
 
-#### [NEW] [prompts.py](file:///Users/haifeng/BioViz-Local/python/prompts.py)
+#### [NEW] [src/components/LicenseModal.tsx]
+*   Input field for License Key.
+*   Display Machine ID (for user to copy and send to you).
+*   "Activate" button.
 
-专门的 Prompt Templates 模块，包含所有结构化提示词。
+### 2. Feature Gating
+#### [MODIFY] [src/components/ProFeature.tsx] (Create/Refactor)
+*   Wrapper component `<ProFeature>` that disables/hides children if `!isPro`.
+*   Show "Upgrade to Pro" tooltip/overlay.
 
-**Phase 1 Prompts (基础分析):**
-- `PATHWAY_ENRICHMENT_PROMPT` - 通路富集结果解释
-- `DE_SUMMARY_PROMPT` - 差异表达基因统计总结  
-- `NL_FILTER_PROMPT` - 自然语言筛选条件解析
-- `VISUALIZATION_PROMPT` - 富集图趋势描述
+#### [MODIFY] [src/utils/sessionExport.ts]
+*   Gate "Interactive HTML Export" behind Pro license.
 
-**Phase 3 Prompts (实验推理):**
-- `HYPOTHESIS_PROMPT` - 机制假设生成（标注为假设）
-- `PATTERN_DISCOVERY_PROMPT` - 探索性模式发现
+### 3. Admin Tools (Backend/Script)
+#### [NEW] [scripts/generate_keys.py]
+*   Generates a Private/Public RSA key pair.
+*   **Private Key**: Keep safe (for you to sign licenses).
+*   **Public Key**: To be pasted into `licenseManager.ts`.
 
-**边缘处理规则:**
-- 无显著结果时的标准响应
-- 数据缺失时要求用户补充
-- 区分事实输出 vs 推测性输出
-
----
-
-#### [MODIFY] [ai_tools.py](file:///Users/haifeng/BioViz-Local/python/ai_tools.py)
-
-添加新的 AI 工具函数：
-- `summarize_enrichment` - 调用富集解释 prompt
-- `summarize_de_genes` - 调用差异基因 prompt
-- `parse_filter_query` - 解析自然语言筛选
-- `describe_visualization` - 描述图表趋势
-- `generate_hypothesis` - 生成机制假设
-- `discover_patterns` - 探索性模式分析
-
----
-
-#### [MODIFY] [bio_core.py](file:///Users/haifeng/BioViz-Local/python/bio_core.py)
-
-添加新的命令处理器：
-- `SUMMARIZE_ENRICHMENT` - 富集结果总结
-- `SUMMARIZE_DE` - 差异表达总结
-- `PARSE_FILTER` - 筛选条件解析
-- `GENERATE_HYPOTHESIS` - 假设生成
-- `DISCOVER_PATTERNS` - 模式发现
-
----
-
-### TypeScript Frontend
-
----
-
-#### [MODIFY] [useBioEngine.ts](file:///Users/haifeng/BioViz-Local/src/hooks/useBioEngine.ts)
-
-添加新的命令发送函数：
-- `summarizeEnrichment(enrichmentData)`
-- `summarizeDifferentialExpression(volcanoData)`
-- `parseFilterQuery(naturalLanguageQuery)`
-- `generateHypothesis(significantGenes, pathways)`
-
----
-
-#### [MODIFY] [AIEventPanel.tsx](file:///Users/haifeng/BioViz-Local/src/components/AIEventPanel.tsx)
-
-添加新的 Skill 按钮：
-- "Explain" - 解释富集结果
-- "Summarize" - 总结差异基因
-- "Hypothesis" - 生成机制假设（标注 Phase 3）
-
----
+#### [NEW] [scripts/issue_license.py]
+*   Input: `User Name`, `Machine ID`, `Expiry Date`.
+*   Output: Signed License Key string.
 
 ## Verification Plan
-
 ### Automated Tests
-
-```bash
-# 测试 Prompt 模块
-python -c "from prompts import PATHWAY_ENRICHMENT_PROMPT; print('OK')"
-
-# 测试新命令
-echo '{"cmd": "SUMMARIZE_ENRICHMENT", "payload": {...}}' | ./bio-engine
-```
+*   Run unit tests on `validateLicense` with valid and invalid keys.
 
 ### Manual Verification
-
-1. 加载数据后点击 "Explain" 按钮，验证输出格式
-2. 验证无显著结果时的边缘处理
-3. 验证假设输出包含 "Hypothesis (not validated)" 标签
-4. 重新打包并测试 DMG
-
----
-
-## Implementation Sequence
-
-1. 创建 `prompts.py` 模块
-2. 更新 `ai_tools.py` 添加新工具
-3. 更新 `bio_core.py` 添加命令处理
-4. 更新前端 `useBioEngine.ts`
-5. 更新 `AIEventPanel.tsx` UI
-6. 测试并打包
+1.  **Trial Mode**: Verify app starts in "Free/Trial" mode (restricted features).
+2.  **Activation**:
+    *   Generate a key using `issue_license.py`.
+    *   Enter key in app.
+    *   Verify successful activation and `isPro` status.
+3.  **Machine ID Check**: Attempt to use the same key on a "different" machine ID (mocked) -> Should fail.

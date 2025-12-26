@@ -25,8 +25,13 @@ export default defineConfig(async () => ({
       }
       : undefined,
     watch: {
-      // 3. tell Vite to ignore watching `src-tauri`
-      ignored: ["**/src-tauri/**"],
+      // 3. tell Vite to ignore watching `src-tauri` and backup directories
+      ignored: [
+        "**/src-tauri/**",
+        "**/bioviz-local-2.0.0/**",
+        "**/BioViz_Local_v1.0.0_Source_Backup/**",
+        "**/*.zip"
+      ],
     },
   },
 }));

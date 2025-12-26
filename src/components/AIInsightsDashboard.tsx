@@ -2,7 +2,9 @@ import { useState, useEffect, useRef } from 'react';
 import { useBioEngine } from '../hooks/useBioEngine';
 import { AIChatPanel } from './AIChatPanel';
 import { ResizablePanels } from './ResizablePanels';
+import { renderEvidenceContent } from '../utils/evidenceRenderer';
 import './AIInsightsDashboard.css';
+import { useI18n } from '../i18n';
 
 export interface InsightCard {
     id: string;
@@ -19,14 +21,28 @@ interface AIInsightsDashboardProps {
     enrichmentResults?: any[];
     onInsightClick?: (insight: InsightCard) => void;
     onPathwaySelect?: (pathwayId: string) => void;
+    onEntityClick?: (type: string, id: string) => void;
+    analysisContext?: {
+        filePath?: string;
+        mapping?: Record<string, unknown>;
+        dataType?: string;
+        filters?: Record<string, unknown>;
+    };
+    chatHistory?: Array<{ role: 'user' | 'assistant', content: string, timestamp: number }>;
+    onChatUpdate?: (messages: Array<{ role: 'user' | 'assistant', content: string, timestamp: number }>) => void;
 }
 
 export function AIInsightsDashboard({
     volcanoData = [],
     enrichmentResults,
     onInsightClick,
-    onPathwaySelect
+    onPathwaySelect,
+    onEntityClick,
+    analysisContext,
+    chatHistory,
+    onChatUpdate
 }: AIInsightsDashboardProps) {
+    const { t } = useI18n();
     const { runNarrativeAnalysis, sendCommand, isConnected, lastResponse } = useBioEngine();
     const mountedRef = useRef(true);
 
@@ -53,22 +69,17 @@ export function AIInsightsDashboard({
         unchanged: volcanoData.filter(d => d.status === 'NS').length
     };
 
-    // Auto-analyze when data is available (only once)
-    useEffect(() => {
-        if (volcanoData.length > 0 && !hasAnalyzed && !isAnalyzing) {
-            handleAutoAnalyze();
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [volcanoData.length, hasAnalyzed]);
-
-    const handleAutoAnalyze = async () => {
+    const handleAnalyze = async () => {
         if (!mountedRef.current) return;
 
         setIsAnalyzing(true);
         setError(null);
+        setHasAnalyzed(false);
+        setNarrative('');
+        setInsights([]);
 
         try {
-            const response = await runNarrativeAnalysis(enrichmentResults) as any;
+            const response = await runNarrativeAnalysis(enrichmentResults, analysisContext) as any;
 
             if (!mountedRef.current) return;
 
@@ -77,11 +88,11 @@ export function AIInsightsDashboard({
                 setHasAnalyzed(true);
                 parseNarrativeToInsights(response.result.narrative);
             } else {
-                setError('AI analysis failed');
+                setError(t('AI analysis failed'));
             }
         } catch (e) {
             if (!mountedRef.current) return;
-            const errorMsg = e instanceof Error ? e.message : 'Analysis error';
+            const errorMsg = e instanceof Error ? e.message : t('Analysis error');
             if (errorMsg.includes('unmounted')) return;
             setError(errorMsg);
         } finally {
@@ -112,13 +123,14 @@ export function AIInsightsDashboard({
                         : [],
                     description: mechanismMatch
                         ? mechanismMatch[1].trim().slice(0, 100) + '...'
-                        : 'Significant pathway cluster identified.',
+                        : t('Significant pathway cluster identified.'),
                     moduleSize: 2 + idx
                 });
             }
         });
 
         setInsights(cards);
+        return cards;
     };
 
     const handleCardClick = (insight: InsightCard) => {
@@ -129,24 +141,23 @@ export function AIInsightsDashboard({
     };
 
     const handleReanalyze = () => {
-        setHasAnalyzed(false);
-        handleAutoAnalyze();
+        handleAnalyze();
     };
 
     // Left Panel Content
     const leftPanelContent = (
-        <div className="ai-dashboard-left">
+        <div className="studio-dashboard-left ai-dashboard-left">
             <div className="ai-dashboard-header">
                 <div className="ai-title">
                     <span className="ai-icon">🧠</span>
-                    <h2>AI Intelligence Hub</h2>
+                    <h2>{t('AI Intelligence Hub')}</h2>
                 </div>
                 <button
                     className="ai-reanalyze-btn"
                     onClick={handleReanalyze}
-                    disabled={isAnalyzing}
+                    disabled={isAnalyzing || volcanoData.length === 0}
                 >
-                    🔄 Reanalyze
+                    {hasAnalyzed ? t('🔄 Reanalyze') : t('✨ Analyze')}
                 </button>
             </div>
 
@@ -154,15 +165,15 @@ export function AIInsightsDashboard({
                 <div className="ai-stats-row">
                     <div className="ai-stat-card">
                         <div className="ai-stat-value">{stats.total.toLocaleString()}</div>
-                        <div className="ai-stat-label">Total Genes</div>
+                        <div className="ai-stat-label">{t('Total Genes')}</div>
                     </div>
                     <div className="ai-stat-card up">
                         <div className="ai-stat-value">{stats.upRegulated}</div>
-                        <div className="ai-stat-label">↑ Upregulated</div>
+                        <div className="ai-stat-label">↑ {t('Upregulated')}</div>
                     </div>
                     <div className="ai-stat-card down">
                         <div className="ai-stat-value">{stats.downRegulated}</div>
-                        <div className="ai-stat-label">↓ Downregulated</div>
+                        <div className="ai-stat-label">↓ {t('Downregulated')}</div>
                     </div>
                 </div>
             )}
@@ -170,28 +181,28 @@ export function AIInsightsDashboard({
             {isAnalyzing && (
                 <div className="ai-loading">
                     <div className="ai-spinner"></div>
-                    <p>AI is analyzing your data...</p>
+                    <p>{t('AI is analyzing your data...')}</p>
                 </div>
             )}
 
             {error && (
                 <div className="ai-error">
                     ❌ {error}
-                    <button onClick={handleReanalyze}>Retry</button>
+                    <button onClick={handleReanalyze}>{t('Retry')}</button>
                 </div>
             )}
 
             {volcanoData.length === 0 && !isAnalyzing && (
                 <div className="ai-empty">
                     <div className="ai-empty-icon">📊</div>
-                    <h3>Import Data to Start</h3>
-                    <p>Upload your differential expression data to get AI-powered insights.</p>
+                    <h3>{t('Import Data to Start')}</h3>
+                    <p>{t('Upload your differential expression data to get AI-powered insights.')}</p>
                 </div>
             )}
 
             {insights.length > 0 && (
                 <div className="ai-insights-section">
-                    <h3 className="ai-section-title">🔥 Top Insights</h3>
+                    <h3 className="ai-section-title">🔥 {t('Top Insights')}</h3>
                     <div className="ai-insights-grid">
                         {insights.map((insight) => (
                             <div
@@ -216,9 +227,9 @@ export function AIInsightsDashboard({
                                 <p className="ai-card-desc">{insight.description}</p>
                                 <div className="ai-card-footer">
                                     <span className="ai-card-size">
-                                        📊 {insight.moduleSize} related pathways
+                                        📊 {t('{count} related pathways', { count: insight.moduleSize || 0 })}
                                     </span>
-                                    <span className="ai-card-action">Explore →</span>
+                                    <span className="ai-card-action">{t('Explore')} →</span>
                                 </div>
                             </div>
                         ))}
@@ -230,41 +241,36 @@ export function AIInsightsDashboard({
 
     // Right Panel Content
     const rightPanelContent = (
-        <div className="ai-dashboard-right">
-            <div className="ai-right-tabs">
+        <div className="studio-dashboard-right ai-dashboard-right">
+            <div className="studio-right-tabs">
                 <button
-                    className={`ai-tab-btn ${rightPanelTab === 'report' ? 'active' : ''}`}
+                    className={`studio-tab-btn ${rightPanelTab === 'report' ? 'active' : ''}`}
                     onClick={() => setRightPanelTab('report')}
                 >
                     <span style={{ fontSize: '16px' }}>📝</span>
-                    <span>Report</span>
+                    <span>{t('Report')}</span>
                 </button>
                 <button
-                    className={`ai-tab-btn ${rightPanelTab === 'chat' ? 'active' : ''}`}
+                    className={`studio-tab-btn ${rightPanelTab === 'chat' ? 'active' : ''}`}
                     onClick={() => setRightPanelTab('chat')}
                 >
                     <span style={{ fontSize: '16px' }}>💬</span>
-                    <span>Chat</span>
+                    <span>{t('Chat')}</span>
                 </button>
             </div>
 
-            <div className="ai-right-content">
+            <div className="studio-right-content">
                 {rightPanelTab === 'report' ? (
                     <div className="ai-report-panel">
                         {narrative ? (
                             <div className="ai-narrative-content">
-                                <h3>Mechanistic Narrative Report</h3>
-                                {narrative.split('\n').map((line, idx) => {
-                                    if (line.startsWith('###')) return <h3 key={idx}>{line.replace('### ', '')}</h3>;
-                                    if (line.startsWith('**')) return <strong key={idx}>{line.replace(/\*\*/g, '')}</strong>;
-                                    if (line.startsWith('*')) return <em key={idx}>{line.replace(/\*/g, '')}</em>;
-                                    return <p key={idx}>{line}</p>;
-                                })}
+                                <h3>{t('Mechanistic Narrative Report')}</h3>
+                                {renderEvidenceContent(narrative, onEntityClick)}
                             </div>
                         ) : (
                             <div className="ai-report-placeholder">
                                 <span>📝</span>
-                                <p>Narrative report will appear here after analysis.</p>
+                                <p>{t('Narrative report will appear here after analysis.')}</p>
                             </div>
                         )}
                     </div>
@@ -273,6 +279,13 @@ export function AIInsightsDashboard({
                         sendCommand={sendCommand as (cmd: string, data?: Record<string, unknown>) => Promise<void>}
                         isConnected={isConnected}
                         lastResponse={lastResponse}
+                        analysisContext={{
+                            volcanoData: volcanoData
+                        }}
+                        chatHistory={chatHistory}
+                        onChatUpdate={onChatUpdate}
+                        workflowPhase="perception"
+                        onEntityClick={onEntityClick}
                     />
                 )}
             </div>
@@ -280,13 +293,13 @@ export function AIInsightsDashboard({
     );
 
     return (
-        <div className="ai-dashboard-container">
+        <div className="studio-dashboard-container">
             <ResizablePanels
                 leftPanel={leftPanelContent}
                 rightPanel={rightPanelContent}
-                defaultLeftWidth={70}
-                minLeftWidth={40}
-                maxLeftWidth={80}
+                defaultLeftWidth={30}
+                minLeftWidth={20}
+                maxLeftWidth={60}
             />
         </div>
     );

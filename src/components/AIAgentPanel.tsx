@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useI18n } from '../i18n';
 import './AIAgentPanel.css';
 
 interface AIAgentPanelProps {
@@ -35,6 +36,7 @@ export const AIAgentPanel: React.FC<AIAgentPanelProps> = ({
     onNavigateToGSEA,
     onExportSession,
 }) => {
+    const { t } = useI18n();
     const [input, setInput] = useState('');
     const [messages, setMessages] = useState<Array<{ role: 'user' | 'assistant'; content: string; timestamp: number }>>(chatHistory);
     const [isLoading, setIsLoading] = useState(false);
@@ -57,20 +59,20 @@ export const AIAgentPanel: React.FC<AIAgentPanelProps> = ({
         {
             id: 'gsea',
             icon: '🔬',
-            label: 'GSEA分析',
-            description: '基因集富集分析',
+            label: t('GSEA Analysis'),
+            description: t('Gene set enrichment analysis'),
             action: () => onNavigateToGSEA?.(),
             disabled: !analysisContext?.volcanoData
         },
         {
             id: 'enrichment',
             icon: '📊',
-            label: '富集分析',
-            description: '运行Enrichr分析',
+            label: t('Enrichment Analysis'),
+            description: t('Run enrichment analysis (ORA/GSEA)'),
             action: async () => {
                 setIsLoading(true);
                 await sendCommand('CHAT', {
-                    query: '请对当前差异表达基因运行富集分析，告诉我哪些通路最显著',
+                    query: t('Please run enrichment analysis for current differentially expressed genes and summarize the most significant pathways.'),
                     context: analysisContext
                 });
                 setIsLoading(false);
@@ -80,20 +82,20 @@ export const AIAgentPanel: React.FC<AIAgentPanelProps> = ({
         {
             id: 'report',
             icon: '📝',
-            label: '生成报告',
-            description: '导出分析报告',
+            label: t('Generate Report'),
+            description: t('Export analysis report'),
             action: () => onExportSession?.(),
             disabled: !analysisContext
         },
         {
             id: 'compare',
             icon: '🧬',
-            label: '基因对比',
-            description: '对比上下调基因',
+            label: t('Gene Comparison'),
+            description: t('Compare upregulated vs downregulated genes'),
             action: async () => {
                 setIsLoading(true);
                 await sendCommand('CHAT', {
-                    query: '请分析当前数据中上调和下调基因的功能差异',
+                    query: t('Please analyze functional differences between upregulated and downregulated genes in the current data.'),
                     context: analysisContext
                 });
                 setIsLoading(false);
@@ -103,12 +105,12 @@ export const AIAgentPanel: React.FC<AIAgentPanelProps> = ({
         {
             id: 'trend',
             icon: '📈',
-            label: '趋势分析',
-            description: '多时间点趋势',
+            label: t('Trend Analysis'),
+            description: t('Multi-timepoint trends'),
             action: async () => {
                 setIsLoading(true);
                 await sendCommand('CHAT', {
-                    query: '请分析数据中的时间依赖性表达模式',
+                    query: t('Please analyze time-dependent expression patterns in the data.'),
                     context: analysisContext
                 });
                 setIsLoading(false);
@@ -118,12 +120,12 @@ export const AIAgentPanel: React.FC<AIAgentPanelProps> = ({
         {
             id: 'literature',
             icon: '🔍',
-            label: '文献搜索',
-            description: '搜索相关研究',
+            label: t('Literature Search'),
+            description: t('Find related studies'),
             action: async () => {
                 setIsLoading(true);
                 await sendCommand('CHAT', {
-                    query: '请告诉我当前通路的最新研究进展和临床意义',
+                    query: t('Please summarize recent research progress and clinical relevance of the current pathway.'),
                     context: analysisContext
                 });
                 setIsLoading(false);
@@ -171,16 +173,16 @@ export const AIAgentPanel: React.FC<AIAgentPanelProps> = ({
             <div className="agent-header">
                 <div className="header-title">
                     <span className="ai-icon">🤖</span>
-                    <span>AI Agent</span>
+                    <span>{t('AI Agent')}</span>
                 </div>
                 <div className={`status-badge ${isConnected ? 'online' : 'offline'}`}>
-                    {isConnected ? (isLoading ? '思考中...' : 'Ready') : 'Offline'}
+                    {isConnected ? (isLoading ? t('Thinking...') : t('Ready')) : t('Offline')}
                 </div>
             </div>
 
             {/* Skills Grid */}
             <div className="skills-section">
-                <div className="skills-label">快捷技能</div>
+                <div className="skills-label">{t('Quick Skills')}</div>
                 <div className="skills-grid">
                     {skills.map(skill => (
                         <button
@@ -203,8 +205,8 @@ export const AIAgentPanel: React.FC<AIAgentPanelProps> = ({
                     {messages.length === 0 ? (
                         <div className="empty-chat">
                             <span>💬</span>
-                            <p>有什么可以帮您的？</p>
-                            <small>点击上方技能卡片或直接输入问题</small>
+                            <p>{t('How can I help you?')}</p>
+                            <small>{t('Click a skill above or type your question')}</small>
                         </div>
                     ) : (
                         messages.map((msg, i) => (
@@ -229,11 +231,11 @@ export const AIAgentPanel: React.FC<AIAgentPanelProps> = ({
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
                         onKeyPress={(e) => e.key === 'Enter' && handleSend()}
-                        placeholder="输入问题..."
+                        placeholder={t('Enter your question...')}
                         disabled={!isConnected || isLoading}
                     />
                     <button onClick={handleSend} disabled={!isConnected || isLoading || !input.trim()}>
-                        发送
+                        {t('Send')}
                     </button>
                 </div>
             </div>

@@ -1,5 +1,6 @@
 import React from 'react';
 import './ColumnMapper.css';
+import { useI18n } from '../i18n';
 
 interface ColumnMapperProps {
     columns: string[];
@@ -18,6 +19,7 @@ export const ColumnMapper: React.FC<ColumnMapperProps> = ({
     addLog,
     dataType
 }) => {
+    const { t } = useI18n();
     const [geneColumn, setGeneColumn] = React.useState<string>(suggestedMapping.gene || '');
     const [valueColumn, setValueColumn] = React.useState<string>(suggestedMapping.value || '');
     const [error, setError] = React.useState<string>('');
@@ -32,22 +34,22 @@ export const ColumnMapper: React.FC<ColumnMapperProps> = ({
         switch (dataType) {
             case 'protein':
                 return {
-                    entity: 'Protein ID Column',
-                    value: 'Abundance / Ratio',
-                    desc: 'Select which columns contain protein identifiers and quantitative values.'
+                    entity: t('Protein ID Column'),
+                    value: t('Abundance / Ratio'),
+                    desc: t('Select which columns contain protein identifiers and quantitative values.')
                 };
             case 'cell':
                 return {
-                    entity: 'Cell Type Column',
-                    value: 'Frequency / Count / LogFC',
-                    desc: 'Select which columns contain cell type names and frequency or count data.'
+                    entity: t('Cell Type Column'),
+                    value: t('Frequency / Count / LogFC'),
+                    desc: t('Select which columns contain cell type names and frequency or count data.')
                 };
             case 'gene':
             default:
                 return {
-                    entity: 'Gene Symbol Column',
-                    value: 'Expression Value (LogFC)',
-                    desc: 'Select which columns contain gene symbols and expression values.'
+                    entity: t('Gene Symbol Column'),
+                    value: t('Expression Value (LogFC)'),
+                    desc: t('Select which columns contain gene symbols and expression values.')
                 };
         }
     };
@@ -56,22 +58,22 @@ export const ColumnMapper: React.FC<ColumnMapperProps> = ({
 
     const handleSubmit = () => {
         if (!geneColumn || !valueColumn) {
-            setError('Please select both columns');
+            setError(t('Please select both columns'));
             return;
         }
         if (geneColumn === valueColumn) {
-            setError('Columns must be different');
+            setError(t('Columns must be different'));
             return;
         }
 
         setError('');
-        addLog(`✓ Mapped columns: Entity="${geneColumn}", Value="${valueColumn}"`);
+        addLog(t('✓ Mapped columns: Entity="{entity}", Value="{value}"', { entity: geneColumn, value: valueColumn }));
         onMappingComplete({ gene: geneColumn, value: valueColumn });
     };
 
     return (
         <div className="column-mapper">
-            <h2>📋 Map Your Data Columns</h2>
+            <h2>{t('📋 Map Your Data Columns')}</h2>
             <p className="mapper-subtitle">
                 {labels.desc}
             </p>
@@ -89,7 +91,7 @@ export const ColumnMapper: React.FC<ColumnMapperProps> = ({
                         onChange={(e) => setGeneColumn(e.target.value)}
                         className="column-select"
                     >
-                        <option value="">-- Select {labels.entity} --</option>
+                        <option value="">{t('-- Select {label} --', { label: labels.entity })}</option>
                         {columns.map((col) => (
                             <option key={col} value={col}>
                                 {col}
@@ -108,7 +110,7 @@ export const ColumnMapper: React.FC<ColumnMapperProps> = ({
                         onChange={(e) => setValueColumn(e.target.value)}
                         className="column-select"
                     >
-                        <option value="">-- Select {labels.value} --</option>
+                        <option value="">{t('-- Select {label} --', { label: labels.value })}</option>
                         {columns.map((col) => (
                             <option key={col} value={col}>
                                 {col}
@@ -120,7 +122,7 @@ export const ColumnMapper: React.FC<ColumnMapperProps> = ({
 
             {preview.length > 0 && (
                 <div className="data-preview">
-                    <h3>Data Preview</h3>
+                    <h3>{t('Data Preview')}</h3>
                     <div className="preview-table-container">
                         <table className="preview-table">
                             <thead>

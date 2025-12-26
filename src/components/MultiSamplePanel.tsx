@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useI18n } from '../i18n';
 import './MultiSamplePanel.css';
 
 interface MultiSampleData {
@@ -15,6 +16,7 @@ interface MultiSamplePanelProps {
     sendCommand: (cmd: string, data?: Record<string, unknown>) => Promise<void>;
     isConnected: boolean;
     onSampleGroupChange?: (groupName: string, data: Array<{ gene: string; logfc: number; pvalue: number }>) => void;
+    onMultiSampleData?: (data: MultiSampleData | null) => void;
     currentFilePath?: string;
     lastResponse?: any;
 }
@@ -23,9 +25,11 @@ export const MultiSamplePanel: React.FC<MultiSamplePanelProps> = ({
     sendCommand,
     isConnected,
     onSampleGroupChange,
+    onMultiSampleData,
     currentFilePath,
     lastResponse,
 }) => {
+    const { t } = useI18n();
     const [multiSampleData, setMultiSampleData] = useState<MultiSampleData | null>(null);
     const [selectedGroup, setSelectedGroup] = useState<string>('');
     const [isLoading, setIsLoading] = useState(false);
@@ -42,13 +46,15 @@ export const MultiSamplePanel: React.FC<MultiSamplePanelProps> = ({
             setIsLoading(false);
             if (lastResponse.status === 'ok') {
                 setMultiSampleData(lastResponse);
+                onMultiSampleData?.(lastResponse);
                 // Auto-select first group
                 if (lastResponse.sample_groups?.length > 0) {
                     setSelectedGroup(lastResponse.sample_groups[0]);
                 }
                 setError(null);
             } else if (lastResponse.status === 'error') {
-                setError(lastResponse.message || 'Failed to load multi-sample data');
+                setError(lastResponse.message || t('Failed to load multi-sample data'));
+                onMultiSampleData?.(null);
             }
         }
 
@@ -63,21 +69,21 @@ export const MultiSamplePanel: React.FC<MultiSamplePanelProps> = ({
                     // AI executed a tool - show the result
                     let resultText = lastResponse.content;
                     if (lastResponse.tool_name && lastResponse.tool_result) {
-                        resultText += `\n\n📊 已执行工具: ${lastResponse.tool_name}`;
+                        resultText += `\n\n📊 ${t('Tool executed')}: ${lastResponse.tool_name}`;
                         if (lastResponse.tool_result.pathway) {
                             const pathway = lastResponse.tool_result.pathway;
-                            resultText += `\n✅ 通路: ${pathway.title || pathway.id}`;
+                            resultText += `\n✅ ${t('Pathway')}: ${pathway.title || pathway.id}`;
                         }
                         if (lastResponse.tool_result.statistics) {
                             const stats = lastResponse.tool_result.statistics;
-                            resultText += `\n📈 统计: ${stats.upregulated} 上调, ${stats.downregulated} 下调 / ${stats.total_nodes} 总基因`;
+                            resultText += `\n📈 ${t('Stats')}: ${stats.upregulated} ${t('Upregulated')}, ${stats.downregulated} ${t('Downregulated')} / ${stats.total_nodes} ${t('Total Genes')}`;
                         }
                     }
                     setAiAnalysisResult(resultText);
                 }
             }
             if (lastResponse.status === 'error') {
-                setError(lastResponse.message || 'AI analysis failed');
+                setError(lastResponse.message || t('AI analysis failed'));
             }
         }
     }, [lastResponse, isAnalyzing]);
@@ -96,7 +102,7 @@ export const MultiSamplePanel: React.FC<MultiSamplePanelProps> = ({
         try {
             await sendCommand('LOAD_MULTI_SAMPLE', { path: filePath });
         } catch (err) {
-            setError(`Failed to load multi-sample data: ${err}`);
+            setError(t('Failed to load multi-sample data: {error}', { error: String(err) }));
             setIsLoading(false);
         }
     };
@@ -134,8 +140,8 @@ export const MultiSamplePanel: React.FC<MultiSamplePanelProps> = ({
             <div className="multi-sample-panel empty">
                 <div className="panel-placeholder">
                     <span className="icon">📊</span>
-                    <p>当前数据为单样本模式</p>
-                    <p className="hint">上传含多组 LogFC 列的文件以启用多样本分析</p>
+                    <p>{t('Current data is single-sample mode')}</p>
+                    <p className="hint">{t('Upload a file with multiple LogFC columns to enable multi-sample analysis')}</p>
                 </div>
             </div>
         );
@@ -144,19 +150,19 @@ export const MultiSamplePanel: React.FC<MultiSamplePanelProps> = ({
     return (
         <div className="multi-sample-panel">
             <div className="panel-header">
-                <h3>🔄 多样本分析</h3>
+                <h3>🔄 {t('Multi-sample Analysis')}</h3>
                 <div className="view-toggle">
                     <button
                         className={viewMode === 'tabs' ? 'active' : ''}
                         onClick={() => setViewMode('tabs')}
-                        title="标签视图"
+                        title={t('Tab view')}
                     >
                         ▦
                     </button>
                     <button
                         className={viewMode === 'slider' ? 'active' : ''}
                         onClick={() => setViewMode('slider')}
-                        title="时间轴视图"
+                        title={t('Timeline view')}
                     >
                         ━━
                     </button>
@@ -166,7 +172,7 @@ export const MultiSamplePanel: React.FC<MultiSamplePanelProps> = ({
             {isLoading && (
                 <div className="loading-state">
                     <span className="spinner">⏳</span>
-                    <span>正在加载多样本数据...</span>
+                    <span>{t('Loading multi-sample data...')}</span>
                 </div>
             )}
 
@@ -222,15 +228,15 @@ export const MultiSamplePanel: React.FC<MultiSamplePanelProps> = ({
                         <div className="group-stats">
                             <div className="stat-item total">
                                 <span className="stat-value">{currentGroupStats.total}</span>
-                                <span className="stat-label">总基因</span>
+                                <span className="stat-label">{t('Total Genes')}</span>
                             </div>
                             <div className="stat-item up">
                                 <span className="stat-value">{currentGroupStats.upregulated}</span>
-                                <span className="stat-label">🔺 上调</span>
+                                <span className="stat-label">🔺 {t('Upregulated')}</span>
                             </div>
                             <div className="stat-item down">
                                 <span className="stat-value">{currentGroupStats.downregulated}</span>
-                                <span className="stat-label">🔻 下调</span>
+                                <span className="stat-label">🔻 {t('Downregulated')}</span>
                             </div>
                         </div>
                     )}
@@ -258,7 +264,7 @@ export const MultiSamplePanel: React.FC<MultiSamplePanelProps> = ({
                                 }
 
                                 sendCommand('CHAT', {
-                                    query: `比较以下多时间点样本组的差异表达模式并进行生物学解读：${sampleGroups.join(', ')}`,
+                                    query: t('Compare differential expression patterns across these multi-timepoint sample groups and provide biological interpretation: {groups}', { groups: sampleGroups.join(', ') }),
                                     context: {
                                         multiSample: true,
                                         sampleGroups: sampleGroups,
@@ -268,7 +274,7 @@ export const MultiSamplePanel: React.FC<MultiSamplePanelProps> = ({
                             }}
                             disabled={!isConnected || !multiSampleData || isAnalyzing}
                         >
-                            {isAnalyzing ? '⏳ 分析中...' : '🔍 AI 对比分析'}
+                            {isAnalyzing ? t('⏳ Analyzing...') : t('🔍 AI Comparative Analysis')}
                         </button>
                     </div>
 
@@ -276,7 +282,7 @@ export const MultiSamplePanel: React.FC<MultiSamplePanelProps> = ({
                     {aiAnalysisResult && (
                         <div className="ai-analysis-result">
                             <div className="result-header">
-                                <h4>🤖 AI 分析结果</h4>
+                                <h4>🤖 {t('AI Analysis Results')}</h4>
                                 <button
                                     className="close-btn"
                                     onClick={() => setAiAnalysisResult(null)}
@@ -296,10 +302,10 @@ export const MultiSamplePanel: React.FC<MultiSamplePanelProps> = ({
 
             <div className="panel-footer">
                 <span className="file-info">
-                    📁 {multiSampleData?.file_path?.split('/').pop() || '未加载'}
+                    📁 {multiSampleData?.file_path?.split('/').pop() || t('Not loaded')}
                 </span>
                 <span className="group-count">
-                    {sampleGroups.length} 个样本组
+                    {t('{count} sample groups', { count: sampleGroups.length })}
                 </span>
             </div>
         </div>

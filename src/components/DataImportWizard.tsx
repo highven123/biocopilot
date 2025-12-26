@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { FileDropZone } from './FileDropZone';
 import './DataImportWizard.css'; // New CSS file
 import { open } from '@tauri-apps/plugin-dialog';
+import { useI18n } from '../i18n';
 
 
 // --- Types ---
@@ -115,6 +116,7 @@ export const DataImportWizard: React.FC<DataImportWizardProps> = ({
     demoScript,
     demoTitle
 }) => {
+    const { t } = useI18n();
     const [step, setStep] = useState<1 | 2>(activeStep ?? 1);
     const [uploadedFiles, setUploadedFiles] = useState<UploadedFileInfo[] | null>(null);
     const [baseDataType, setBaseDataType] = useState<'gene' | 'protein' | 'cell' | null>(null);
@@ -138,7 +140,10 @@ export const DataImportWizard: React.FC<DataImportWizardProps> = ({
 
     const handleQuickLoad = () => {
         if (lastConfig) {
-            addLog(`⚡ Loaded previous config: ${lastConfig.filePaths?.[0]} (${lastConfig.pathwayId})`);
+            addLog(t('⚡ Loaded previous config: {file} ({pathway})', {
+                file: lastConfig.filePaths?.[0] || '',
+                pathway: lastConfig.pathwayId || t('No pathway')
+            }));
             onComplete(lastConfig);
         }
     };
@@ -175,7 +180,11 @@ export const DataImportWizard: React.FC<DataImportWizardProps> = ({
             if (!baseDataType) {
                 setBaseDataType(f.dataType);
             } else if (baseDataType !== f.dataType) {
-                alert(`Data type mismatch: expected ${baseDataType}, but got ${f.dataType} for file ${f.path}. Skipped.`);
+                alert(t('Data type mismatch: expected {expected}, but got {actual} for file {file}. Skipped.', {
+                    expected: baseDataType,
+                    actual: f.dataType,
+                    file: f.path
+                }));
                 return;
             }
             if (!merged.find(m => m.path === f.path)) {
@@ -203,6 +212,27 @@ export const DataImportWizard: React.FC<DataImportWizardProps> = ({
     const [fileStamp, setFileStamp] = useState<string | null>(null);
 
     // Initialize mapping defaults when a new file is loaded
+    // Helper to find column by keywords (moved out to be reusable)
+    const findFallback = useCallback((cols: string[], kind: 'gene' | 'value' | 'pvalue'): string | null => {
+        const lower = cols.map(c => c.toLowerCase());
+        if (kind === 'gene') {
+            const keywords = ['gene', 'symbol', 'name', 'id', 'identifier', 'accession', 'cell', 'protein', 'uniprot'];
+            const hit = cols.find((_c, idx) => keywords.some(k => lower[idx].includes(k)));
+            return hit || null;
+        }
+        if (kind === 'value') {
+            const keywords = ['logfc', 'log2fc', 'fold', 'fc', 'ratio', 'expr', 'value', 'intensity', 'score'];
+            const hit = cols.find((_c, idx) => keywords.some(k => lower[idx].includes(k)));
+            return hit || null;
+        }
+        if (kind === 'pvalue') {
+            const keywords = ['pvalue', 'p-value', 'pval', 'p_value', 'fdr', 'qvalue', 'padj', 'adj', 'significance', 'ttest'];
+            const hit = cols.find((_c, idx) => keywords.some(k => lower[idx].includes(k)));
+            return hit || null;
+        }
+        return null;
+    }, []);
+
     useEffect(() => {
         if (step === 2 && uploadedFiles && uploadedFiles.length > 0) {
             const stamp = uploadedFiles.map(f => f.path).join('|');
@@ -221,7 +251,11 @@ export const DataImportWizard: React.FC<DataImportWizardProps> = ({
 
                 setSelectedGeneCol(defaultGene);
                 setSelectedValueCol(defaultValue);
-                setSelectedPValueCol(primary.suggestedMapping.pvalue || '');
+
+                // Try backend suggestion first, then frontend heuristic
+                const backendP = primary.suggestedMapping.pvalue;
+                const frontendP = backendP || findFallback(columns, 'pvalue') || '';
+                setSelectedPValueCol(frontendP);
 
                 // Restore analysis methods from last config if the same file is reused
                 const lastPrimary = lastConfig?.filePaths?.[0];
@@ -232,7 +266,7 @@ export const DataImportWizard: React.FC<DataImportWizardProps> = ({
                 }
             }
         }
-    }, [step, uploadedFiles, lastConfig, fileStamp]);
+    }, [step, uploadedFiles, lastConfig, fileStamp, findFallback]);
 
     // Detect "raw matrix" layout: multiple Ctrl_*/Exp_* columns, no P-value
     const rawMatrixInfo = useMemo(() => {
@@ -282,6 +316,8 @@ export const DataImportWizard: React.FC<DataImportWizardProps> = ({
         });
     };
 
+
+
     const handleMappingConfirm = () => {
         if (!selectedGeneCol) return;
         if (!uploadedFiles || uploadedFiles.length === 0) return;
@@ -289,26 +325,6 @@ export const DataImportWizard: React.FC<DataImportWizardProps> = ({
         // For raw matrix (Ctrl_*/Exp_* multi-column intensities), support auto or manual column selection.
         const effectiveValueCol = isRawMatrix ? '__raw_matrix__' : selectedValueCol;
         if (!effectiveValueCol) return;
-
-        const findFallback = (cols: string[], kind: 'gene' | 'value' | 'pvalue'): string | null => {
-            const lower = cols.map(c => c.toLowerCase());
-            if (kind === 'gene') {
-                const keywords = ['gene', 'symbol', 'name', 'id', 'identifier', 'accession', 'cell', 'protein', 'uniprot'];
-                const hit = cols.find((_c, idx) => keywords.some(k => lower[idx].includes(k)));
-                return hit || null;
-            }
-            if (kind === 'value') {
-                const keywords = ['logfc', 'log2fc', 'fold', 'fc', 'ratio', 'expr', 'value', 'intensity', 'score'];
-                const hit = cols.find((_c, idx) => keywords.some(k => lower[idx].includes(k)));
-                return hit || null;
-            }
-            if (kind === 'pvalue') {
-                const keywords = ['pvalue', 'p-value', 'pval', 'p_value', 'fdr', 'qvalue', 'padj', 'adj'];
-                const hit = cols.find((_c, idx) => keywords.some(k => lower[idx].includes(k)));
-                return hit || null;
-            }
-            return null;
-        };
 
         // Validate mapping against ALL selected files to prevent batch failures later.
         for (const f of uploadedFiles) {
@@ -318,7 +334,7 @@ export const DataImportWizard: React.FC<DataImportWizardProps> = ({
                 if (fallback) {
                     addLog(`⚠️ Gene column '${selectedGeneCol}' not found in ${f.path}, using '${fallback}'`);
                 } else {
-                    alert(`Column '${selectedGeneCol}' not found in file: ${f.path}`);
+                    alert(t("Column '{column}' not found in file: {file}", { column: selectedGeneCol, file: f.path }));
                     return;
                 }
             }
@@ -328,7 +344,7 @@ export const DataImportWizard: React.FC<DataImportWizardProps> = ({
                     if (fallback) {
                         addLog(`⚠️ Value column '${selectedValueCol}' not found in ${f.path}, using '${fallback}'`);
                     } else {
-                        alert(`Column '${selectedValueCol}' not found in file: ${f.path}`);
+                        alert(t("Column '{column}' not found in file: {file}", { column: selectedValueCol, file: f.path }));
                         return;
                     }
                 }
@@ -345,13 +361,13 @@ export const DataImportWizard: React.FC<DataImportWizardProps> = ({
                 if (rawMode === 'manual') {
                     for (const c of manualControlCols) {
                         if (!cols.has(c)) {
-                            alert(`Control column '${c}' not found in file: ${f.path}`);
+                            alert(t("Control column '{column}' not found in file: {file}", { column: c, file: f.path }));
                             return;
                         }
                     }
                     for (const c of manualTreatCols) {
                         if (!cols.has(c)) {
-                            alert(`Experiment column '${c}' not found in file: ${f.path}`);
+                            alert(t("Experiment column '{column}' not found in file: {file}", { column: c, file: f.path }));
                             return;
                         }
                     }
@@ -360,7 +376,7 @@ export const DataImportWizard: React.FC<DataImportWizardProps> = ({
                     const hasCtrl = lowered.some(c => c.includes('ctrl') || c.includes('control'));
                     const hasExp = lowered.some(c => c.includes('exp') || c.includes('treat'));
                     if (!hasCtrl || !hasExp) {
-                        alert(`Raw matrix mode requires Ctrl/Exp replicate columns, but they were not detected in file: ${f.path}`);
+                        alert(t('Raw matrix mode requires Ctrl/Exp replicate columns, but they were not detected in file: {file}', { file: f.path }));
                         return;
                     }
                 }
@@ -393,20 +409,44 @@ export const DataImportWizard: React.FC<DataImportWizardProps> = ({
 
     // --- Renders ---
 
+    // --- Template Download ---
+    const handleDownloadTemplate = async (type: 'expression' | 'metadata') => {
+        try {
+            const filename = type === 'expression' ? 'expression_template.csv' : 'metadata_template.csv';
+            // In dev mode, public folder is served at root
+            const response = await fetch(`/templates/${filename}`);
+            if (!response.ok) throw new Error(t('Template not found'));
+            const text = await response.text();
+
+            const blob = new Blob([text], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+        } catch (e) {
+            console.error("Failed to download template:", e);
+            alert(t('Failed to download template: {error}', { error: String(e) }));
+        }
+    };
+
     return (
         <div className="wizard-container">
             {/* Wizard Header / Stepper */}
             <div className="wizard-header">
-                <h2 className="wizard-title">New Analysis</h2>
+                <h2 className="wizard-title">{t('New Analysis')}</h2>
                 <div className="wizard-actions">
                     <span className={`conn-pill ${isConnected ? 'ok' : 'warn'}`}>
-                        {isConnected ? 'Engine ready' : 'Engine offline'}
+                        {isConnected ? t('Engine ready') : t('Engine offline')}
                     </span>
                     <button className="cancel-btn" onClick={onCancel}>✕</button>
                 </div>
                 <div className="wizard-steps">
-                    <div className={`step-indicator ${step >= 1 ? 'active' : ''}`}>1. Import</div>
-                    <div className={`step-indicator ${step >= 2 ? 'active' : ''}`}>2. Map</div>
+                    <div className={`step-indicator ${step >= 1 ? 'active' : ''}`}>{t('1. Import')}</div>
+                    <div className={`step-indicator ${step >= 2 ? 'active' : ''}`}>{t('2. Map')}</div>
                     <div className={`step-indicator ${step === 2 ? '' : ''}`} style={{ display: 'none' }}>3. Pathway</div>
                 </div>
             </div>
@@ -417,8 +457,21 @@ export const DataImportWizard: React.FC<DataImportWizardProps> = ({
                 {step === 1 && (
                     <div className="step-wrapper">
                         <div className="section-header">
-                            <h3>Upload Data Matrix</h3>
-                            <p>Support for .csv, .txt, .xlsx (Wide or Long format)</p>
+                            <h3>{t('Upload Data Matrix')}</h3>
+                            <p>{t('Support for .csv, .txt, .xlsx (Wide or Long format)')}</p>
+                        </div>
+
+                        <div style={{ marginBottom: '16px', display: 'flex', gap: '10px' }}>
+                            <button
+                                onClick={() => handleDownloadTemplate('expression')}
+                                style={{
+                                    fontSize: '12px', padding: '6px 12px', background: 'rgba(255,255,255,0.1)',
+                                    border: '1px solid rgba(255,255,255,0.2)', borderRadius: '6px', cursor: 'pointer',
+                                    color: '#e2e8f0', display: 'flex', alignItems: 'center', gap: '6px'
+                                }}
+                            >
+                                📄 {t('Download Example Template')}
+                            </button>
                         </div>
 
                         <FileDropZone
@@ -430,16 +483,16 @@ export const DataImportWizard: React.FC<DataImportWizardProps> = ({
                         {canQuickLoad && (
                             <div className="quick-load-section">
                                 <button onClick={handleQuickLoad} className="btn-quick-load">
-                                    <span>⚡</span> Load Last Config
+                                    <span>⚡</span> {t('Load Last Config')}
                                     <span style={{ fontSize: '11px', opacity: 0.6 }}>
-                                        ({lastConfig?.pathwayId || 'No pathway'} • {lastConfig?.mapping.gene} vs {lastConfig?.mapping.value})
+                                        ({lastConfig?.pathwayId || t('No pathway')} • {lastConfig?.mapping.gene} vs {lastConfig?.mapping.value})
                                     </span>
                                 </button>
                                 <button
                                     onClick={() => {
-                                        if (confirm('Clear saved configuration?')) {
+                                        if (confirm(t('Clear saved configuration?'))) {
                                             localStorage.removeItem(STORAGE_KEY);
-                                            addLog('✓ Configuration cache cleared');
+                                            addLog(t('✓ Configuration cache cleared'));
                                             window.location.reload();
                                         }
                                     }}
@@ -450,7 +503,7 @@ export const DataImportWizard: React.FC<DataImportWizardProps> = ({
                                         marginLeft: '8px'
                                     }}
                                 >
-                                    <span>🗑️</span> Clear Config
+                                    <span>🗑️</span> {t('Clear Config')}
                                 </button>
                             </div>
                         )}
@@ -458,12 +511,12 @@ export const DataImportWizard: React.FC<DataImportWizardProps> = ({
                         {onLoadDemo && (
                             <div className="demo-section">
                                 <button className="demo-btn" onClick={onLoadDemo}>
-                                    🎬 Load Demo Session
-                                    <span className="demo-subtitle">{demoTitle || 'Glycolysis timecourse (sample)'}</span>
+                                    🎬 {t('Load Demo Session')}
+                                    <span className="demo-subtitle">{demoTitle || t('Glycolysis timecourse (sample)')}</span>
                                 </button>
                                 {demoScript && (
                                     <div className="demo-script">
-                                        <div className="demo-script-title">Demo flow</div>
+                                        <div className="demo-script-title">{t('Demo flow')}</div>
                                         {demoScript.split('\n').filter(Boolean).slice(0, 4).map((line, idx) => (
                                             <div key={idx} className="demo-script-line">• {line}</div>
                                         ))}
@@ -478,13 +531,13 @@ export const DataImportWizard: React.FC<DataImportWizardProps> = ({
                 {step === 2 && uploadedFiles && uploadedFiles.length > 0 && (
                     <div className="step-wrapper">
                         <div className="section-header">
-                            <h3>Map Columns</h3>
-                            <p>Specify which columns contain identifiers, effect size, and optional p-values. Tip: Use clear column names in your data file (e.g., Gene, LogFC, PValue) with row names in the first column to avoid mapping issues.</p>
+                            <h3>{t('Map Columns')}</h3>
+                            <p>{t('Specify which columns contain identifiers, effect size, and optional p-values. Tip: Use clear column names in your data file (e.g., Gene, LogFC, PValue) with row names in the first column to avoid mapping issues.')}</p>
                         </div>
 
                         <div className="file-list-card">
                             <div className="file-list-title">
-                                Selected files ({uploadedFiles.length})
+                                {t('Selected files')} ({uploadedFiles.length})
                             </div>
                             <div className="file-list-items">
                                 {uploadedFiles.map((f) => (
@@ -500,15 +553,15 @@ export const DataImportWizard: React.FC<DataImportWizardProps> = ({
                                                     updateStep(1);
                                                 }
                                             }}
-                                            title="Remove file"
+                                            title={t('Remove file')}
                                         >
-                                            Remove
+                                            {t('Remove')}
                                         </button>
                                     </div>
                                 ))}
                             </div>
                             <div className="file-list-hint">
-                                Column mapping and pathway selection will be applied to all selected files.
+                                {t('Column mapping and pathway selection will be applied to all selected files.')}
                             </div>
                             <div style={{ marginTop: '10px' }}>
                                 <button
@@ -520,7 +573,7 @@ export const DataImportWizard: React.FC<DataImportWizardProps> = ({
                                             const selected = await open({
                                                 multiple: true,
                                                 filters: [{
-                                                    name: 'Data Files',
+                                                    name: t('Data Files'),
                                                     extensions: ['csv', 'xlsx', 'xls', 'txt', 'tsv']
                                                 }]
                                             });
@@ -538,7 +591,7 @@ export const DataImportWizard: React.FC<DataImportWizardProps> = ({
                                             for (const path of picked) {
                                                 const res = await sendCommand('LOAD', { path }, true) as any;
                                                 if (!res || res.status !== 'ok') {
-                                                    addLog(`❌ Error loading ${path}: ${res?.message || 'Unknown error'}`);
+                                                    addLog(t('❌ Error loading {path}: {error}', { path, error: res?.message || t('Unknown error') }));
                                                     continue;
                                                 }
                                                 const cols = Array.isArray(res.columns) ? res.columns.map((c: any) => cleanHeader(c)) : [];
@@ -564,7 +617,7 @@ export const DataImportWizard: React.FC<DataImportWizardProps> = ({
                                         }
                                     }}
                                 >
-                                    + Add Files
+                                    + {t('Add Files')}
                                 </button>
                             </div>
                         </div>
@@ -573,56 +626,56 @@ export const DataImportWizard: React.FC<DataImportWizardProps> = ({
                             {/* Gene Column */}
                             <div className="mapping-card">
                                 <label className="mapping-label">
-                                    <span>Entity / Gene column</span>
-                                    {uploadedFiles[0].suggestedMapping.gene && <span className="badge-auto">Auto</span>}
+                                    <span>{t('Entity / Gene column')}</span>
+                                    {uploadedFiles[0].suggestedMapping.gene && <span className="badge-auto">{t('Auto')}</span>}
                                 </label>
                                 <select
                                     value={selectedGeneCol}
                                     onChange={e => setSelectedGeneCol(e.target.value)}
                                     className="select-input"
                                 >
-                                    <option value="">Select Column...</option>
+                                    <option value="">{t('Select Column...')}</option>
                                     {uploadedFiles[0].columns.map(c => <option key={c} value={c}>{c}</option>)}
                                 </select>
-                                <p className="mapping-hint">Required. Contains Gene Symbols or IDs.</p>
+                                <p className="mapping-hint">{t('Required. Contains Gene Symbols or IDs.')}</p>
                             </div>
 
                             {/* Value Column */}
                             <div className="mapping-card">
                                 <label className="mapping-label">
-                                    <span>Value / Log2FC column</span>
-                                    {uploadedFiles[0].suggestedMapping.value && <span className="badge-auto">Auto</span>}
+                                    <span>{t('Value / Log2FC column')}</span>
+                                    {uploadedFiles[0].suggestedMapping.value && <span className="badge-auto">{t('Auto')}</span>}
                                 </label>
                                 {isRawMatrix ? (
                                     <>
                                         <div className="raw-value-toggle">
                                             <div className={`raw-toggle-btn ${rawMode === 'auto' ? 'active' : ''}`} onClick={() => setRawMode('auto')}>
-                                                Auto (use all Ctrl / Exp columns)
+                                                {t('Auto (use all Ctrl / Exp columns)')}
                                             </div>
                                             <div className={`raw-toggle-btn ${rawMode === 'manual' ? 'active' : ''}`} onClick={() => setRawMode('manual')}>
-                                                Manual (pick columns)
+                                                {t('Manual (pick columns)')}
                                             </div>
                                         </div>
 
                                         {rawMode === 'auto' && (
                                             <div className="raw-value-placeholder">
-                                                Detected raw matrix with replicate columns:
+                                                {t('Detected raw matrix with replicate columns:')}
                                                 <br />
                                                 <span className="raw-matrix-group">
-                                                    Control&nbsp;({rawMatrixInfo?.controls.join(', ')})
+                                                    {t('Control')}&nbsp;({rawMatrixInfo?.controls.join(', ')})
                                                 </span>
-                                                {' '}vs{' '}
+                                                {' '}{t('vs')}{' '}
                                                 <span className="raw-matrix-group">
-                                                    Experiment&nbsp;({rawMatrixInfo?.treats.join(', ')})
+                                                    {t('Experiment')}&nbsp;({rawMatrixInfo?.treats.join(', ')})
                                                 </span>
-                                                . BioViz will compute Log2FC and approximate P-values from these columns automatically.
+                                                . {t('BioViz will compute Log2FC and approximate P-values from these columns automatically.')}
                                             </div>
                                         )}
 
                                         {rawMode === 'manual' && (
                                             <div className="raw-select-group">
                                                 <div className="raw-select-column">
-                                                    <div className="raw-select-title">Control columns</div>
+                                                    <div className="raw-select-title">{t('Control columns')}</div>
                                                     <div className="raw-select-list">
                                                         {uploadedFiles[0].columns.map((c) => {
                                                             const checked = manualControlCols.includes(c);
@@ -643,7 +696,7 @@ export const DataImportWizard: React.FC<DataImportWizardProps> = ({
                                                 </div>
 
                                                 <div className="raw-select-column">
-                                                    <div className="raw-select-title">Experiment columns</div>
+                                                    <div className="raw-select-title">{t('Experiment columns')}</div>
                                                     <div className="raw-select-list">
                                                         {uploadedFiles[0].columns.map((c) => {
                                                             const checked = manualTreatCols.includes(c);
@@ -672,10 +725,10 @@ export const DataImportWizard: React.FC<DataImportWizardProps> = ({
                                             onChange={e => setSelectedValueCol(e.target.value)}
                                             className="select-input"
                                         >
-                                            <option value="">Select Column...</option>
+                                            <option value="">{t('Select Column...')}</option>
                                             {uploadedFiles[0].columns.map(c => <option key={c} value={c}>{c}</option>)}
                                         </select>
-                                        <p className="mapping-hint">Required. Fold Change or Expression.</p>
+                                        <p className="mapping-hint">{t('Required. Fold Change or Expression.')}</p>
                                     </>
                                 )}
                             </div>
@@ -683,35 +736,34 @@ export const DataImportWizard: React.FC<DataImportWizardProps> = ({
                             {/* P-Value Column */}
                             <div className="mapping-card">
                                 <label className="mapping-label">
-                                    <span>P-value column (optional)</span>
-                                    {uploadedFiles[0].suggestedMapping.pvalue && <span className="badge-auto">Auto</span>}
+                                    <span>{t('P-value column (optional)')}</span>
+                                    {uploadedFiles[0].suggestedMapping.pvalue && <span className="badge-auto">{t('Auto')}</span>}
                                 </label>
                                 <select
                                     value={selectedPValueCol}
                                     onChange={e => setSelectedPValueCol(e.target.value)}
                                     className="select-input"
                                 >
-                                    <option value="">(None)</option>
+                                    <option value="">{t('(None)')}</option>
                                     {uploadedFiles[0].columns.map(c => <option key={c} value={c}>{c}</option>)}
                                 </select>
-                                <p className="mapping-hint">Optional. Enables Volcano Plot interactvity.</p>
+                                <p className="mapping-hint">{t('Optional. Enables Volcano Plot interactivity.')}</p>
                             </div>
                         </div>
 
                         {/* Heuristic hint for raw matrix with replicates */}
                         {isRawMatrix && rawMatrixInfo && (
                             <div className="raw-matrix-hint">
-                                Detected replicate groups:{' '}
+                                {t('Detected replicate groups:')}{' '}
                                 <span className="raw-matrix-group">
-                                    Control&nbsp;({rawMatrixInfo.controls.join(', ')})
+                                    {t('Control')}&nbsp;({rawMatrixInfo.controls.join(', ')})
                                 </span>{' '}
-                                vs{' '}
+                                {t('vs')}{' '}
                                 <span className="raw-matrix-group">
-                                    Experiment&nbsp;({rawMatrixInfo.treats.join(', ')})
+                                    {t('Experiment')}&nbsp;({rawMatrixInfo.treats.join(', ')})
                                 </span>
-                                . BioViz will automatically compute Log2FC and
-                                P-values for these groups when you click
-                                <strong> Visualize</strong>.
+                                . {t('BioViz will automatically compute Log2FC and P-values for these groups when you click')}
+                                <strong> {t('Visualize')}</strong>.
                             </div>
                         )}
 
@@ -719,12 +771,12 @@ export const DataImportWizard: React.FC<DataImportWizardProps> = ({
                         <div className="mapping-card mapping-card-accent">
                             <label className="mapping-label">
                                 <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                    <span>⚙️ Analysis Methods</span>
-                                    <span className="badge-stats">Stats</span>
+                                    <span>⚙️ {t('Analysis Methods')}</span>
+                                    <span className="badge-stats">{t('Stats')}</span>
                                 </span>
                             </label>
                             <p className="mapping-hint" style={{ marginTop: '-4px' }}>
-                                Default: automatic statistics. Raw matrices will compute Log2FC / approx P-value; tick options below if you already have results.
+                                {t('Default: automatic statistics. Raw matrices will compute Log2FC / approx P-value; tick options below if you already have results.')}
                             </p>
                             <div className="analysis-methods-group">
                                 <label className="checkbox-row">
@@ -733,7 +785,7 @@ export const DataImportWizard: React.FC<DataImportWizardProps> = ({
                                         checked={analysisMethods.includes('auto')}
                                         onChange={() => toggleAnalysisMethod('auto')}
                                     />
-                                    <span>Auto (recommended)</span>
+                                    <span>{t('Auto (recommended)')}</span>
                                 </label>
                                 <label className="checkbox-row">
                                     <input
@@ -741,7 +793,7 @@ export const DataImportWizard: React.FC<DataImportWizardProps> = ({
                                         checked={analysisMethods.includes('precomputed')}
                                         onChange={() => toggleAnalysisMethod('precomputed')}
                                     />
-                                    <span>Use existing Log2FC / P-Value</span>
+                                    <span>{t('Use existing Log2FC / P-Value')}</span>
                                 </label>
                                 <label className="checkbox-row">
                                     <input
@@ -749,17 +801,17 @@ export const DataImportWizard: React.FC<DataImportWizardProps> = ({
                                         checked={analysisMethods.includes('ttest')}
                                         onChange={() => toggleAnalysisMethod('ttest')}
                                     />
-                                    <span>Two-group t-test (Ctrl vs Exp)</span>
+                                    <span>{t('Two-group t-test (Ctrl vs Exp)')}</span>
                                 </label>
                             </div>
                             <p className="mapping-hint">
-                                You can pick one or multiple methods; the first selected is used for visualization.
+                                {t('You can pick one or multiple methods; the first selected is used for visualization.')}
                             </p>
                         </div>
 
                         {/* Preview Table */}
                         <div className="preview-container">
-                            <div className="preview-header">Data Preview</div>
+                            <div className="preview-header">{t('Data Preview')}</div>
                             <div className="table-scroll">
                                 <table className="preview-table">
                                     <thead>
@@ -798,7 +850,7 @@ export const DataImportWizard: React.FC<DataImportWizardProps> = ({
                                 onClick={() => updateStep(1)}
                                 className="btn-back"
                             >
-                                ← Back to Upload
+                                ← {t('Back to Upload')}
                             </button>
                             <button
                                 onClick={handleMappingConfirm}
@@ -812,7 +864,7 @@ export const DataImportWizard: React.FC<DataImportWizardProps> = ({
                                 }
                                 className="btn-primary"
                             >
-                                Start Visualization →
+                                {t('Start Visualization')} →
                             </button>
                         </div>
                     </div>

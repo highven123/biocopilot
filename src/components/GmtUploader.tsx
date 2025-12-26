@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import './GmtUploader.css';
+import { useI18n } from '../i18n';
 
 interface GmtUploaderProps {
     onGmtLoaded: (gmtPath: string, stats: GmtStats) => void;
@@ -14,6 +15,7 @@ interface GmtStats {
 }
 
 const GmtUploader: React.FC<GmtUploaderProps> = ({ onGmtLoaded, disabled = false }) => {
+    const { t } = useI18n();
     const [isDragging, setIsDragging] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -42,7 +44,7 @@ const GmtUploader: React.FC<GmtUploaderProps> = ({ onGmtLoaded, disabled = false
 
     const processFile = async (file: File) => {
         if (!file.name.endsWith('.gmt')) {
-            setError('Please select a .gmt file');
+            setError(t('Please select a .gmt file'));
             return;
         }
 
@@ -64,7 +66,7 @@ const GmtUploader: React.FC<GmtUploaderProps> = ({ onGmtLoaded, disabled = false
             setLoadedFile(stats);
             onGmtLoaded(file.name, stats);
         } catch (err) {
-            setError(`Failed to load GMT: ${err}`);
+            setError(t('Failed to load GMT: {error}', { error: String(err) }));
         } finally {
             setLoading(false);
         }
@@ -75,7 +77,7 @@ const GmtUploader: React.FC<GmtUploaderProps> = ({ onGmtLoaded, disabled = false
             const { open } = await import('@tauri-apps/plugin-dialog');
             const selected = await open({
                 multiple: false,
-                filters: [{ name: 'GMT Files', extensions: ['gmt'] }]
+                filters: [{ name: t('GMT Files'), extensions: ['gmt'] }]
             });
 
             if (selected) {
@@ -90,7 +92,7 @@ const GmtUploader: React.FC<GmtUploaderProps> = ({ onGmtLoaded, disabled = false
                 setLoading(false);
             }
         } catch (err) {
-            setError(`Failed to load: ${err}`);
+            setError(t('Failed to load: {error}', { error: String(err) }));
             setLoading(false);
         }
     };
@@ -106,7 +108,7 @@ const GmtUploader: React.FC<GmtUploaderProps> = ({ onGmtLoaded, disabled = false
                 {loading ? (
                     <div className="gmt-loading">
                         <span className="spinner">⏳</span>
-                        <span>Validating GMT file...</span>
+                        <span>{t('Validating GMT file...')}</span>
                     </div>
                 ) : loadedFile ? (
                     <div className="gmt-loaded">
@@ -114,13 +116,13 @@ const GmtUploader: React.FC<GmtUploaderProps> = ({ onGmtLoaded, disabled = false
                         <div className="gmt-info">
                             <div className="gmt-filename">{loadedFile.fileName}</div>
                             <div className="gmt-stats">
-                                {loadedFile.geneSets} gene sets • {loadedFile.totalGenes} genes
+                                {t('{sets} gene sets • {genes} genes', { sets: loadedFile.geneSets, genes: loadedFile.totalGenes })}
                             </div>
                         </div>
                         <button
                             className="gmt-clear-btn"
                             onClick={() => setLoadedFile(null)}
-                            title="Clear"
+                            title={t('Clear')}
                         >
                             ✕
                         </button>
@@ -129,14 +131,14 @@ const GmtUploader: React.FC<GmtUploaderProps> = ({ onGmtLoaded, disabled = false
                     <>
                         <span className="gmt-icon">📂</span>
                         <span className="gmt-text">
-                            Drag & drop .gmt file here
+                            {t('Drag & drop .gmt file here')}
                         </span>
                         <button
                             className="gmt-browse-btn"
                             onClick={handleBrowse}
                             disabled={disabled}
                         >
-                            Browse...
+                            {t('Browse...')}
                         </button>
                     </>
                 )}

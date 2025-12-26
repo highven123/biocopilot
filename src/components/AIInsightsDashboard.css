@@ -37,10 +37,10 @@
 .ai-right-tabs {
     display: flex;
     gap: 2px;
-    background: rgba(0,0,0,0.3);
+    background: rgba(0, 0, 0, 0.3);
     borderRadius: 10px;
     padding: 4px;
-    border: 1px solid rgba(255,255,255,0.08);
+    border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .ai-tab-btn {
@@ -57,12 +57,12 @@
     transition: all 0.2s;
     font-size: 10px;
     font-weight: 700;
-    color: rgba(255,255,255,0.4);
+    color: rgba(255, 255, 255, 0.4);
 }
 
 .ai-tab-btn:hover {
     background: rgba(255, 255, 255, 0.05);
-    color: rgba(255,255,255,0.8);
+    color: rgba(255, 255, 255, 0.8);
 }
 
 .ai-tab-btn.active {
@@ -79,6 +79,9 @@
 
 .ai-report-panel {
     height: 100%;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
 }
 
 .ai-report-placeholder {

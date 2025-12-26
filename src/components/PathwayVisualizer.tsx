@@ -6,14 +6,33 @@ import { writeTextFile, writeFile } from '@tauri-apps/plugin-fs';
 import PptxGenJS from 'pptxgenjs';
 import './PathwayVisualizer.css';
 import { useGeneAnnotations } from '../hooks/useGeneAnnotations';
+import { useI18n } from '../i18n';
 
 // Helper for dynamic terminology
-const getTerm = (type: string | undefined, key: string): string => {
+const getTerm = (type: string | undefined, key: string, tFn: (key: string) => string): string => {
     const t = type || 'gene';
     const terms: Record<string, Record<string, string>> = {
-        gene: { entity: 'Gene', value: 'Expression', up: 'Upregulated', down: 'Downregulated' },
-        protein: { entity: 'Protein', value: 'Abundance', up: 'Increased', down: 'Decreased' },
-        cell: { entity: 'Cell Type', value: 'Frequency', up: 'Expanded', down: 'Depleted' }
+        gene: {
+            entity: tFn('Gene'),
+            entityPlural: tFn('Genes'),
+            value: tFn('Expression'),
+            up: tFn('Upregulated'),
+            down: tFn('Downregulated')
+        },
+        protein: {
+            entity: tFn('Protein'),
+            entityPlural: tFn('Proteins'),
+            value: tFn('Abundance'),
+            up: tFn('Increased'),
+            down: tFn('Decreased')
+        },
+        cell: {
+            entity: tFn('Cell Type'),
+            entityPlural: tFn('Cell Types'),
+            value: tFn('Frequency'),
+            up: tFn('Expanded'),
+            down: tFn('Depleted')
+        }
     };
     return terms[t]?.[key] || terms.gene[key];
 };
@@ -51,7 +70,7 @@ interface PathwayVisualizerProps {
     isPro?: boolean; // New prop for monetization tier
     /** Base name of uploaded data file (without extension), used for export filenames */
     sourceFileBase?: string;
-    enrichrResults?: any[];
+    enrichmentResults?: any[];
     gseaResults?: { up: any[], down: any[] };
 }
 
@@ -102,9 +121,10 @@ export const PathwayVisualizer = forwardRef<PathwayVisualizerRef, PathwayVisuali
     selectedNodeNames = [],
     isPro = false,
     sourceFileBase,
-    enrichrResults = [],
+    enrichmentResults = [],
     gseaResults = { up: [], down: [] },
 }, ref) => {
+    const { t } = useI18n();
     const isDark = theme === 'dark';
     const textColor = isDark ? '#eee' : '#333';
     const bgColor = isDark ? '#1a1a24' : '#ffffff';
@@ -318,28 +338,28 @@ export const PathwayVisualizer = forwardRef<PathwayVisualizerRef, PathwayVisuali
                 tooltip: {
                     formatter: (params: any) => {
                         const val = params.data?.value;
-                        const valStr = val !== undefined && val !== null ? val.toFixed(3) : 'N/A';
+                        const valStr = val !== undefined && val !== null ? val.toFixed(3) : t('N/A');
 
                         const rawId = params.data?.id;
                         const idIsString = typeof rawId === 'string';
                         const showId = idIsString && !rawId.toLowerCase().startsWith('hsa');
-                        const idLine = showId ? `ID: ${rawId}<br/>` : '';
+                        const idLine = showId ? `${t('ID')}: ${rawId}<br/>` : '';
 
                         const geneKey = resolveGeneKey(params.data);
                         const ann = geneKey ? annotations[geneKey] : undefined;
                         const wrappedSummary = ann?.summary ? wrapLines(ann.summary, 100) : '';
                         const annoSummary = wrappedSummary ? `<div style="margin-top:6px; line-height:1.4;">${wrappedSummary}</div>` : '';
                         const drugLine = ann?.drugs && ann.drugs.length > 0
-                            ? `<div style="margin-top:4px;"><b>Drugs:</b> ${ann.drugs.slice(0, 3).join(', ')}${ann.drugs.length > 3 ? '...' : ''}</div>`
+                            ? `<div style="margin-top:4px;"><b>${t('Drugs')}:</b> ${ann.drugs.slice(0, 3).join(', ')}${ann.drugs.length > 3 ? '...' : ''}</div>`
                             : '';
                         const diseaseLine = ann?.diseases && ann.diseases.length > 0
-                            ? `<div style="margin-top:2px;"><b>Disease:</b> ${ann.diseases.slice(0, 3).join(', ')}${ann.diseases.length > 3 ? '...' : ''}</div>`
+                            ? `<div style="margin-top:2px;"><b>${t('Disease')}:</b> ${ann.diseases.slice(0, 3).join(', ')}${ann.diseases.length > 3 ? '...' : ''}</div>`
                             : '';
 
                         return `
             <div style="text-align: left;">
               <b>${params.name}</b><br/>
-              Expression (LogFC): ${valStr}<br/>
+              ${t('Expression (LogFC)')}: ${valStr}<br/>
               ${idLine}
               ${annoSummary}
               ${drugLine}
@@ -426,7 +446,7 @@ export const PathwayVisualizer = forwardRef<PathwayVisualizerRef, PathwayVisuali
                 bottom: 20 + (legendItems.length * 20),
                 right: 20,
                 style: {
-                    text: 'Interaction Types',
+                    text: t('Interaction Types'),
                     fill: textColor,
                     font: 'bold 12px sans-serif'
                 }
@@ -446,7 +466,7 @@ export const PathwayVisualizer = forwardRef<PathwayVisualizerRef, PathwayVisuali
                     left: 0,
                     top: -20,
                     style: {
-                        text: 'Expression (LogFC)',
+                        text: t('Expression (LogFC)'),
                         fill: textColor,
                         font: 'bold 12px sans-serif'
                     }
@@ -484,9 +504,7 @@ export const PathwayVisualizer = forwardRef<PathwayVisualizerRef, PathwayVisuali
         const totalNodes = nodes.length;
         const upRegulated = nodes.filter(n => n.expression !== undefined && n.expression !== null && n.expression > 0).length;
         const downRegulated = nodes.filter(n => n.expression !== undefined && n.expression !== null && n.expression < 0).length;
-        const entityLabel = getTerm(dataType, 'entity');
-        // Pluralize simply (can be improved if needed)
-        const entityPlural = entityLabel.endsWith('y') ? entityLabel.slice(0, -1) + 'ies' : entityLabel + 's';
+        const entityPlural = getTerm(dataType, 'entityPlural', t);
 
         legendGraphic.push({
             type: 'group',
@@ -508,7 +526,7 @@ export const PathwayVisualizer = forwardRef<PathwayVisualizerRef, PathwayVisuali
                     left: 0,
                     top: 20,
                     style: {
-                        text: `${upRegulated} up`,
+                        text: `${upRegulated} ${t('Up')}`,
                         fill: '#ef4444', // Red
                         font: 'bold 14px sans-serif'
                     }
@@ -518,7 +536,7 @@ export const PathwayVisualizer = forwardRef<PathwayVisualizerRef, PathwayVisuali
                     left: 0,
                     top: 40,
                     style: {
-                        text: `${downRegulated} down`,
+                        text: `${downRegulated} ${t('Down')}`,
                         fill: '#3b82f6', // Blue
                         font: 'bold 14px sans-serif'
                     }
@@ -530,7 +548,7 @@ export const PathwayVisualizer = forwardRef<PathwayVisualizerRef, PathwayVisuali
             backgroundColor: 'transparent',
             title: {
                 // Remove KEGG ID style patterns (e.g. hsa04110) from title if present
-                text: (title || 'Pathway Visualization').replace(/hsa:?\d+/gi, '').replace(/kegg/gi, '').trim(),
+                text: (title || t('Pathway Visualization')).replace(/hsa:?\d+/gi, '').replace(/kegg/gi, '').trim(),
                 left: 'center',
                 textStyle: {
                     color: textColor,
@@ -554,7 +572,7 @@ export const PathwayVisualizer = forwardRef<PathwayVisualizerRef, PathwayVisuali
                     return point;
                 }
             },
-            graphic: legendGraphic,
+            graphic: { $action: 'replace', elements: legendGraphic },
             series: [
                 {
                     type: 'graph',
@@ -608,24 +626,24 @@ export const PathwayVisualizer = forwardRef<PathwayVisualizerRef, PathwayVisuali
             const filePath = await save({
                 defaultPath: suggestedName,
                 filters: [{
-                    name: 'PNG Image',
+                    name: t('PNG Image'),
                     extensions: ['png']
                 }]
             });
 
             if (filePath) {
                 await writeFile(filePath, bytes);
-                alert('PNG exported successfully!');
+                alert(t('PNG exported successfully!'));
             }
         } catch (err) {
             console.error('Export PNG failed:', err);
-            alert(`Export PNG failed: ${err}`);
+            alert(`${t('Export PNG failed')}: ${err}`);
         }
     };
 
     const handleExportSVG = async () => {
         if (!isPro) {
-            alert("SVG (Vector) Export is a Pro feature.\n\nPlease upgrade to BioViz Pro to unlock vector graphics, editable reports, and data saving.");
+            alert(t('SVG (Vector) Export is a Pro feature. Please upgrade to BioViz Pro to unlock vector graphics, editable reports, and data saving.'));
             return;
         }
 
@@ -661,7 +679,7 @@ export const PathwayVisualizer = forwardRef<PathwayVisualizerRef, PathwayVisuali
             let finalSvg = svgContent;
 
             // 1. Professional Footer (Always present, subtle)
-            const footerWatermark = '<text x="98%" y="98%" text-anchor="end" fill="#94a3b8" font-family="sans-serif" font-size="12">Generated by BioViz Local</text>';
+            const footerWatermark = `<text x="98%" y="98%" text-anchor="end" fill="#94a3b8" font-family="sans-serif" font-size="12">${t('Generated by BioViz Local')}</text>`;
 
             // 2. Tiled Watermark (Free Tier Only)
             let patternDef = '';
@@ -673,7 +691,7 @@ export const PathwayVisualizer = forwardRef<PathwayVisualizerRef, PathwayVisuali
                 patternDef = `
                 <defs>
                     <pattern id="${patternId}" width="200" height="200" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-                        <text x="100" y="100" text-anchor="middle" fill="rgba(150, 150, 150, 0.15)" font-size="24" font-family="sans-serif" font-weight="bold">BioViz Free</text>
+                        <text x="100" y="100" text-anchor="middle" fill="rgba(150, 150, 150, 0.15)" font-size="24" font-family="sans-serif" font-weight="bold">${t('BioViz Free')}</text>
                     </pattern>
                 </defs>`;
                 // A rect covering the whole SVG causing the pattern to repeat
@@ -696,18 +714,18 @@ export const PathwayVisualizer = forwardRef<PathwayVisualizerRef, PathwayVisuali
             const filePath = await save({
                 defaultPath: suggestedName,
                 filters: [{
-                    name: 'SVG Image',
+                    name: t('SVG Image'),
                     extensions: ['svg']
                 }]
             });
 
             if (filePath) {
                 await writeTextFile(filePath, finalSvg);
-                alert('SVG exported successfully!');
+                alert(t('SVG exported successfully!'));
             }
         } catch (err) {
             console.error('Export failed:', err);
-            alert(`Export failed: ${err}`);
+            alert(`${t('Export failed')}: ${err}`);
         }
     };
 
@@ -740,7 +758,7 @@ export const PathwayVisualizer = forwardRef<PathwayVisualizerRef, PathwayVisuali
 
                         const ctx = canvas.getContext('2d');
                         if (!ctx) {
-                            reject(new Error("Failed to get canvas context"));
+                            reject(new Error(t("Failed to get canvas context")));
                             return;
                         }
 
@@ -752,7 +770,7 @@ export const PathwayVisualizer = forwardRef<PathwayVisualizerRef, PathwayVisuali
 
                         resolve(canvas.toDataURL('image/png'));
                     };
-                    img.onerror = () => reject(new Error("Failed to load SVG for conversion"));
+                    img.onerror = () => reject(new Error(t("Failed to load SVG for conversion")));
                     img.src = url;
                 });
             };
@@ -795,7 +813,7 @@ export const PathwayVisualizer = forwardRef<PathwayVisualizerRef, PathwayVisuali
             const sectionTitleStyle = { x: 0.5, y: 0.4, w: 9, fontSize: 24, bold: true, color: 'FFFFFF' };
 
             // Unified contact info (subtle "watermark"), placed at bottom-right of each page
-            const contactText = 'BioViz Local • bioviz@bioviz.com';
+            const contactText = `${t('BioViz Local')} • bioviz@bioviz.com`;
             const contactOptions = {
                 // Bottom-right, leaving space for page number
                 x: 6.5,
@@ -808,14 +826,14 @@ export const PathwayVisualizer = forwardRef<PathwayVisualizerRef, PathwayVisuali
 
             // --- SLIDE 1: Title Slide ---
             const titleSlide = pptx.addSlide({ masterName: 'DARK_THEME' }); // Renamed slide1 to titleSlide for clarity
-            titleSlide.addText('BioViz Local', { ...titleStyle, y: 2.5, fontSize: 36, color: '5DADE2' });
-            titleSlide.addText('KEGG Pathway Analysis Report', { ...titleStyle, y: 3.2, fontSize: 24 });
-            titleSlide.addText('Pathway ID: ' + (pathwayId || 'Unknown'), { x: 0.5, y: 3.9, w: 9, fontSize: 18, color: accentColor, align: 'center' }); // Adjusted y
-            titleSlide.addText('Generated: ' + new Date().toLocaleString(), { ...subTitleStyle, y: 4.5 }); // Adjusted y
-            titleSlide.addText('Generated by BioViz Local', { x: 0.5, y: 5.0, w: 9, fontSize: 14, color: '#666666', align: 'center' });
+            titleSlide.addText(t('BioViz Local'), { ...titleStyle, y: 2.5, fontSize: 36, color: '5DADE2' });
+            titleSlide.addText(t('KEGG Pathway Analysis Report'), { ...titleStyle, y: 3.2, fontSize: 24 });
+            titleSlide.addText(`${t('Pathway ID')}: ${pathwayId || t('Unknown')}`, { x: 0.5, y: 3.9, w: 9, fontSize: 18, color: accentColor, align: 'center' }); // Adjusted y
+            titleSlide.addText(`${t('Generated')}: ${new Date().toLocaleString()}`, { ...subTitleStyle, y: 4.5 }); // Adjusted y
+            titleSlide.addText(t('Generated by BioViz Local'), { x: 0.5, y: 5.0, w: 9, fontSize: 14, color: '#666666', align: 'center' });
             // Watermark for Title Slide (if Free)
             if (!isPro) {
-                titleSlide.addText('TRIAL VERSION - BioViz Free', {
+                titleSlide.addText(t('TRIAL VERSION - BioViz Free'), {
                     x: 0, y: 0, w: '100%', h: '100%',
                     fontSize: 60, color: 'ffffff', transparency: 90,
                     rotate: 45, align: 'center', valign: 'middle'
@@ -827,11 +845,11 @@ export const PathwayVisualizer = forwardRef<PathwayVisualizerRef, PathwayVisuali
 
             // --- SLIDE 2: Methodology (New "Research" Requirement) ---
             const methodSlide = pptx.addSlide({ masterName: 'DARK_THEME' });
-            methodSlide.addText('Methodology', sectionTitleStyle);
+            methodSlide.addText(t('Methodology'), sectionTitleStyle);
             methodSlide.addText([
-                { text: 'Gene expression data was mapped to KEGG Pathway ', options: { fontSize: 18, color: bodyColor } },
+                { text: t('Gene expression data was mapped to KEGG Pathway '), options: { fontSize: 18, color: bodyColor } },
                 { text: '[' + (pathwayId || 'hsa00000') + ']', options: { fontSize: 18, color: accentColor, bold: true } },
-                { text: '. Color coding represents Log2 Fold Change (Red=Up, Blue=Down). Data processing and visualization were performed by ', options: { fontSize: 18, color: bodyColor } },
+                { text: t('. Color coding represents Log2 Fold Change (Red=Up, Blue=Down). Data processing and visualization were performed by '), options: { fontSize: 18, color: bodyColor } },
                 { text: 'BioViz Local v0.1', options: { fontSize: 18, color: accentColor, bold: true } },
                 { text: '.', options: { fontSize: 18, color: bodyColor } }
             ], { x: 1.0, y: 1.5, w: 8.0, h: 3.0, lineSpacing: 30 });
@@ -839,7 +857,7 @@ export const PathwayVisualizer = forwardRef<PathwayVisualizerRef, PathwayVisuali
 
             // --- SLIDE 3: Pathway Visualization ---
             const slide2 = pptx.addSlide({ masterName: 'DARK_THEME' });
-            slide2.addText(title || 'Pathway Map', sectionTitleStyle);
+            slide2.addText(title || t('Pathway Map'), sectionTitleStyle);
             if (imgUrl && imgUrl.length > 100) {
                 slide2.addImage({
                     data: imgUrl,
@@ -856,32 +874,32 @@ export const PathwayVisualizer = forwardRef<PathwayVisualizerRef, PathwayVisuali
                     // e.g. slide2.addText('Editable Vector Mode', { ... }); 
                 }
             } else {
-                slide2.addText("Image capture failed. Please ensure the chart is fully visible.", { x: 0.5, y: 2.0, color: 'FF0000', align: 'center' });
+                slide2.addText(t('Image capture failed. Please ensure the chart is fully visible.'), { x: 0.5, y: 2.0, color: 'FF0000', align: 'center' });
             }
             slide2.addText(contactText, contactOptions);
 
             // --- SLIDE 4: Summary Statistics ---
             const slide3 = pptx.addSlide({ masterName: 'DARK_THEME' });
-            slide3.addText('Summary Statistics', sectionTitleStyle);
+            slide3.addText(t('Summary Statistics'), sectionTitleStyle);
 
             slide3.addTable([
                 [
-                    { text: 'Metric', options: { fill: { color: accentColor }, color: 'FFFFFF', bold: true } },
-                    { text: 'Count', options: { fill: { color: accentColor }, color: 'FFFFFF', bold: true } },
-                    { text: 'Percentage', options: { fill: { color: accentColor }, color: 'FFFFFF', bold: true } }
+                    { text: t('Metric'), options: { fill: { color: accentColor }, color: 'FFFFFF', bold: true } },
+                    { text: t('Count'), options: { fill: { color: accentColor }, color: 'FFFFFF', bold: true } },
+                    { text: t('Percentage'), options: { fill: { color: accentColor }, color: 'FFFFFF', bold: true } }
                 ],
                 [
-                    { text: 'Total Nodes', options: { fill: { color: '2d2d3a' }, color: bodyColor } },
+                    { text: t('Total Nodes'), options: { fill: { color: '2d2d3a' }, color: bodyColor } },
                     { text: totalNodes.toString(), options: { fill: { color: '2d2d3a' }, color: bodyColor } },
                     { text: '100%', options: { fill: { color: '2d2d3a' }, color: bodyColor } }
                 ],
                 [
-                    { text: getTerm(dataType, 'up'), options: { fill: { color: '2d2d3a' }, color: '#ff6b6b' } },
+                    { text: getTerm(dataType, 'up', t), options: { fill: { color: '2d2d3a' }, color: '#ff6b6b' } },
                     { text: upRegulated.toString(), options: { fill: { color: '2d2d3a' }, color: '#ff6b6b' } },
                     { text: ((upRegulated / totalNodes) * 100).toFixed(1) + '%', options: { fill: { color: '2d2d3a' }, color: '#ff6b6b' } }
                 ],
                 [
-                    { text: getTerm(dataType, 'down'), options: { fill: { color: '2d2d3a' }, color: '#4ecdc4' } },
+                    { text: getTerm(dataType, 'down', t), options: { fill: { color: '2d2d3a' }, color: '#4ecdc4' } },
                     { text: downRegulated.toString(), options: { fill: { color: '2d2d3a' }, color: '#4ecdc4' } },
                     { text: ((downRegulated / totalNodes) * 100).toFixed(1) + '%', options: { fill: { color: '2d2d3a' }, color: '#4ecdc4' } }
                 ]
@@ -890,19 +908,20 @@ export const PathwayVisualizer = forwardRef<PathwayVisualizerRef, PathwayVisuali
 
             // --- SLIDE 5: Key Findings ---
             const slide4 = pptx.addSlide({ masterName: 'DARK_THEME' });
-            slide4.addText('Key Findings', sectionTitleStyle);
+            slide4.addText(t('Key Findings'), sectionTitleStyle);
+            const entityPluralLower = getTerm(dataType, 'entityPlural', t).toLowerCase();
             const findings = [
-                upRegulated + ' ' + getTerm(dataType, 'entity').toLowerCase() + 's are ' + getTerm(dataType, 'up').toLowerCase() + '.',
-                downRegulated + ' ' + getTerm(dataType, 'entity').toLowerCase() + 's are ' + getTerm(dataType, 'down').toLowerCase() + '.',
-                (totalNodes - upRegulated - downRegulated) + ' items show no significant change or were not detected.',
-                'Pathway Coverage: ' + (100 * nodes.filter(n => n.expression !== undefined && n.expression !== null).length / nodes.length).toFixed(1) + '% of total pathway nodes.'
+                `${upRegulated} ${entityPluralLower} ${t('are')} ${getTerm(dataType, 'up', t).toLowerCase()}.`,
+                `${downRegulated} ${entityPluralLower} ${t('are')} ${getTerm(dataType, 'down', t).toLowerCase()}.`,
+                `${totalNodes - upRegulated - downRegulated} ${t('items show no significant change or were not detected.')}`,
+                `${t('Pathway Coverage')}: ${(100 * nodes.filter(n => n.expression !== undefined && n.expression !== null).length / nodes.length).toFixed(1)}% ${t('of total pathway nodes.')}`
             ];
             slide4.addText(findings.join('\n\n'), { x: 1.0, y: 1.5, w: 8.0, h: 3.5, fontSize: 16, color: bodyColor, bullet: true, lineSpacing: 40 });
             slide4.addText(contactText, contactOptions);
 
             // --- SLIDE 6: Gene Expression Details (Zebra Striped) ---
             const slide5 = pptx.addSlide({ masterName: 'DARK_THEME' });
-            slide5.addText(getTerm(dataType, 'value') + ' Details', sectionTitleStyle);
+            slide5.addText(`${getTerm(dataType, 'value', t)} ${t('Details')}`, sectionTitleStyle);
 
             // Only show Top 20, to keep table neat and prevent overflow on one page
             const sortedNodes = [...nodes]
@@ -913,9 +932,9 @@ export const PathwayVisualizer = forwardRef<PathwayVisualizerRef, PathwayVisuali
             if (sortedNodes.length > 0) {
                 const tableData = [
                     [
-                        { text: getTerm(dataType, 'entity'), options: { fill: { color: accentColor }, color: 'FFFFFF', bold: true } },
-                        { text: getTerm(dataType, 'value'), options: { fill: { color: accentColor }, color: 'FFFFFF', bold: true } },
-                        { text: 'Status', options: { fill: { color: accentColor }, color: 'FFFFFF', bold: true } }
+                        { text: getTerm(dataType, 'entity', t), options: { fill: { color: accentColor }, color: 'FFFFFF', bold: true } },
+                        { text: getTerm(dataType, 'value', t), options: { fill: { color: accentColor }, color: 'FFFFFF', bold: true } },
+                        { text: t('Status'), options: { fill: { color: accentColor }, color: 'FFFFFF', bold: true } }
                     ],
                     ...sortedNodes.map((n, i) => {
                         const rowBg = i % 2 === 0 ? '2d2d3a' : '1a1a24';
@@ -923,7 +942,7 @@ export const PathwayVisualizer = forwardRef<PathwayVisualizerRef, PathwayVisuali
                         return [
                             { text: n.name, options: { fill: { color: rowBg }, color: bodyColor } },
                             { text: val.toFixed(2), options: { fill: { color: rowBg }, color: val > 0 ? '#ff6b6b' : '#4ecdc4' } },
-                            { text: val > 0 ? 'High' : 'Low', options: { fill: { color: rowBg }, color: val > 0 ? '#ff6b6b' : '#4ecdc4' } }
+                            { text: val > 0 ? t('High') : t('Low'), options: { fill: { color: rowBg }, color: val > 0 ? '#ff6b6b' : '#4ecdc4' } }
                         ];
                     })
                 ];
@@ -935,22 +954,22 @@ export const PathwayVisualizer = forwardRef<PathwayVisualizerRef, PathwayVisuali
                     fontSize: 11
                 });
             } else {
-                slide5.addText("No mapping data available.", { x: 3, y: 3, color: 'FFFFFF' });
+                slide5.addText(t('No mapping data available.'), { x: 3, y: 3, color: 'FFFFFF' });
             }
             slide5.addText(contactText, contactOptions);
 
             // --- SLIDE 7: Enrichment Analysis (ORA) (Optional) ---
-            if (enrichrResults && enrichrResults.length > 0) {
+            if (enrichmentResults && enrichmentResults.length > 0) {
                 const oraSlide = pptx.addSlide({ masterName: 'DARK_THEME' });
-                oraSlide.addText('Enrichment Analysis (ORA)', sectionTitleStyle);
+                oraSlide.addText(t('Enrichment Analysis (ORA)'), sectionTitleStyle);
 
                 const oraTableData = [
                     [
-                        { text: 'Term', options: { fill: { color: accentColor }, color: 'FFFFFF', bold: true } },
-                        { text: 'Adj. P-value', options: { fill: { color: accentColor }, color: 'FFFFFF', bold: true } },
-                        { text: 'Overlap', options: { fill: { color: accentColor }, color: 'FFFFFF', bold: true } }
+                        { text: t('Term'), options: { fill: { color: accentColor }, color: 'FFFFFF', bold: true } },
+                        { text: t('Adj. P-value'), options: { fill: { color: accentColor }, color: 'FFFFFF', bold: true } },
+                        { text: t('Overlap'), options: { fill: { color: accentColor }, color: 'FFFFFF', bold: true } }
                     ],
-                    ...enrichrResults.slice(0, 15).map((res, i) => {
+                    ...enrichmentResults.slice(0, 15).map((res, i) => {
                         const rowBg = i % 2 === 0 ? '2d2d3a' : '1a1a24';
                         return [
                             { text: res.term, options: { fill: { color: rowBg }, color: bodyColor } },
@@ -969,7 +988,7 @@ export const PathwayVisualizer = forwardRef<PathwayVisualizerRef, PathwayVisuali
             // --- SLIDE 8: GSEA Results (Optional) ---
             if (gseaResults && (gseaResults.up.length > 0 || gseaResults.down.length > 0)) {
                 const gseaSlide = pptx.addSlide({ masterName: 'DARK_THEME' });
-                gseaSlide.addText('GSEA Results (Top 15)', sectionTitleStyle);
+                gseaSlide.addText(t('GSEA Results (Top 15)'), sectionTitleStyle);
 
                 const allGsea = [
                     ...gseaResults.up.slice(0, 8).map(r => ({ ...r, status: 'UP' })),
@@ -978,9 +997,9 @@ export const PathwayVisualizer = forwardRef<PathwayVisualizerRef, PathwayVisuali
 
                 const gseaTableData = [
                     [
-                        { text: 'Term', options: { fill: { color: accentColor }, color: 'FFFFFF', bold: true } },
-                        { text: 'NES', options: { fill: { color: accentColor }, color: 'FFFFFF', bold: true } },
-                        { text: 'FDR', options: { fill: { color: accentColor }, color: 'FFFFFF', bold: true } }
+                        { text: t('Term'), options: { fill: { color: accentColor }, color: 'FFFFFF', bold: true } },
+                        { text: t('NES'), options: { fill: { color: accentColor }, color: 'FFFFFF', bold: true } },
+                        { text: t('FDR'), options: { fill: { color: accentColor }, color: 'FFFFFF', bold: true } }
                     ],
                     ...allGsea.map((res, i) => {
                         const rowBg = i % 2 === 0 ? '2d2d3a' : '1a1a24';
@@ -1001,11 +1020,11 @@ export const PathwayVisualizer = forwardRef<PathwayVisualizerRef, PathwayVisuali
 
             // --- LAST SLIDE: References ---
             const refSlide = pptx.addSlide({ masterName: 'DARK_THEME' });
-            refSlide.addText('References & Acknowledgements', sectionTitleStyle);
+            refSlide.addText(t('References & Acknowledgements'), sectionTitleStyle);
 
             refSlide.addText([
-                { text: '1. BioViz Local: An advanced, secure, and beautiful pathway visualization tool.', options: { fontSize: 14, color: bodyColor, breakLine: true } },
-                { text: '\n\nWeChat:', options: { fontSize: 14, color: accentColor, bold: true, breakLine: true } },
+                { text: `1. ${t('BioViz Local')}: ${t('An advanced, secure, and beautiful pathway visualization tool.')}`, options: { fontSize: 14, color: bodyColor, breakLine: true } },
+                { text: `\n\n${t('WeChat')}:`, options: { fontSize: 14, color: accentColor, bold: true, breakLine: true } },
                 { text: 'bioviz', options: { fontSize: 14, color: '#4ecdc4' } }
             ], { x: 1.0, y: 1.5, w: 8.0, h: 4.0, lineSpacing: 25 });
             refSlide.addText(contactText, contactOptions);
@@ -1023,17 +1042,17 @@ export const PathwayVisualizer = forwardRef<PathwayVisualizerRef, PathwayVisuali
 
             const filePath = await save({
                 defaultPath: suggestedName,
-                filters: [{ name: 'PowerPoint Presentation', extensions: ['pptx'] }]
+                filters: [{ name: t('PowerPoint Presentation'), extensions: ['pptx'] }]
             });
 
             if (filePath) {
                 await writeFile(filePath, bytes);
-                alert('Detailed PPTX Report exported successfully!');
+                alert(t('Detailed PPTX Report exported successfully!'));
             }
 
         } catch (err) {
             console.error('PPTX Export failed:', err);
-            alert('PPTX Export failed: ' + err);
+            alert(`${t('PPTX Export failed')}: ${err}`);
         }
     };
 

@@ -4,6 +4,8 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import './AIChatPanel.css';
+import { renderEvidenceContent } from '../utils/evidenceRenderer';
+import { useI18n } from '../i18n';
 
 interface Message {
     role: 'user' | 'assistant';
@@ -23,6 +25,7 @@ interface AIChatPanelProps {
     chatHistory?: Message[];  // Chat history from parent
     onChatUpdate?: (messages: Message[]) => void;  // Callback to update parent
     workflowPhase?: 'perception' | 'exploration' | 'synthesis';
+    onEntityClick?: (type: string, id: string) => void;
 }
 
 export const AIChatPanel: React.FC<AIChatPanelProps> = ({
@@ -30,20 +33,24 @@ export const AIChatPanel: React.FC<AIChatPanelProps> = ({
     isConnected,
     lastResponse,
     analysisContext,
-    chatHistory = [],
+    chatHistory,
     onChatUpdate,
-    workflowPhase = 'perception'
+    workflowPhase = 'perception',
+    onEntityClick
 }) => {
-    const [messages, setMessages] = useState<Message[]>(chatHistory);
+    const { t } = useI18n();
+    const [messages, setMessages] = useState<Message[]>(chatHistory ?? []);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
-    const isInternalUpdate = useRef(false);
+    const isSyncingFromParent = useRef(false);
+    const mountedAtRef = useRef<number>(Date.now());
 
     // Sync with parent chatHistory when it changes (e.g., switching analysis)
     useEffect(() => {
-        if (chatHistory && JSON.stringify(chatHistory) !== JSON.stringify(messages)) {
-            isInternalUpdate.current = false;
+        if (!chatHistory) return;
+        if (JSON.stringify(chatHistory) !== JSON.stringify(messages)) {
+            isSyncingFromParent.current = true;
             setMessages(chatHistory);
         }
     }, [chatHistory]);
@@ -52,60 +59,7 @@ export const AIChatPanel: React.FC<AIChatPanelProps> = ({
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     };
 
-    // Format AI content: convert markdown-style lists to HTML
-    const formatAIContent = (content: string) => {
-        // Split into lines
-        const lines = content.split('\n');
-        const elements: React.ReactNode[] = [];
-        let currentList: string[] = [];
-        let listType: 'ul' | 'ol' | null = null;
-
-        const flushList = (lineIdx: number) => {
-            if (currentList.length > 0 && listType) {
-                const ListTag = listType === 'ol' ? 'ol' : 'ul';
-                elements.push(
-                    <ListTag key={`list-${lineIdx}-${elements.length}`} className="ai-list">
-                        {currentList.map((item, i) => <li key={i}>{item}</li>)}
-                    </ListTag>
-                );
-                currentList = [];
-                listType = null;
-            }
-        };
-
-        lines.forEach((line, idx) => {
-            const trimmed = line.trim();
-
-            // Check for bullet list items (- or *)
-            const bulletMatch = trimmed.match(/^[-*]\s+(.+)/);
-            // Check for numbered list items (1., 2., etc.)
-            const numMatch = trimmed.match(/^\d+[.)]\s+(.+)/);
-            // Check for bold headers (**text**)
-            const boldMatch = trimmed.match(/^\*\*(.+?)\*\*/);
-
-            if (bulletMatch) {
-                if (listType !== 'ul') flushList(idx);
-                listType = 'ul';
-                currentList.push(bulletMatch[1]);
-            } else if (numMatch) {
-                if (listType !== 'ol') flushList(idx);
-                listType = 'ol';
-                currentList.push(numMatch[1]);
-            } else {
-                flushList(idx);
-                if (boldMatch) {
-                    elements.push(<strong key={`bold-${idx}`} className="ai-bold">{boldMatch[1]}</strong>);
-                    const rest = trimmed.replace(/^\*\*(.+?)\*\*:?\s*/, '');
-                    if (rest) elements.push(<span key={`rest-${idx}`}>{rest}</span>);
-                } else if (trimmed) {
-                    elements.push(<p key={`para-${idx}`} className="ai-paragraph">{trimmed}</p>);
-                }
-            }
-        });
-
-        flushList(lines.length);
-        return elements.length > 0 ? elements : content;
-    };
+    const formatAIContent = (content: string) => renderEvidenceContent(content, onEntityClick);
 
     useEffect(() => {
         scrollToBottom();
@@ -121,14 +75,15 @@ export const AIChatPanel: React.FC<AIChatPanelProps> = ({
 
     // Notify parent when messages change
     useEffect(() => {
-        if (onChatUpdate && messages.length > 0) {
-            if (isInternalUpdate.current) {
-                // Only notify if different from chatHistory to prevent loops
-                if (JSON.stringify(messages) !== JSON.stringify(chatHistory)) {
-                    onChatUpdate(messages);
-                }
-                isInternalUpdate.current = false;
-            }
+        if (isSyncingFromParent.current) {
+            isSyncingFromParent.current = false;
+            return;
+        }
+        if (!onChatUpdate) return;
+        if (!chatHistory) return;
+        if (messages.length === 0) return;
+        if (JSON.stringify(messages) !== JSON.stringify(chatHistory)) {
+            onChatUpdate(messages);
         }
     }, [messages, chatHistory, onChatUpdate]);
 
@@ -137,6 +92,9 @@ export const AIChatPanel: React.FC<AIChatPanelProps> = ({
         console.log('[AIChatPanel] lastResponse changed:', lastResponse);
 
         if (!lastResponse) return;
+        if (typeof lastResponse.__receivedAt === 'number' && lastResponse.__receivedAt < mountedAtRef.current) {
+            return;
+        }
 
         try {
             console.log('[AIChatPanel] Response type:', lastResponse.type, 'cmd:', lastResponse.cmd);
@@ -146,53 +104,52 @@ export const AIChatPanel: React.FC<AIChatPanelProps> = ({
             if (lastResponse.cmd === 'CHAT' && (lastResponse.type === 'CHAT' || lastResponse.type === 'EXECUTE')) {
                 console.log('[AIChatPanel] Processing AI response, content:', lastResponse.content?.substring(0, 50));
 
-                isInternalUpdate.current = true;
                 setMessages(prev => {
                     // Build response content
                     let responseContent = lastResponse.content;
 
                     // If this is an EXECUTE action, add tool execution details
                     if (lastResponse.type === 'EXECUTE' && lastResponse.tool_name) {
-                        responseContent += `\n\n**🔧 执行工具**: ${lastResponse.tool_name}`;
+                        responseContent += `\n\n**🔧 ${t('Tool executed')}**: ${lastResponse.tool_name}`;
 
                         // Format and display tool results
                         if (lastResponse.tool_result) {
                             const result = lastResponse.tool_result;
 
                             if (lastResponse.tool_name === 'list_pathways' && Array.isArray(result)) {
-                                responseContent += `\n\n**可用通路列表** (${result.length}个):`;
+                                responseContent += `\n\n**${t('Available pathways list')}** (${result.length} ${t('items')}):`;
                                 result.forEach((p: any) => {
                                     responseContent += `\n• ${p.id}: ${p.name}`;
                                 });
                             } else if (lastResponse.tool_name === 'render_pathway' && result.pathway) {
                                 const pathway = result.pathway;
                                 const stats = result.statistics || {};
-                                responseContent += `\n\n**通路**: ${pathway.title || pathway.id}`;
-                                responseContent += `\n**基因数**: ${stats.total_nodes || 0}`;
-                                responseContent += `\n**上调**: ${stats.upregulated || 0} | **下调**: ${stats.downregulated || 0}`;
+                                responseContent += `\n\n**${t('Pathway')}**: ${pathway.title || pathway.id}`;
+                                responseContent += `\n**${t('Total Genes')}**: ${stats.total_nodes || 0}`;
+                                responseContent += `\n**${t('Upregulated')}**: ${stats.upregulated || 0} | **${t('Downregulated')}**: ${stats.downregulated || 0}`;
                             } else if (lastResponse.tool_name === 'run_enrichment') {
                                 if (result.error) {
-                                    responseContent += `\n\n**错误**: ${result.error}`;
+                                    responseContent += `\n\n**${t('Error')}**: ${result.error}`;
                                 } else {
-                                    responseContent += `\n\n**富集分析结果**:`;
-                                    responseContent += `\n• 基因数: ${result.input_genes}`;
-                                    responseContent += `\n• 基因库: ${result.gene_sets}`;
-                                    responseContent += `\n• 富集条目: ${result.total_terms}\n`;
+                                    responseContent += `\n\n**${t('Enrichment Results')}**:`;
+                                    responseContent += `\n• ${t('Input genes')}: ${result.input_genes}`;
+                                    responseContent += `\n• ${t('Gene sets')}: ${result.gene_sets}`;
+                                    responseContent += `\n• ${t('Enriched terms')}: ${result.total_terms}\n`;
 
                                     if (result.enriched_terms && result.enriched_terms.length > 0) {
-                                        responseContent += `\n**Top 10 显著通路**:\n`;
+                                        responseContent += `\n**${t('Top 10 significant pathways')}**:\n`;
                                         result.enriched_terms.slice(0, 10).forEach((term: any, idx: number) => {
                                             const pval = term.adjusted_p_value || term.p_value;
                                             responseContent += `${idx + 1}. **${term.term}**\n`;
                                             responseContent += `   - P-value: ${pval.toExponential(2)}\n`;
-                                            responseContent += `   - Genes: ${term.overlap}\n`;
+                                            responseContent += `   - ${t('Genes')}: ${term.overlap}\n`;
                                         });
                                     }
                                 }
                             } else if (typeof result === 'object') {
-                                responseContent += `\n\n**结果**: ${JSON.stringify(result, null, 2)}`;
+                                responseContent += `\n\n**${t('Result')}**: ${JSON.stringify(result, null, 2)}`;
                             } else {
-                                responseContent += `\n\n**结果**: ${String(result)}`;
+                                responseContent += `\n\n**${t('Result')}**: ${String(result)}`;
                             }
                         }
                     }
@@ -204,6 +161,20 @@ export const AIChatPanel: React.FC<AIChatPanelProps> = ({
                         timestamp: Date.now()
                     }];
                 });
+                setIsLoading(false);
+            } else if (lastResponse.cmd === 'AGENT_TASK') {
+                const narrative =
+                    lastResponse.result?.narrative ||
+                    lastResponse.narrative ||
+                    lastResponse.summary ||
+                    lastResponse.content ||
+                    lastResponse.message;
+                if (narrative) {
+                    updateMessages(prev => [
+                        ...prev,
+                        { role: 'assistant', content: narrative, timestamp: Date.now() }
+                    ]);
+                }
                 setIsLoading(false);
             } else if (lastResponse.cmd && structuredCmds.has(lastResponse.cmd)) {
                 // Display structured prompt responses (e.g., SUMMARIZE_ENRICHMENT)
@@ -232,7 +203,6 @@ export const AIChatPanel: React.FC<AIChatPanelProps> = ({
             timestamp: Date.now()
         };
 
-        isInternalUpdate.current = true;
         setMessages(prev => [...prev, userMessage]);
         setInput('');
         setIsLoading(true);
@@ -251,7 +221,7 @@ export const AIChatPanel: React.FC<AIChatPanelProps> = ({
             console.error('Failed to send message:', error);
             const errorMessage: Message = {
                 role: 'assistant',
-                content: 'Sorry, I encountered an error processing your request.',
+                content: t('Sorry, I encountered an error processing your request.'),
                 timestamp: Date.now()
             };
             updateMessages(prev => [...prev, errorMessage]);
@@ -268,9 +238,9 @@ export const AIChatPanel: React.FC<AIChatPanelProps> = ({
 
 
     const milestoneInfo = {
-        perception: { title: "🎯 Stage 1: Perception", hint: "AI has scanned your data. Review the initial insights." },
-        exploration: { title: "🔍 Stage 2: Exploration", hint: "Deep dive into pathways and evidence. Use tools to investigate." },
-        synthesis: { title: "🤖 Stage 3: Synthesis", hint: "Consolidating all evidence into a consistent mechanism." }
+        perception: { title: t('🎯 Stage 1: Perception'), hint: t('AI has scanned your data. Review the initial insights.') },
+        exploration: { title: t('🔍 Stage 2: Exploration'), hint: t('Deep dive into pathways and evidence. Use tools to investigate.') },
+        synthesis: { title: t('🤖 Stage 3: Synthesis'), hint: t('Consolidating all evidence into a consistent mechanism.') }
     };
 
     const currentMilestone = milestoneInfo[workflowPhase] || milestoneInfo['perception'];
@@ -280,10 +250,10 @@ export const AIChatPanel: React.FC<AIChatPanelProps> = ({
             <div className="chat-header">
                 <div className="header-title">
                     <span className="ai-icon">🤖</span>
-                    <span>BioViz AI Assistant</span>
+                    <span>{t('BioViz AI Assistant')}</span>
                 </div>
                 <div className={`status-indicator ${isConnected ? 'connected' : 'disconnected'}`}>
-                    {isConnected ? '● Online' : '● Offline'}
+                    {isConnected ? `● ${t('Online')}` : `● ${t('Offline')}`}
                 </div>
             </div>
 
@@ -296,7 +266,7 @@ export const AIChatPanel: React.FC<AIChatPanelProps> = ({
                 {messages.length === 0 && (
                     <div className="welcome-message" style={{ padding: '20px 16px' }}>
                         <p style={{ fontSize: '15px', fontWeight: 600 }}>👋 {currentMilestone.title}</p>
-                        <p style={{ fontSize: '13px', opacity: 0.8 }}>Choose a smart skill below to start your discovery.</p>
+                        <p style={{ fontSize: '13px', opacity: 0.8 }}>{t('Choose a smart skill below to start your discovery.')}</p>
                     </div>
                 )}
 
@@ -311,7 +281,10 @@ export const AIChatPanel: React.FC<AIChatPanelProps> = ({
                                 {msg.role === 'assistant' ? formatAIContent(msg.content) : msg.content}
                             </div>
                             <div className="message-time">
-                                {new Date(msg.timestamp).toLocaleTimeString()}
+                                {(() => {
+                                    const date = new Date(msg.timestamp || Date.now());
+                                    return isNaN(date.getTime()) ? '' : date.toLocaleTimeString();
+                                })()}
                             </div>
                         </div>
                     </div>
@@ -339,7 +312,7 @@ export const AIChatPanel: React.FC<AIChatPanelProps> = ({
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     onKeyPress={handleKeyPress}
-                    placeholder="Ask me anything about pathways..."
+                    placeholder={t('Ask me anything about pathways...')}
                     rows={2}
                     disabled={!isConnected || isLoading}
                 />
@@ -348,7 +321,7 @@ export const AIChatPanel: React.FC<AIChatPanelProps> = ({
                     onClick={handleSend}
                     disabled={!input.trim() || !isConnected || isLoading}
                 >
-                    Send
+                    {t('Send')}
                 </button>
             </div>
         </div>

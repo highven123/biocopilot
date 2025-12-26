@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import type { EChartsOption } from 'echarts';
 import * as echarts from 'echarts/core';
 import {
@@ -17,6 +17,7 @@ import {
 } from 'echarts/components';
 import { LabelLayout, UniversalTransition } from 'echarts/features';
 import { CanvasRenderer } from 'echarts/renderers';
+import { useI18n } from '../i18n';
 
 // Register components to ensure Brush/Toolbox work correctly
 echarts.use([
@@ -61,13 +62,47 @@ export const VolcanoPlot: React.FC<VolcanoPlotProps> = ({
     onPointClick,
     height = '100%'
 }) => {
+    const { t } = useI18n();
     const chartRef = useRef<HTMLDivElement>(null);
     const chartInstance = useRef<echarts.ECharts | null>(null);
+    const [fcThreshold, setFcThreshold] = useState(1);
+    const [pThreshold, setPThreshold] = useState(0.05);
+    const linkFor = (gene: string) => {
+        const safe = encodeURIComponent(gene);
+        return {
+            uniprot: `https://www.uniprot.org/uniprotkb?query=${safe}`,
+            ncbi: `https://www.ncbi.nlm.nih.gov/gene/?term=${safe}`
+        };
+    };
+    const renderTooltip = (title: string, lines: string[]) => {
+        const links = linkFor(title);
+        return `
+          <div style="min-width:220px;">
+            <div style="font-weight:700;margin-bottom:6px;">${title}</div>
+            ${lines.map(l => `<div style="margin:2px 0;">${l}</div>`).join('')}
+            <div style="margin-top:8px;display:flex;gap:8px;">
+              <a href="${links.uniprot}" target="_blank" rel="noopener noreferrer" style="color:#60a5fa;text-decoration:none;">UniProt</a>
+              <a href="${links.ncbi}" target="_blank" rel="noopener noreferrer" style="color:#60a5fa;text-decoration:none;">NCBI</a>
+            </div>
+          </div>
+        `;
+    };
 
     // Detect if valid P-values exist
     const hasPValues = React.useMemo(() => {
         return data.some(d => d.y > 0.01);
     }, [data]);
+
+    const getDerivedStatus = React.useCallback((point: VolcanoPoint) => {
+        const meetsFc = Math.abs(point.x) >= fcThreshold;
+        if (!hasPValues) {
+            if (!meetsFc) return 'NS';
+            return point.x >= 0 ? 'UP' : 'DOWN';
+        }
+        const pOk = point.pvalue !== undefined && point.pvalue > 0 && point.pvalue <= pThreshold;
+        if (!meetsFc || !pOk) return 'NS';
+        return point.x >= 0 ? 'UP' : 'DOWN';
+    }, [fcThreshold, hasPValues, pThreshold]);
 
     // Initialize Chart
     React.useEffect(() => {
@@ -170,14 +205,31 @@ export const VolcanoPlot: React.FC<VolcanoPlotProps> = ({
             onSelectionChange(selectedGenes);
         });
 
-    }, [data, hasPValues, viewMode]); // Re-run when data or mode changes
+        if (viewMode === 'volcano') {
+            updateThresholdGraphics();
+        } else {
+            chartInstance.current.setOption({ graphic: { $action: 'replace', elements: [] } });
+        }
+
+    }, [data, hasPValues, viewMode, fcThreshold, pThreshold]); // Re-run when data or mode changes
+
+    React.useEffect(() => {
+        if (viewMode !== 'volcano' || !data.length) return;
+        const pass = data.filter((d) => {
+            const meetsFc = Math.abs(d.x) >= fcThreshold;
+            if (!hasPValues) return meetsFc;
+            const pOk = d.pvalue !== undefined && d.pvalue > 0 && d.pvalue <= pThreshold;
+            return meetsFc && pOk;
+        });
+        onSelectionChange(pass.map((d) => d.gene));
+    }, [viewMode, data, fcThreshold, pThreshold, hasPValues, onSelectionChange]);
 
 
     // Construct Option
     const getOption = (): EChartsOption => {
         // View 1: Standard Volcano Plot (Scatter)
         if (viewMode === 'volcano') {
-            const chartData = data.map(d => [d.x, d.y, d.gene, d.status]);
+            const chartData = data.map(d => [d.x, d.y, d.gene, getDerivedStatus(d)]);
             return {
                 backgroundColor: 'transparent',
                 // Explicit Toolbox definition ensures buttons are wired correctly
@@ -187,9 +239,9 @@ export const VolcanoPlot: React.FC<VolcanoPlotProps> = ({
                         brush: {
                             type: ['rect', 'polygon', 'clear'],
                             title: {
-                                rect: 'Box Select',
-                                polygon: 'Lasso Select',
-                                clear: 'Clear Selection'
+                                rect: t('Box Select'),
+                                polygon: t('Lasso Select'),
+                                clear: t('Clear Selection')
                             }
                         }
                     },
@@ -204,14 +256,18 @@ export const VolcanoPlot: React.FC<VolcanoPlotProps> = ({
                 },
                 tooltip: {
                     trigger: 'item',
+                    triggerOn: 'mousemove',
+                    enterable: true,
+                    hideDelay: 120,
+                    confine: true,
+                    appendToBody: true,
                     formatter: (params: any) => {
                         const [x, y, gene, status] = params.data;
-                        return `
-                  <div style="font-weight:bold; margin-bottom:4px;">${gene}</div>
-                  Log2FC: ${x}<br/>
-                  -Log10(P): ${y}<br/>
-                  Status: ${status}
-                `;
+                        return renderTooltip(String(gene || ''), [
+            `${t('Log2FC')}: ${x}`,
+            `${t('-Log10(P)')}: ${y}`,
+            `${t('Status')}: ${status}`
+        ]);
                     }
                 },
                 grid: {
@@ -230,7 +286,7 @@ export const VolcanoPlot: React.FC<VolcanoPlotProps> = ({
                 },
                 xAxis: {
                     type: 'value',
-                    name: 'Log2 FC',
+                    name: t('Log2 FC'),
                     nameLocation: 'middle',
                     nameGap: 30,
                     splitLine: { show: false },
@@ -239,7 +295,7 @@ export const VolcanoPlot: React.FC<VolcanoPlotProps> = ({
                 },
                 yAxis: {
                     type: 'value',
-                    name: '-Log10 P',
+                    name: t('-Log10 P'),
                     nameGap: 10,
                     splitLine: { lineStyle: { type: 'dashed', color: '#334155' } },
                     axisLine: { lineStyle: { color: '#64748b' } },
@@ -265,9 +321,9 @@ export const VolcanoPlot: React.FC<VolcanoPlotProps> = ({
                         symbol: 'none',
                         lineStyle: { type: 'dashed', color: '#94a3b8', width: 1, opacity: 0.5 },
                         data: [
-                            { xAxis: 1 },
-                            { xAxis: -1 },
-                            { yAxis: 1.3 } // ~0.05 p-value
+                            { xAxis: fcThreshold },
+                            { xAxis: -fcThreshold },
+                            { yAxis: -Math.log10(pThreshold) }
                         ]
                     }
                 }]
@@ -275,7 +331,7 @@ export const VolcanoPlot: React.FC<VolcanoPlotProps> = ({
         }
         // View 2: MA plot (Mean vs LogFC)
         if (viewMode === 'ma') {
-            const chartData = data.map(d => [d.mean ?? 0, d.x, d.gene, d.status]);
+            const chartData = data.map(d => [d.mean ?? 0, d.x, d.gene, getDerivedStatus(d)]);
             return {
                 backgroundColor: 'transparent',
                 toolbox: {
@@ -284,9 +340,9 @@ export const VolcanoPlot: React.FC<VolcanoPlotProps> = ({
                         brush: {
                             type: ['rect', 'polygon', 'clear'],
                             title: {
-                                rect: 'Box Select',
-                                polygon: 'Lasso Select',
-                                clear: 'Clear Selection'
+                                rect: t('Box Select'),
+                                polygon: t('Lasso Select'),
+                                clear: t('Clear Selection')
                             }
                         }
                     },
@@ -301,14 +357,18 @@ export const VolcanoPlot: React.FC<VolcanoPlotProps> = ({
                 },
                 tooltip: {
                     trigger: 'item',
+                    triggerOn: 'mousemove',
+                    enterable: true,
+                    hideDelay: 120,
+                    confine: true,
+                    appendToBody: true,
                     formatter: (params: any) => {
                         const [mean, logfc, gene, status] = params.data;
-                        return `
-                  <div style="font-weight:bold; margin-bottom:4px;">${gene}</div>
-                  Mean: ${mean.toFixed(3)}<br/>
-                  Log2FC: ${logfc}<br/>
-                  Status: ${status}
-                `;
+                        return renderTooltip(String(gene || ''), [
+                            `Mean: ${Number(mean).toFixed(3)}`,
+                            `Log2FC: ${logfc}`,
+                            `Status: ${status}`
+                        ]);
                     }
                 },
                 grid: {
@@ -327,7 +387,7 @@ export const VolcanoPlot: React.FC<VolcanoPlotProps> = ({
                 },
                 xAxis: {
                     type: 'value',
-                    name: 'Mean Expression',
+                    name: t('Mean Expression'),
                     nameLocation: 'middle',
                     nameGap: 30,
                     splitLine: { show: false },
@@ -336,7 +396,7 @@ export const VolcanoPlot: React.FC<VolcanoPlotProps> = ({
                 },
                 yAxis: {
                     type: 'value',
-                    name: 'Log2 FC',
+                    name: t('Log2 FC'),
                     nameGap: 10,
                     splitLine: { lineStyle: { type: 'dashed', color: '#334155' } },
                     axisLine: { lineStyle: { color: '#64748b' } },
@@ -375,19 +435,23 @@ export const VolcanoPlot: React.FC<VolcanoPlotProps> = ({
             return {
                 backgroundColor: 'transparent',
                 title: {
-                    text: 'Ranked Expression (No P-Values)',
+                    text: t('Ranked Expression (No P-Values)'),
                     left: 'center',
                     textStyle: { color: '#94a3b8', fontSize: 12, fontWeight: 'normal' }
                 },
                 tooltip: {
                     trigger: 'axis',
                     axisPointer: { type: 'shadow' },
+                    triggerOn: 'mousemove',
+                    enterable: true,
+                    hideDelay: 120,
+                    confine: true,
+                    appendToBody: true,
                     formatter: (params: any) => {
                         const param = params[0];
-                        return `
-                           <div style="font-weight:bold;">${param.name}</div>
-                           Log2FC: ${param.value.toFixed(3)}
-                         `;
+                        return renderTooltip(String(param.name || ''), [
+                            `${t('Log2FC')}: ${Number(param.value).toFixed(3)}`
+                        ]);
                     }
                 },
                 grid: {
@@ -416,7 +480,7 @@ export const VolcanoPlot: React.FC<VolcanoPlotProps> = ({
                 },
                 yAxis: {
                     type: 'value',
-                    name: 'Log2 FC',
+                    name: t('Log2 FC'),
                     splitLine: { lineStyle: { type: 'dashed', color: '#334155' } },
                     axisLabel: { color: '#94a3b8' }
                 },
@@ -434,6 +498,100 @@ export const VolcanoPlot: React.FC<VolcanoPlotProps> = ({
                 }]
             };
         }
+    };
+
+    const updateThresholdGraphics = () => {
+        const chart = chartInstance.current;
+        if (!chart) return;
+
+        const grid = chart.getModel().getComponent('grid')?.coordinateSystem?.getRect?.();
+        if (!grid) return;
+
+        const xAxis = chart.getModel().getComponent('xAxis', 0)?.axis;
+        const yAxis = chart.getModel().getComponent('yAxis', 0)?.axis;
+        if (!xAxis || !yAxis) return;
+
+        const [xMin, xMax] = xAxis.scale.getExtent();
+        const [yMin, yMax] = yAxis.scale.getExtent();
+        const yThreshold = -Math.log10(Math.max(pThreshold, 1e-12));
+
+        const toPixel = (x: number, y: number) =>
+            chart.convertToPixel({ xAxisIndex: 0, yAxisIndex: 0 }, [x, y]) as number[];
+        const fromPixel = (x: number, y: number) =>
+            chart.convertFromPixel({ xAxisIndex: 0, yAxisIndex: 0 }, [x, y]) as number[];
+
+        const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
+
+        const posLine = toPixel(fcThreshold, yMin);
+        const posLineTop = toPixel(fcThreshold, yMax);
+        const negLine = toPixel(-fcThreshold, yMin);
+        const negLineTop = toPixel(-fcThreshold, yMax);
+        const pLine = toPixel(xMin, yThreshold);
+        const pLineRight = toPixel(xMax, yThreshold);
+
+        const makeHandle = (id: string, cx: number, cy: number, cursor: string, onDrag: (px: number, py: number) => void) => ({
+            id,
+            type: 'circle',
+            shape: { cx, cy, r: 6 },
+            style: { fill: '#fbbf24', stroke: '#0f172a', lineWidth: 1 },
+            draggable: true,
+            cursor,
+            ondrag: (evt: any) => {
+                const target = evt?.target;
+                const px = (target?.shape?.cx || 0) + (target?.x || 0);
+                const py = (target?.shape?.cy || 0) + (target?.y || 0);
+                onDrag(px, py);
+            }
+        });
+
+        const fcDrag = (px: number) => {
+            const clampedX = clamp(px, grid.x, grid.x + grid.width);
+            const [dx] = fromPixel(clampedX, grid.y);
+            const next = Math.max(0.1, Math.abs(dx));
+            setFcThreshold(Number(next.toFixed(3)));
+        };
+
+        const pDrag = (py: number) => {
+            const clampedY = clamp(py, grid.y, grid.y + grid.height);
+            const [, dy] = fromPixel(grid.x, clampedY);
+            const nextP = Math.pow(10, -dy);
+            const bounded = Math.max(1e-12, Math.min(1, nextP));
+            setPThreshold(Number(bounded.toExponential(2)));
+        };
+
+        const graphics: any[] = [
+            {
+                id: 'fc-pos',
+                type: 'line',
+                shape: { x1: posLine[0], y1: posLine[1], x2: posLineTop[0], y2: posLineTop[1] },
+                style: { stroke: '#fbbf24', lineWidth: 1, lineDash: [4, 4] },
+                silent: true
+            },
+            {
+                id: 'fc-neg',
+                type: 'line',
+                shape: { x1: negLine[0], y1: negLine[1], x2: negLineTop[0], y2: negLineTop[1] },
+                style: { stroke: '#fbbf24', lineWidth: 1, lineDash: [4, 4] },
+                silent: true
+            },
+            makeHandle('fc-pos-h', posLine[0], (posLine[1] + posLineTop[1]) / 2, 'ew-resize', (px) => fcDrag(px)),
+            makeHandle('fc-neg-h', negLine[0], (negLine[1] + negLineTop[1]) / 2, 'ew-resize', (px) => fcDrag(px))
+        ];
+
+        if (hasPValues) {
+            graphics.push(
+                {
+                    id: 'p-line',
+                    type: 'line',
+                    shape: { x1: pLine[0], y1: pLine[1], x2: pLineRight[0], y2: pLineRight[1] },
+                    style: { stroke: '#22c55e', lineWidth: 1, lineDash: [4, 4] },
+                    silent: true
+                },
+                makeHandle('p-h', (pLine[0] + pLineRight[0]) / 2, pLine[1], 'ns-resize', (_px, py) => pDrag(py))
+            );
+        }
+
+        chart.setOption({ graphic: { $action: 'replace', elements: graphics } });
     };
 
 

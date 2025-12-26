@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { TemplatePicker } from './TemplatePicker';
 import './PathwaySelectorDropdown.css';
+import { useI18n } from '../i18n';
 
 interface PathwaySelectorDropdownProps {
     onSelect: (pathwayId: string) => void;
@@ -17,6 +18,7 @@ export const PathwaySelectorDropdown: React.FC<PathwaySelectorDropdownProps> = (
     dataType,
     sendCommand
 }) => {
+    const { t } = useI18n();
     const [isOpen, setIsOpen] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
 
@@ -37,7 +39,7 @@ export const PathwaySelectorDropdown: React.FC<PathwaySelectorDropdownProps> = (
 
     const displayName = currentPathwayName
         ? currentPathwayName.replace(/hsa:?\d+/gi, '').replace(/kegg/gi, '').trim()
-        : 'Select Pathway...';
+        : t('Select Pathway...');
 
     return (
         <div className="pathway-selector-container" ref={containerRef}>
@@ -46,6 +48,7 @@ export const PathwaySelectorDropdown: React.FC<PathwaySelectorDropdownProps> = (
                 onClick={() => setIsOpen(!isOpen)}
             >
                 <span className="pathway-icon">🧬</span>
+                <span className="pathway-label">{t('PATHWAY')}</span>
                 <span className="pathway-name" title={currentPathwayName || ''}>{displayName}</span>
                 {currentPathwayId && <span className="pathway-id">{currentPathwayId}</span>}
                 <span className="dropdown-arrow">▼</span>

@@ -1,11 +1,10 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useBioEngine } from './hooks/useBioEngine';
 import { DataImportWizard, AnalysisConfig } from './components/DataImportWizard';
 import { VolcanoPlot, VolcanoPoint, VolcanoViewMode } from './components/VolcanoPlot';
 import { EvidencePopup, GeneDetail } from './components/EvidencePopup';
 import { PathwayVisualizer, PathwayVisualizerRef } from './components/PathwayVisualizer';
 import { DataTable } from './components/DataTable';
-import { ResultTabs } from './components/ResultTabs';
 import { WorkflowBreadcrumb, WorkflowStep } from './components/WorkflowBreadcrumb';
 import { SplashScreen } from './components/SplashScreen';
 import { SafetyGuardModal } from './components/SafetyGuardModal';
@@ -24,16 +23,27 @@ import { ResizablePanels } from './components/ResizablePanels';
 
 import { ENTITY_META, resolveEntityKind, EntityKind } from './entityTypes';
 import { AnalysisInsights } from './types/insights';
-import { writeTextFile, BaseDirectory } from '@tauri-apps/plugin-fs';
+import { writeTextFile, BaseDirectory, mkdir } from '@tauri-apps/plugin-fs';
+
 import { PathwaySelectorDropdown } from './components/PathwaySelectorDropdown';
-import { TemplatePicker } from './components/TemplatePicker';
 import { IntelligenceDashboard } from './components/IntelligenceDashboard';
 import { RuntimeLogPanel } from './components/RuntimeLogPanel';
+import { SystemHealthModal } from './components/SystemHealthModal';
+import { useI18n } from './i18n';
 import './App.css';
-import demoSession from '../assets/sample_timecourse_6points_session.json';
+/*
+import demoSession from '../assets/demos/sample_timecourse_6points.json';
+import demoTcgaBrca from '../assets/demos/TCGA_BRCA_Breast_Cancer.json';
+import demoAlzheimers from '../assets/demos/Alzheimers_Hippocampus.json';
+import demoCovid19 from '../assets/demos/COVID19_PBMC_CytokineStorm.json';
+*/
 import demoScript from '../assets/sample_timecourse_6points_report.md?raw';
 
 // ... (Types remain same) ...
+import { LicenseManager } from './utils/licenseManager';
+import { LicenseModal } from './components/LicenseModal';
+// import { ProFeature } from './components/ProFeature'; // Using manual gating for now
+
 // --- Types ---
 interface PathwayData {
   id: string;
@@ -54,9 +64,32 @@ interface AnalysisResult {
   analysis_table_path?: string;
   sourceFilePath: string;
   insights?: AnalysisInsights;  // AI-generated insights
-  chatHistory?: Array<{ role: 'user' | 'assistant'; content: string; timestamp: number }>;  // AI chat history per analysis
-  enrichrResults?: any[];
+  // Separate chat histories for each workflow phase
+  perceptionChatHistory?: Array<{ role: 'user' | 'assistant'; content: string; timestamp: number }>;  // Insight phase chat
+  explorationChatHistory?: Array<{ role: 'user' | 'assistant'; content: string; timestamp: number }>;  // Mapping phase chat
+  synthesisChatHistory?: Array<{ role: 'user' | 'assistant'; content: string; timestamp: number }>;  // Synthesis phase chat
+  // Legacy field for backward compatibility
+  chatHistory?: Array<{ role: 'user' | 'assistant'; content: string; timestamp: number }>;
+  enrichmentResults?: any[];
   gseaResults?: { up: any[], down: any[] };
+  enrichmentMetadata?: any;
+  deMetadata?: any;
+}
+
+interface ProjectEntry {
+  id: number;
+  file_path?: string;
+  file_name?: string;
+  created_at?: string;
+  pathway_id?: string;
+  pathway_name?: string;
+  gene_count?: number;
+}
+
+interface PathwayFrequency {
+  pathway_id: string;
+  pathway_name?: string;
+  count: number;
 }
 
 // Helper to derive base filename (without extension) from a full path
@@ -67,11 +100,79 @@ function getBaseName(filePath: string | undefined | null): string {
   const withoutExt = fileName.replace(/\.[^.]+$/, '');
   return withoutExt || 'analysis';
 }
-
 function App() {
+  const { t, lang, setLang } = useI18n();
+  // --- Commercial Licensing ---
+  const [isPro, setIsPro] = useState(false);
+  const [showLicenseModal, setShowLicenseModal] = useState(false);
+
+  useEffect(() => {
+    const checkLicense = async () => {
+      const savedKey = LicenseManager.loadLicense();
+      if (savedKey) {
+        const result = await LicenseManager.validateLicense(savedKey);
+        setIsPro(result.valid);
+        if (!result.valid) {
+          console.warn("Invalid/Expired License:", result.error);
+        }
+      } else {
+        setIsPro(false);
+      }
+    };
+    checkLicense();
+  }, []);
+
+  // --- State ---
   const [showSplash, setShowSplash] = useState(true); // Splash State
+  const [showHealthCheck, setShowHealthCheck] = useState(false);
+  const [healthReport, setHealthReport] = useState<any>(null);
 
   const { isConnected, isLoading: engineLoading, sendCommand, activeProposal, resolveProposal, lastResponse } = useBioEngine();
+
+  // Run System Check when Splash finishes
+  useEffect(() => {
+    if (!showSplash && isConnected) {
+      const runCheck = async () => {
+        try {
+          console.log('[App] Running Startup System Check...');
+          const report = await sendCommand('SYS_CHECK', {}, true) as any;
+          if (report && (report.status === 'ok' || report.ram)) { // Handle direct report or wrapper
+            const data = report.report || report; // wrapper vs direct
+            setHealthReport(data);
+            // Show modal only if there are warnings or criticals, OR just show it once for "Pro" feeling?
+            // Roadmap says "Startup Self-Check", implying visibility.
+            // Let's show it always for now, or just if issues?
+            // "Auto-fix or clearly guide errors" -> Implies showing it.
+            setShowHealthCheck(true);
+          }
+        } catch (e) {
+          console.error('System Check failed:', e);
+        }
+      };
+      runCheck();
+
+      // Sync License to Backend
+      const syncLicense = async () => {
+        const savedKey = LicenseManager.loadLicense();
+        if (savedKey) {
+          // We trust frontend validness for UI state, but backend re-validates for security
+          console.log('[App] Syncing license to backend...');
+          try {
+            const res = await sendCommand('VALIDATE_LICENSE', { key: savedKey }, true) as any;
+            if (res?.status === 'ok') {
+              console.log('[App] Backend license validation successful.');
+            } else {
+              console.warn('[App] Backend rejected license:', res?.message);
+            }
+          } catch (e) {
+            console.error('[App] Failed to sync license:', e);
+          }
+        }
+      };
+      syncLicense();
+    }
+  }, [showSplash, isConnected, sendCommand]);
+
 
   // --- State ---
   const [draftConfig, setDraftConfig] = useState<AnalysisConfig | null>(null);
@@ -85,8 +186,28 @@ function App() {
       const saved = localStorage.getItem('bioviz_sessions');
       if (saved) {
         const parsed = JSON.parse(saved);
-        console.log('[App] Restored', parsed.length, 'sessions from localStorage');
-        return parsed;
+        const normalized = (parsed || []).map((entry: any) => {
+          const baseEntry = entry && entry.enrichrResults && !entry.enrichmentResults
+            ? { ...entry, enrichmentResults: entry.enrichrResults }
+            : entry;
+          const legacyHistory = Array.isArray(baseEntry?.chatHistory) ? baseEntry.chatHistory : [];
+          if (entry && entry.enrichrResults && !entry.enrichmentResults) {
+            return {
+              ...baseEntry,
+              perceptionChatHistory: Array.isArray(baseEntry?.perceptionChatHistory) ? baseEntry.perceptionChatHistory : [],
+              explorationChatHistory: Array.isArray(baseEntry?.explorationChatHistory) ? baseEntry.explorationChatHistory : legacyHistory,
+              synthesisChatHistory: Array.isArray(baseEntry?.synthesisChatHistory) ? baseEntry.synthesisChatHistory : [],
+            };
+          }
+          return {
+            ...baseEntry,
+            perceptionChatHistory: Array.isArray(baseEntry?.perceptionChatHistory) ? baseEntry.perceptionChatHistory : [],
+            explorationChatHistory: Array.isArray(baseEntry?.explorationChatHistory) ? baseEntry.explorationChatHistory : legacyHistory,
+            synthesisChatHistory: Array.isArray(baseEntry?.synthesisChatHistory) ? baseEntry.synthesisChatHistory : [],
+          };
+        });
+        console.log('[App] Restored', normalized.length, 'sessions from localStorage');
+        return normalized;
       }
     } catch (e) {
       console.error('[App] Failed to restore sessions:', e);
@@ -98,36 +219,117 @@ function App() {
   const [filteredGenes, setFilteredGenes] = useState<string[]>([]);
   const [activeGene, setActiveGene] = useState<string | null>(null);
   const [logs, setLogs] = useState<string[]>([]);
+  const [showFileManager, setShowFileManager] = useState(false);
+  const filehubMenuRef = useRef<HTMLDivElement>(null);
+  const [showProjectMenu, setShowProjectMenu] = useState(false);
+  const projectMenuRef = useRef<HTMLDivElement>(null);
+  const [projectHistory, setProjectHistory] = useState<ProjectEntry[]>([]);
+  const [pathwayFrequency, setPathwayFrequency] = useState<PathwayFrequency[]>([]);
+  const [isProjectMenuLoading, setIsProjectMenuLoading] = useState(false);
 
   // Separate independent states for left and right panels
   const [leftView, setLeftView] = useState<'chart' | 'table'>('chart');
   const [rightPanelView, setRightPanelView] = useState<'ai-chat' | 'images' | 'multi-sample' | 'de-analysis' | 'enrichment' | 'narrative' | 'singlecell' | 'data-explorer'>('ai-chat');
   const [mainView, setMainView] = useState<'pathway' | 'intelligence' | 'ai-insights'>('ai-insights');
+  const [lastMainView, setLastMainView] = useState<'pathway' | 'intelligence' | 'ai-insights'>('pathway');
   const [workflowPhase, setWorkflowPhase] = useState<'perception' | 'exploration' | 'synthesis'>('perception');
   const [explorationTool, setExplorationTool] = useState<'de-analysis' | 'enrichment' | 'multi-sample' | 'singlecell' | 'images'>('de-analysis');
   const [studioIntelligence, setStudioIntelligence] = useState<any>(null);
 
+  useEffect(() => {
+    if (mainView === 'ai-insights' && workflowPhase !== 'perception') {
+      setWorkflowPhase('perception');
+      return;
+    }
+    if (mainView === 'pathway' && workflowPhase !== 'exploration') {
+      setWorkflowPhase('exploration');
+      return;
+    }
+    if (mainView === 'intelligence' && workflowPhase !== 'synthesis') {
+      setWorkflowPhase('synthesis');
+    }
+  }, [mainView, workflowPhase]);
+
   // Helper to execute AI skills and update chat history
-  const executeAISkill = async (prompt: string) => {
+  const executeAISkill = async (prompt: string, skillId?: string) => {
     if (!activeAnalysis) return;
 
     // Add user message to local history immediately for responsiveness
-    const userMsg: any = { role: 'user', content: prompt };
-    const updatedHistory = [...(activeAnalysis.chatHistory || []), userMsg];
+    const userMsg: any = { role: 'user', content: prompt, timestamp: Date.now() };
+    const updatedHistory = [...(activeAnalysis.explorationChatHistory || activeAnalysis.chatHistory || []), userMsg];
 
     setAnalysisResults(prev => {
       const updated = [...prev];
       if (updated[activeResultIndex]) {
         updated[activeResultIndex] = {
           ...updated[activeResultIndex],
+          explorationChatHistory: updatedHistory,
           chatHistory: updatedHistory
         };
       }
       return updated;
     });
 
-    // Send command to AI sidecar
-    await sendCommand("agent_task", { prompt }, false);
+    const volcanoData = (activeAnalysis.volcano_data || activeAnalysis.volcanoData || []) as any[];
+    const enrichmentResults =
+      activeAnalysis.enrichmentResults
+      || (activeAnalysis as any)?.pathway?.enriched_terms
+      || (activeAnalysis as any)?.statistics?.enriched_terms;
+    const significantGenes = volcanoData
+      .filter((g: any) => g?.status === 'UP' || g?.status === 'DOWN')
+      .map((g: any) => g?.gene)
+      .filter(Boolean);
+
+    if (skillId) {
+      if (skillId === 'sum') {
+        await sendCommand(enrichmentResults ? 'SUMMARIZE_ENRICHMENT' : 'SUMMARIZE_DE', {
+          ...(enrichmentResults ? { enrichment_data: enrichmentResults } : {}),
+          ...(volcanoData.length ? { volcano_data: volcanoData } : {}),
+          ...(activeAnalysis.statistics ? { statistics: activeAnalysis.statistics } : {})
+        }, false);
+        return;
+      }
+      if (skillId === 'exp') {
+        await sendCommand('SUMMARIZE_ENRICHMENT', {
+          enrichment_data: enrichmentResults,
+          volcano_data: volcanoData,
+          statistics: activeAnalysis.statistics
+        }, false);
+        return;
+      }
+      if (skillId === 'hyp') {
+        await sendCommand('GENERATE_HYPOTHESIS', {
+          significant_genes: significantGenes,
+          pathways: enrichmentResults,
+          volcano_data: volcanoData
+        }, false);
+        return;
+      }
+      if (skillId === 'ref') {
+        await sendCommand('CHAT', { query: prompt, context: activeAnalysis }, false);
+        return;
+      }
+      if (skillId === 'cmp') {
+        await sendCommand('DISCOVER_PATTERNS', { expression_matrix: volcanoData }, false);
+        return;
+      }
+    }
+
+    // Fallback: Send command to AI sidecar with context so it uses current data, not fallback
+    await sendCommand('AGENT_TASK', {
+      intent: prompt,
+      prompt,
+      params: {
+        enrichment_results: activeAnalysis.enrichmentResults,
+        volcano_data: activeAnalysis.volcano_data,
+        file_path: activeAnalysis.sourceFilePath,
+        mapping: activeAnalysis.config?.mapping,
+        data_type: activeAnalysis.config?.dataType,
+        filters: activeAnalysis.config?.analysisMethods?.length
+          ? { methods: activeAnalysis.config?.analysisMethods }
+          : undefined
+      }
+    }, false);
   };
 
   // Sync right panel view when workflow phase changes
@@ -143,18 +345,109 @@ function App() {
     }
   }, [workflowPhase, setRightPanelView]);
 
+  useEffect(() => {
+    if (!showFileManager) return;
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node | null;
+      if (!filehubMenuRef.current || !target) return;
+      if (!filehubMenuRef.current.contains(target)) {
+        setShowFileManager(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showFileManager]);
+
+  const refreshProjectMeta = useCallback(async () => {
+    setIsProjectMenuLoading(true);
+    try {
+      const [projectsRes, pathwaysRes] = await Promise.all([
+        sendCommand('LIST_PROJECTS', { limit: 8 }, true),
+        sendCommand('LIST_PATHWAYS_FREQ', { limit: 6 }, true),
+      ]);
+      if (projectsRes && (projectsRes as any).status === 'ok') {
+        setProjectHistory(((projectsRes as any).projects || []) as ProjectEntry[]);
+      }
+      if (pathwaysRes && (pathwaysRes as any).status === 'ok') {
+        setPathwayFrequency(((pathwaysRes as any).pathways || []) as PathwayFrequency[]);
+      }
+    } catch (e) {
+      console.warn('Failed to load project memory:', e);
+    } finally {
+      setIsProjectMenuLoading(false);
+    }
+  }, [sendCommand]);
+
+  useEffect(() => {
+    if (!showProjectMenu) return;
+    void refreshProjectMeta();
+  }, [showProjectMenu, refreshProjectMeta]);
+
+  useEffect(() => {
+    if (analysisResults.length === 0) return;
+    void refreshProjectMeta();
+  }, [analysisResults.length, refreshProjectMeta]);
+
+  useEffect(() => {
+    if (!showProjectMenu) return;
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node | null;
+      if (!projectMenuRef.current || !target) return;
+      if (!projectMenuRef.current.contains(target)) {
+        setShowProjectMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showProjectMenu]);
+
   const [showEvidencePopup, setShowEvidencePopup] = useState(false);
+  const [evidenceEntity, setEvidenceEntity] = useState<{ type: string; id: string } | null>(null);
+  const [evidenceAudit, setEvidenceAudit] = useState<any | null>(null);
+  const [evidenceDistribution, setEvidenceDistribution] = useState<any | null>(null);
+  const [multiSampleData, setMultiSampleData] = useState<any | null>(null);
   const [chartViewMode, setChartViewMode] = useState<VolcanoViewMode>('volcano');
 
   const activeAnalysis = analysisResults[activeResultIndex] || null;
   const uploadedFileBase = getBaseName(activeAnalysis?.sourceFilePath);
 
+  const defaultCommonPathways: PathwayFrequency[] = [
+    { pathway_id: 'hsa04115', pathway_name: 'p53 signaling pathway', count: 0 },
+    { pathway_id: 'hsa04010', pathway_name: 'MAPK signaling pathway', count: 0 },
+    { pathway_id: 'hsa04151', pathway_name: 'PI3K-Akt signaling', count: 0 },
+  ];
+
+  const commonPathways = useMemo(() => {
+    const map = new Map<string, PathwayFrequency>();
+    pathwayFrequency.forEach((p) => {
+      if (!p.pathway_id) return;
+      map.set(p.pathway_id, p);
+    });
+    defaultCommonPathways.forEach((p) => {
+      if (!map.has(p.pathway_id)) {
+        map.set(p.pathway_id, p);
+      }
+    });
+    return Array.from(map.values()).sort((a, b) => (b.count || 0) - (a.count || 0));
+  }, [pathwayFrequency]);
+
+  const multiSampleSets = useMemo(() => {
+    if (!multiSampleData?.expression_data) return [];
+    const groups = Object.keys(multiSampleData.expression_data);
+    return groups.map((group) => {
+      const genes = (multiSampleData.expression_data[group] || [])
+        .filter((d: any) => d.pvalue !== undefined && d.pvalue < 0.05)
+        .map((d: any) => d.gene)
+        .filter(Boolean);
+      return { label: group, genes };
+    });
+  }, [multiSampleData]);
+
   const [showRuntimeLog, setShowRuntimeLog] = useState(false);
   const [batchRunning, setBatchRunning] = useState(false);
   const [isGeneratingStudioReport, setIsGeneratingStudioReport] = useState(false);
 
-  // License State (Simulated)
-  const isPro = true;
+
 
   // One-time migration: Fix old configs with empty pathwayId (v1.2.1)
   useEffect(() => {
@@ -237,6 +530,9 @@ function App() {
     // Persist a lightweight run log for debugging (user home dir)
     const persistLog = async () => {
       try {
+        // Ensure directory exists
+        await mkdir('', { baseDir: BaseDirectory.AppData, recursive: true });
+
         await writeTextFile(
           'bioviz_run.log',
           line + '\n',
@@ -253,32 +549,11 @@ function App() {
     void persistLog();
   };
 
-  const handleLoadDemoSession = () => {
-    const normalizedPath = 'assets/sample_timecourse_6points.csv';
-    const demoAnalysis: AnalysisResult = {
-      ...(demoSession as any),
-      sourceFilePath: normalizedPath,
-      config: {
-        ...(demoSession as any).config,
-        filePaths: [normalizedPath]
-      },
-      entityKind: resolveEntityKind((demoSession as any).entityKind || 'gene')
-    };
 
-    setAnalysisResults(prev => {
-      const next = [...prev, demoAnalysis];
-      setActiveResultIndex(next.length - 1);
-      return next;
-    });
-    setWorkflowStep('viz');
-    setMaxWizardStep(2);
-    setWizardStep(2);
-    addLog('🎬 Loaded demo session (sample_timecourse_6points).');
-  };
 
   // --- Actions ---
   const handleAnalysisStart = async (config: AnalysisConfig) => {
-    addLog(`Running analysis for pathway: ${config.pathwayId}...`);
+    addLog(t('Running analysis for pathway: {pathway}...', { pathway: config.pathwayId }));
     setBatchRunning(true);
 
     // Prepare UI for new analysis
@@ -293,7 +568,7 @@ function App() {
     let successCount = 0;
     for (const filePath of config.filePaths) {
       const base = getBaseName(filePath);
-      addLog(`▶ Analyzing: ${base}`);
+      addLog(t('▶ Analyzing: {name}', { name: base }));
 
       try {
         const response = await sendCommand(
@@ -312,7 +587,7 @@ function App() {
         ) as any;
 
         if (response?.status !== 'ok') {
-          addLog(`❌ Analysis failed for ${base}: ${response?.message || 'Unknown error'}`);
+          addLog(t('❌ Analysis failed for {name}: {error}', { name: base, error: response?.message || t('Unknown error') }));
           continue;
         }
 
@@ -340,6 +615,9 @@ function App() {
           analysis_table_path: response.analysis_table_path || undefined,
           sourceFilePath: filePath,
           insights: response.insights,  // AI-generated insights from backend
+          perceptionChatHistory: [],
+          explorationChatHistory: [],
+          synthesisChatHistory: []
         };
 
         setAnalysisResults((prev) => [...prev, result]);
@@ -357,15 +635,15 @@ function App() {
           response.pathway?.title ||
           response.pathway?.id ||
           'analysis';
-        addLog(`✓ Done: ${base} → ${pathwayName}`);
+        addLog(t('✓ Done: {name} → {pathway}', { name: base, pathway: pathwayName }));
       } catch (e: any) {
-        addLog(`❌ Analysis error for ${base}: ${e?.message || String(e)}`);
+        addLog(t('❌ Analysis error for {name}: {error}', { name: base, error: e?.message || String(e) }));
       }
     }
 
     setBatchRunning(false);
     if (successCount === 0) {
-      alert('Analysis failed for all selected files.');
+      alert(t('Analysis failed for all selected files.'));
     }
   };
 
@@ -427,35 +705,125 @@ function App() {
     }
   };
 
+  const handleFileImport = () => {
+    setWizardStep(1);
+    setWorkflowStep('upload');
+  };
+
+  const handleDeleteAnalysis = (idx: number) => {
+    const target = analysisResults[idx];
+    if (!target) return;
+    const baseName = getBaseName(target.sourceFilePath);
+    const confirmDelete = window.confirm(t('Delete analysis for "{name}"?', { name: baseName }));
+    if (!confirmDelete) return;
+
+    setAnalysisResults(prev => {
+      const next = prev.filter((_, index) => index !== idx);
+      let nextIndex = activeResultIndex;
+      if (idx === activeResultIndex) {
+        nextIndex = Math.min(idx, next.length - 1);
+      } else if (idx < activeResultIndex) {
+        nextIndex = Math.max(0, activeResultIndex - 1);
+      }
+      setActiveResultIndex(nextIndex >= 0 ? nextIndex : 0);
+      if (next.length === 0) {
+        setWorkflowStep('upload');
+        setShowFileManager(false);
+      }
+      return next;
+    });
+  };
+
+  const buildDistributionSnapshot = (volcanoData?: VolcanoPoint[]) => {
+    if (!volcanoData || volcanoData.length === 0) return null;
+    const log2fc = volcanoData.map(p => p.x).filter((v) => typeof v === 'number' && !Number.isNaN(v)) as number[];
+    const pvals = volcanoData.map(p => p.pvalue).filter((v) => typeof v === 'number' && !Number.isNaN(v)) as number[];
+    const median = (vals: number[]) => {
+      if (vals.length === 0) return null;
+      const sorted = [...vals].sort((a, b) => a - b);
+      const mid = Math.floor(sorted.length / 2);
+      return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
+    };
+    const up = volcanoData.filter(p => p.status === 'UP' || p.status === 'up').length;
+    const down = volcanoData.filter(p => p.status === 'DOWN' || p.status === 'down').length;
+
+    return {
+      total: volcanoData.length,
+      up,
+      down,
+      log2fc: {
+        min: log2fc.length ? Math.min(...log2fc).toFixed(3) : null,
+        max: log2fc.length ? Math.max(...log2fc).toFixed(3) : null,
+        median: log2fc.length ? median(log2fc)?.toFixed(3) : null
+      },
+      pvalue: {
+        min: pvals.length ? Math.min(...pvals).toExponential(2) : null,
+        median: pvals.length ? median(pvals)?.toExponential(2) : null
+      }
+    };
+  };
+
   // When user clicks a node in the pathway map,
   // sync both the active gene (for Evidence) and selection (for highlighting)
+  const openEvidencePopup = async (type: string, id: string) => {
+    setEvidenceEntity({ type, id });
+    setEvidenceDistribution(buildDistributionSnapshot(activeAnalysis?.volcano_data));
+    setEvidenceAudit(null);
+    setShowEvidencePopup(true);
+
+    if (activeAnalysis?.sourceFilePath) {
+      try {
+        const res = await sendCommand(
+          'LIST_ENRICHMENT_AUDITS',
+          { file_path: activeAnalysis.sourceFilePath, limit: 1 },
+          true
+        ) as any;
+        if (res?.status === 'ok' && Array.isArray(res.audits) && res.audits.length > 0) {
+          setEvidenceAudit(res.audits[0]);
+        }
+      } catch (e) {
+        console.warn('[Evidence] Failed to load audit snapshot:', e);
+      }
+    }
+  };
+
   const handlePathwayNodeClick = (name: string) => {
     setActiveGene(name);
     setFilteredGenes(name ? [name] : []);
-    if (name) setShowEvidencePopup(true);
+    if (name) {
+      void openEvidencePopup('GENE', name);
+    }
   };
 
-  const resultTabs = useMemo(() => {
-    return analysisResults.map((r, idx) => {
-      const base = getBaseName(r.sourceFilePath);
-      const trimmed = base.length > 12 ? `${base.slice(0, 12)}…` : base;
-      const label = `${trimmed} #${idx + 1}`;
-      return { key: `${r.sourceFilePath}:${idx}`, label };
-    });
-  }, [analysisResults]);
 
-  const handleSelectResult = (idx: number) => {
-    setActiveResultIndex(idx);
-    setFilteredGenes([]);
-    setActiveGene(null);
+  const handleAIEntityClick = (type: string, id: string) => {
+    console.log(`[App] AI Entity Clicked: ${type} -> ${id}`);
+    if (type === 'GENE') {
+      setActiveGene(id);
+      setFilteredGenes([id]);
+      // If in wrong view, switch to chart?
+      if (leftView !== 'chart') setLeftView('chart');
+      void openEvidencePopup(type, id);
+    } else if (type === 'PATHWAY') {
+      // If just an ID, maybe try to load? or just prompt user?
+      // For now, let's just log it or highlight if current pathway matches?
+      if (activeAnalysis?.pathway?.id === id) {
+        addLog(t('Already on pathway {id}', { id }));
+      } else {
+        addLog(t('AI suggested pathway {id}. (Auto-switch not yet implemented for safety)', { id }));
+      }
+      void openEvidencePopup(type, id);
+    } else {
+      void openEvidencePopup(type, id);
+    }
   };
 
   const handleGenerateSuperNarrative = async () => {
     if (!studioIntelligence) return;
     setIsGeneratingStudioReport(true);
-    addLog("Synthesizing 7-layer Studio Intelligence report...");
+    addLog(t('Synthesizing 7-layer Studio Intelligence report...'));
     const requestId = `studio-${Date.now()}`;
-    addLog(`✨ AI Synthesis started... (ID: ${requestId})`);
+    addLog(t('✨ AI Synthesis started... (ID: {id})', { id: requestId }));
     try {
       const res = await sendCommand('AI_INTERPRET_STUDIO', {
         intelligence_data: studioIntelligence
@@ -464,7 +832,7 @@ function App() {
       if (res && (res as any).super_narrative) {
         const narrative = (res as any).super_narrative;
         console.log('[BioViz] 🤖 AI Narrative Received:', narrative.length, 'chars');
-        addLog(`AI Synthesis complete (${narrative.length} chars).`);
+        addLog(t('AI Synthesis complete ({count} chars).', { count: narrative.length }));
 
         // Force a fresh object to ensure re-render
         setStudioIntelligence((prev: any) => {
@@ -504,13 +872,13 @@ function App() {
             return next;
           });
         }
-        addLog("AI Super Narrative analysis complete.");
+        addLog(t('AI Super Narrative analysis complete.'));
       } else {
-        addLog("AI Synthesis returned no narrative content.");
+        addLog(t('AI Synthesis returned no narrative content.'));
       }
     } catch (err) {
       console.error('Failed to generate studio report:', err);
-      addLog(`Failed to generate AI Super Narrative: ${err}`);
+      addLog(t('Failed to generate AI Super Narrative: {error}', { error: err }));
     } finally {
       setIsGeneratingStudioReport(false);
     }
@@ -522,30 +890,42 @@ function App() {
     // Handle custom Studio Toggle action from AI Deep Insight
     if (res?.type === 'TOGGLE_STUDIO_VIEW') {
       setStudioIntelligence(res.data);
+      setLastMainView(mainView);
       setMainView('intelligence');
       return;
     }
 
-    // Save insights to session
-    if (activeAnalysis && res?.intelligence_report) {
+    // Save enrichment results + metadata + insights to session
+    if (activeAnalysis) {
+      const enrichmentResults = res?.results
+        ? res.results
+        : res?.fusion_results
+          ? res.fusion_results
+          : [...(res?.up_regulated || []), ...(res?.down_regulated || [])];
+
       setAnalysisResults(prev => {
         const updated = [...prev];
         if (updated[activeResultIndex]) {
           updated[activeResultIndex] = {
             ...updated[activeResultIndex],
-            insights: res.intelligence_report
+            enrichmentResults: enrichmentResults || updated[activeResultIndex].enrichmentResults,
+            enrichmentMetadata: res?.metadata || updated[activeResultIndex].enrichmentMetadata,
+            insights: res?.intelligence_report || updated[activeResultIndex].insights
           };
         }
         return updated;
       });
-      addLog("Analysis insights updated.");
+
+      if (res?.intelligence_report) {
+        addLog(t('Analysis insights updated.'));
+      }
     }
-  }, [activeAnalysis, activeResultIndex]);
+  }, [activeAnalysis, activeResultIndex, mainView]);
 
   const handleDEAnalysisComplete = async (response: any) => {
     if (!activeAnalysis) return;
 
-    addLog(`Applying DE results (${response.method}) to current view...`);
+    addLog(t('Applying DE results ({method}) to current view...', { method: response.method }));
 
     // 1. Map DE results to VolcanoPoints
     const newVolcanoData: VolcanoPoint[] = response.results.map((r: any) => {
@@ -575,6 +955,12 @@ function App() {
       geneExpression[r.gene] = r.log2FC;
     });
 
+    const deMetadata = {
+      method: response.method,
+      warning: response.warning || null,
+      completed_at: new Date().toISOString()
+    };
+
     if (activeAnalysis.pathway) {
       try {
         // 3. Request re-coloring of the current pathway
@@ -594,18 +980,19 @@ function App() {
                 statistics: colorRes.statistics,
                 volcano_data: newVolcanoData,
                 gene_map: geneMap,
-                has_pvalue: true
+                has_pvalue: true,
+                deMetadata
               };
             }
             return item;
           }));
-          addLog(`✓ Visualization updated with DE results.`);
+          addLog(t('✓ Visualization updated with DE results.'));
         } else {
-          addLog(`❌ Color pathway failed: ${colorRes?.message || 'Unknown error'}`);
+          addLog(t('❌ Color pathway failed: {error}', { error: colorRes?.message || t('Unknown error') }));
         }
       } catch (e) {
         console.error('Failed to color pathway with DE results:', e);
-        addLog(`❌ Failed to update visualization: ${e}`);
+        addLog(t('❌ Failed to update visualization: {error}', { error: e }));
       }
     } else {
       // No pathway selected, just update the volcano/stats data
@@ -616,19 +1003,23 @@ function App() {
             ...item,
             volcano_data: newVolcanoData,
             gene_map: geneMap,
-            has_pvalue: true
+            has_pvalue: true,
+            deMetadata
             // we should probably update statistics here too if we have a way to do it locally
           };
         }
         return item;
+
       }));
-      addLog(`✓ Results updated with DE analysis.`);
+      addLog(t('✓ Results updated with DE analysis.'));
     }
   };
 
+
+
   const handleResetDE = async () => {
     if (!activeAnalysis) return;
-    addLog("Restoring original data visualization...");
+    addLog(t('Restoring original data visualization...'));
 
     const config = activeAnalysis.config;
     const filePath = activeAnalysis.sourceFilePath;
@@ -669,13 +1060,13 @@ function App() {
           }
           return item;
         }));
-        addLog("✓ Original view restored.");
+        addLog(t('✓ Original view restored.'));
       } else {
-        addLog(`❌ Reset failed: ${response?.message || 'Unknown error'}`);
+        addLog(t('❌ Reset failed: {error}', { error: response?.message || t('Unknown error') }));
       }
     } catch (e) {
       console.error('Failed to reset DE visualization:', e);
-      addLog(`❌ Reset error: ${e}`);
+      addLog(t('❌ Reset error: {error}', { error: e }));
     }
   };
 
@@ -693,6 +1084,12 @@ function App() {
         onRespond={resolveProposal}
       />
 
+      <SystemHealthModal
+        isOpen={showHealthCheck}
+        onClose={() => setShowHealthCheck(false)}
+        checkReport={healthReport}
+      />
+
       <div className="workbench-container" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
         {/* Simplified Header with Logo */}
         <header
@@ -705,26 +1102,41 @@ function App() {
                 <span data-tauri-drag-region>🧬</span>
                 <span data-tauri-drag-region>BioViz <span data-tauri-drag-region style={{ color: 'var(--text-secondary)', fontWeight: 400 }}>Local</span></span>
               </h1>
+              {!isPro && (
+                <button
+                  onClick={() => setShowLicenseModal(true)}
+                  style={{
+                    marginLeft: '8px', padding: '2px 8px', fontSize: '11px',
+                    background: 'rgba(234,179,8,0.1)', color: '#f59e0b',
+                    border: '1px solid rgba(234,179,8,0.3)', borderRadius: '12px', cursor: 'pointer'
+                  }}
+                >
+                  🔓 {t('Activate Pro')}
+                </button>
+              )}
+              {isPro && (
+                <span style={{ marginLeft: '8px', padding: '2px 6px', fontSize: '10px', background: 'rgba(34,197,94,0.1)', color: '#4ade80', borderRadius: '4px', border: '1px solid rgba(34,197,94,0.2)' }}>
+                  PRO
+                </span>
+              )}
             </div>
 
-            {activeAnalysis && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <span className="analysis-tag">Active Analysis</span>
-                <div className="no-drag">
-                  <PathwaySelectorDropdown
-                    onSelect={(id) => {
-                      if (activeAnalysis.config) {
-                        handleAnalysisStart({ ...activeAnalysis.config, pathwayId: id });
-                      }
-                    }}
-                    currentPathwayId={activeAnalysis.pathway?.id}
-                    currentPathwayName={activeAnalysis.pathway?.name || activeAnalysis.pathway?.title}
-                    dataType={activeAnalysis.entityKind === 'other' ? 'gene' : activeAnalysis.entityKind}
-                    sendCommand={sendCommand}
-                  />
-                </div>
-              </div>
-            )}
+            <div className="header-lang-toggle no-drag">
+              <button
+                className={`header-lang-btn ${lang === 'en' ? 'active' : ''}`}
+                onClick={() => setLang('en')}
+                title={t('Switch to English')}
+              >
+                {t('EN')}
+              </button>
+              <button
+                className={`header-lang-btn ${lang === 'zh' ? 'active' : ''}`}
+                onClick={() => setLang('zh')}
+                title={t('Switch to Chinese')}
+              >
+                {t('中文')}
+              </button>
+            </div>
           </div>
 
           <div className="header-actions" style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
@@ -745,7 +1157,7 @@ function App() {
               <button
                 onClick={() => activeAnalysis && exportSession(activeAnalysis)}
                 disabled={!activeAnalysis}
-                title="Export Session (JSON / Markdown)"
+                title={t('Export Session (JSON / Markdown)')}
                 style={{
                   width: '32px', height: '32px', borderRadius: '6px',
                   border: 'none',
@@ -757,28 +1169,47 @@ function App() {
                 📥
               </button>
               <button
-                onClick={() => activeAnalysis && exportSessionAsInteractiveHtml(activeAnalysis)}
+                onClick={() => {
+                  if (!isPro) {
+                    setShowLicenseModal(true);
+                    return;
+                  }
+                  if (activeAnalysis) exportSessionAsInteractiveHtml(activeAnalysis);
+                }}
                 disabled={!activeAnalysis}
-                title="Export interactive HTML"
+                title={isPro ? t('Export interactive HTML') : t('Export interactive HTML (Pro only)')}
                 style={{
                   width: '32px', height: '32px', borderRadius: '6px',
                   border: 'none',
                   background: activeAnalysis ? 'rgba(56,189,248,0.18)' : 'transparent',
                   color: activeAnalysis ? 'white' : 'var(--text-dim)',
-                  cursor: activeAnalysis ? 'pointer' : 'not-allowed', fontSize: '16px'
+                  cursor: activeAnalysis ? 'pointer' : 'not-allowed', fontSize: '16px',
+                  opacity: !isPro ? 0.7 : 1,
+                  position: 'relative'
                 }}
               >
                 🌐
+                {!isPro && <span style={{ position: 'absolute', top: -2, right: -2, fontSize: '8px' }}>🔐</span>}
               </button>
               <button
                 onClick={async () => {
                   const imported = await importSession();
                   if (imported) {
-                    setAnalysisResults(prev => [...prev, imported as any]);
+                    const normalized = (imported as any).enrichrResults && !(imported as any).enrichmentResults
+                      ? { ...(imported as any), enrichmentResults: (imported as any).enrichrResults }
+                      : imported;
+                    const legacyHistory = Array.isArray((normalized as any).chatHistory) ? (normalized as any).chatHistory : [];
+                    const normalizedWithChat = {
+                      ...normalized,
+                      perceptionChatHistory: Array.isArray((normalized as any).perceptionChatHistory) ? (normalized as any).perceptionChatHistory : [],
+                      explorationChatHistory: Array.isArray((normalized as any).explorationChatHistory) ? (normalized as any).explorationChatHistory : legacyHistory,
+                      synthesisChatHistory: Array.isArray((normalized as any).synthesisChatHistory) ? (normalized as any).synthesisChatHistory : []
+                    };
+                    setAnalysisResults(prev => [...prev, normalizedWithChat as any]);
                     setActiveResultIndex(analysisResults.length);
                   }
                 }}
-                title="Import Session (JSON)"
+                title={t('Import Session (JSON)')}
                 style={{
                   width: '32px', height: '32px', borderRadius: '6px',
                   border: 'none',
@@ -788,6 +1219,63 @@ function App() {
               >
                 📤
               </button>
+              <div className="header-menu-dropdown" ref={projectMenuRef}>
+                <button
+                  onClick={() => setShowProjectMenu(prev => !prev)}
+                  title={t('Project History')}
+                  style={{
+                    width: '32px', height: '32px', borderRadius: '6px',
+                    border: 'none',
+                    background: 'rgba(148,163,184,0.18)',
+                    color: 'white', cursor: 'pointer', fontSize: '16px'
+                  }}
+                >
+                  🗂️
+                </button>
+                {showProjectMenu && (
+                  <div className="header-menu-panel">
+                    <div className="header-menu-section">
+                      <div className="header-menu-title">{t('Recent Projects')}</div>
+                      {isProjectMenuLoading && (
+                        <div className="header-menu-muted">{t('Loading...')}</div>
+                      )}
+                      {!isProjectMenuLoading && projectHistory.length === 0 && (
+                        <div className="header-menu-muted">{t('No records yet')}</div>
+                      )}
+                      {!isProjectMenuLoading && projectHistory.map((project) => {
+                        const label = project.file_name || project.file_path || 'Untitled';
+                        return (
+                          <button
+                            key={`project-${project.id}`}
+                            type="button"
+                            className="header-menu-item"
+                            onClick={() => {
+                              const idx = analysisResults.findIndex(
+                                (item) => item.sourceFilePath === project.file_path
+                              );
+                              if (idx >= 0) {
+                                setActiveResultIndex(idx);
+                                setFilteredGenes([]);
+                                setActiveGene(null);
+                                setWorkflowStep('viz');
+                                setMainView('pathway');
+                              } else {
+                                addLog(t('Project not loaded yet: {label}', { label }));
+                              }
+                              setShowProjectMenu(false);
+                            }}
+                          >
+                            <span className="header-menu-item-name">{label}</span>
+                            {project.pathway_name && (
+                              <span className="header-menu-item-meta">{project.pathway_name}</span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </header>
@@ -816,20 +1304,78 @@ function App() {
             />
 
             {workflowStep === 'viz' && activeAnalysis && (
-              <div className="operation-hub-bar no-drag" style={{ margin: 0, padding: '0 12px', height: '40px', gap: '12px' }}>
-                {/* Stats Section */}
-                <div style={{ display: 'flex', gap: '16px', borderRight: '1px solid var(--border-subtle)', paddingRight: '12px' }}>
+              <div className="filehub-bar no-drag">
+                <div className="filehub-stats">
                   <div className="hub-stat-item">
-                    <span className="hub-stat-label">File</span>
+                    <span className="hub-stat-label">{t('File')}</span>
                     <span className="hub-stat-value" title={activeAnalysis.sourceFilePath}>{uploadedFileBase}</span>
                   </div>
                   <div className="hub-stat-item">
-                    <span className="hub-stat-label">Genes</span>
+                    <span className="hub-stat-label">{t('Genes')}</span>
                     <span className="hub-stat-value">{activeAnalysis.volcano_data.length.toLocaleString()}</span>
                   </div>
                 </div>
-
-                {/* Global Analysis Toggles removed as they are integrated into workflow */}
+                <div className="filehub-actions">
+                  <div className="filehub-dropdown" ref={filehubMenuRef}>
+                    <button
+                      type="button"
+                      className="filehub-action-btn triangle"
+                      onClick={() => setShowFileManager(prev => !prev)}
+                      aria-label={t('File actions')}
+                    >
+                      ▾
+                    </button>
+                    {showFileManager && (
+                      <div className="filehub-menu">
+                        {analysisResults.length === 0 ? (
+                          <div className="filehub-menu-empty">{t('No files yet')}</div>
+                        ) : (
+                          analysisResults.map((item, idx) => (
+                            <div
+                              key={`${item.sourceFilePath || 'analysis'}:${idx}`}
+                              className={`filehub-menu-row ${idx === activeResultIndex ? 'active' : ''}`}
+                              onClick={() => {
+                                setActiveResultIndex(idx);
+                                setShowFileManager(false);
+                              }}
+                              role="button"
+                              tabIndex={0}
+                              onKeyDown={(event) => {
+                                if (event.key === 'Enter') {
+                                  setActiveResultIndex(idx);
+                                  setShowFileManager(false);
+                                }
+                              }}
+                            >
+                              <span className="filehub-menu-name">{getBaseName(item.sourceFilePath)}</span>
+                              <button
+                                type="button"
+                                className="filehub-delete-x"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  handleDeleteAnalysis(idx);
+                                }}
+                                aria-label={`Delete ${getBaseName(item.sourceFilePath)}`}
+                              >
+                                ×
+                              </button>
+                            </div>
+                          ))
+                        )}
+                        <button
+                          type="button"
+                          className="filehub-menu-item import"
+                          onClick={() => {
+                            setShowFileManager(false);
+                            handleFileImport();
+                          }}
+                        >
+                          ➕ {t('Add')}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
             )}
           </div>
@@ -846,9 +1392,9 @@ function App() {
               height: '34px'
             }}>
               {[
-                { id: 'ai-insights', phase: 'perception', label: '1. Insight', icon: '🧠', color: '#8b5cf6' },
-                { id: 'pathway', phase: 'exploration', label: '2. Mapping', icon: '🗺️', color: '#6366f1' },
-                { id: 'intelligence', phase: 'synthesis', label: '3. Synthesis', icon: '🤖', color: '#10b981' }
+                { id: 'ai-insights', phase: 'perception', label: t('1. Insight'), icon: '🧠', color: '#8b5cf6' },
+                { id: 'pathway', phase: 'exploration', label: t('2. Mapping'), icon: '🗺️', color: '#6366f1' },
+                { id: 'intelligence', phase: 'synthesis', label: t('3. Synthesis'), icon: '🤖', color: '#10b981' }
               ].map((step, idx) => (
                 <React.Fragment key={step.id}>
                   <button
@@ -865,7 +1411,7 @@ function App() {
                       padding: '4px 12px',
                       borderRadius: '8px',
                       border: 'none',
-                      background: mainView === step.id ? `linear-gradient(135deg, ${step.color}, #6366f1)` : 'transparent',
+                      background: mainView === step.id ? `linear - gradient(135deg, ${step.color}, #6366f1)` : 'transparent',
                       color: mainView === step.id ? 'white' : 'rgba(255,255,255,0.5)',
                       fontSize: '11px',
                       fontWeight: 600,
@@ -910,9 +1456,9 @@ function App() {
               setWorkflowStep(s === 1 ? 'upload' : 'mapping');
             }}
             onConfigPreview={setDraftConfig}
-            onLoadDemo={handleLoadDemoSession}
+
             demoScript={demoScript}
-            demoTitle="Timecourse demo (Glycolysis)"
+            demoTitle={t('Timecourse demo (Glycolysis)')}
           />
         </div>
 
@@ -928,534 +1474,609 @@ function App() {
           }}
           ref={containerRef}
         >
-          {mainView === 'intelligence' ? (
-            studioIntelligence ? (
-              <IntelligenceDashboard
-                data={studioIntelligence}
-                onClose={() => setMainView('pathway')}
-                onGenerateSuperNarrative={handleGenerateSuperNarrative}
-                isGenerating={isGeneratingStudioReport}
+          {mainView === 'intelligence' && (
+            <div style={{ flex: 1, minHeight: 0, display: 'flex' }}>
+              {studioIntelligence ? (
+                <IntelligenceDashboard
+                  data={studioIntelligence}
+                  onGenerateSuperNarrative={handleGenerateSuperNarrative}
+                  isGenerating={isGeneratingStudioReport}
+                  chatHistory={activeAnalysis?.synthesisChatHistory}
+                  onChatUpdate={(messages) => {
+                    if (activeAnalysis) {
+                      setAnalysisResults(prev => {
+                        const updated = [...prev];
+                        if (updated[activeResultIndex]) {
+                          updated[activeResultIndex] = { ...updated[activeResultIndex], synthesisChatHistory: messages };
+                        }
+                        return updated;
+                      });
+                    }
+                  }}
+                />
+              ) : (
+                // Empty state when no intelligence data
+                <div style={{
+                  flex: 1,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '40px',
+                  background: 'var(--bg-panel)',
+                  color: 'var(--text-secondary)'
+                }}>
+                  <div style={{ fontSize: '64px', marginBottom: '24px' }}>🧠</div>
+                  <h2 style={{ fontSize: '24px', marginBottom: '12px', color: 'var(--text-primary)' }}>
+                    {t('Studio Discovery')}
+                  </h2>
+                  <p style={{ fontSize: '14px', marginBottom: '32px', maxWidth: '500px', textAlign: 'center', lineHeight: 1.6 }}>
+                    {t('Run AI Deep Insight analysis from the Gene Sets panel to unlock the 7-layer intelligence dashboard.')}
+                  </p>
+                  <button
+                    onClick={() => {
+                      setMainView('pathway');
+                      setRightPanelView('enrichment');
+                    }}
+                    style={{
+                      padding: '12px 24px',
+                      background: 'var(--brand-primary)',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '8px',
+                      fontSize: '14px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px'
+                    }}
+                  >
+                    <span>🧬</span> {t('Open Gene Sets Panel')}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {mainView === 'ai-insights' && (
+            <div style={{ flex: 1, minHeight: 0, display: 'flex' }}>
+              <AIInsightsDashboard
+                volcanoData={activeAnalysis?.volcano_data || []}
+                enrichmentResults={activeAnalysis?.enrichmentResults}
+                onEntityClick={handleAIEntityClick}
+                analysisContext={{
+                  filePath: activeAnalysis?.sourceFilePath,
+                  mapping: activeAnalysis?.config?.mapping,
+                  dataType: activeAnalysis?.config?.dataType,
+                  filters: activeAnalysis?.config?.analysisMethods?.length
+                    ? { methods: activeAnalysis?.config?.analysisMethods }
+                    : undefined
+                }}
+                onInsightClick={(insight) => {
+                  addLog(t('🧠 Exploring insight: {title}', { title: insight.title }));
+                }}
+                onPathwaySelect={(pathwayId) => {
+                  addLog(t('📍 Navigating to pathway: {id}', { id: pathwayId }));
+                  setMainView('pathway');
+                }}
+                chatHistory={activeAnalysis?.perceptionChatHistory}
+                onChatUpdate={(messages) => {
+                  if (activeAnalysis) {
+                    setAnalysisResults(prev => {
+                      const updated = [...prev];
+                      if (updated[activeResultIndex]) {
+                        updated[activeResultIndex] = { ...updated[activeResultIndex], perceptionChatHistory: messages };
+                      }
+                      return updated;
+                    });
+                  }
+                }}
               />
-            ) : (
-              // Empty state when no intelligence data
-              <div style={{
-                flex: 1,
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: '40px',
-                background: 'var(--bg-panel)',
-                color: 'var(--text-secondary)'
-              }}>
-                <div style={{ fontSize: '64px', marginBottom: '24px' }}>🧠</div>
-                <h2 style={{ fontSize: '24px', marginBottom: '12px', color: 'var(--text-primary)' }}>
-                  Studio Discovery
-                </h2>
-                <p style={{ fontSize: '14px', marginBottom: '32px', maxWidth: '500px', textAlign: 'center', lineHeight: 1.6 }}>
-                  Run AI Deep Insight analysis from the Gene Sets panel to unlock the 7-layer intelligence dashboard.
-                </p>
-                <button
-                  onClick={() => {
-                    setMainView('pathway');
-                    setRightPanelView('enrichment');
-                  }}
-                  style={{
-                    padding: '12px 24px',
-                    background: 'var(--brand-primary)',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '8px',
-                    fontSize: '14px',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px'
-                  }}
-                >
-                  <span>🧬</span> Open Gene Sets Panel
-                </button>
-              </div>
-            )
-          ) : mainView === 'ai-insights' ? (
-            <AIInsightsDashboard
-              volcanoData={activeAnalysis?.volcano_data || []}
-              enrichmentResults={activeAnalysis?.enrichrResults}
-              onInsightClick={(insight) => {
-                addLog(`🧠 Exploring insight: ${insight.title}`);
-              }}
-              onPathwaySelect={(pathwayId) => {
-                addLog(`📍 Navigating to pathway: ${pathwayId}`);
-                setMainView('pathway');
-              }}
-            />
+            </div>
+          )}
 
-          ) : (
-            <ResizablePanels
-              defaultLeftWidth={65}
-              minLeftWidth={40}
-              maxLeftWidth={80}
-              leftPanel={
-                <div className="studio-dashboard-left" style={{ height: '100%', overflow: 'hidden', padding: '0', background: 'var(--bg-app)' }}>
-                  <div className="panel-body" style={{ position: 'relative', display: 'flex', flexDirection: 'column', height: '100%', borderRight: '1px solid var(--border-subtle)' }}>
-                    <ResultTabs
-                      tabs={resultTabs}
-                      activeIndex={activeResultIndex}
-                      onSelect={handleSelectResult}
-                    />
-
-                    {(engineLoading || batchRunning) && (
-                      <div style={{
-                        position: 'absolute', inset: 0, zIndex: 50,
-                        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                        background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)'
-                      }}>
-                        <div className="spinner" style={{ marginBottom: '16px' }}></div>
-                        <p style={{ color: 'white' }}>Processing Analysis...</p>
+          {mainView === 'pathway' && (
+            <div
+              style={{ flex: 1, minHeight: 0, display: 'flex' }}
+              className="studio-dashboard-container"
+            >
+              <ResizablePanels
+                defaultLeftWidth={30}
+                minLeftWidth={20}
+                maxLeftWidth={60}
+                leftPanel={
+                  <div className="studio-dashboard-left">
+                    {activeAnalysis && (
+                      <div className="studio-left-header no-drag">
+                        <PathwaySelectorDropdown
+                          onSelect={(id) => {
+                            if (activeAnalysis.config) {
+                              handleAnalysisStart({ ...activeAnalysis.config, pathwayId: id });
+                            }
+                          }}
+                          currentPathwayId={activeAnalysis.pathway?.id}
+                          currentPathwayName={activeAnalysis.pathway?.name || activeAnalysis.pathway?.title}
+                          dataType={activeAnalysis.entityKind === 'other' ? 'gene' : activeAnalysis.entityKind}
+                          sendCommand={sendCommand}
+                        />
                       </div>
                     )}
-
-                    <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-                      {activeAnalysis && activeAnalysis.pathway ? (
-                        <>
-                          {activeAnalysis.insights && (
-                            <InsightBadges insights={activeAnalysis.insights} />
-                          )}
-                          <div style={{ flex: 1, minHeight: 0 }}>
-                            <PathwayVisualizer
-                              ref={vizRef}
-                              nodes={activeAnalysis.pathway.nodes}
-                              edges={activeAnalysis.pathway.edges}
-                              title={activeAnalysis.pathway.title || activeAnalysis.pathway.name}
-                              pathwayId={activeAnalysis.pathway.id}
-                              dataType={activeAnalysis.entityKind}
-                              onNodeClick={handlePathwayNodeClick}
-                              selectedNodeNames={filteredGenes}
-                              isPro={isPro}
-                              sourceFileBase={uploadedFileBase}
-                              enrichrResults={activeAnalysis.enrichrResults}
-                              gseaResults={activeAnalysis.gseaResults}
-                            />
-                          </div>
-                        </>
-                      ) : (
-                        <div style={{ padding: '40px', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)' }}>
-                          <TemplatePicker
-                            onSelect={(id) => {
-                              const cfg = activeAnalysis?.config || draftConfig;
-                              if (cfg) {
-                                handleAnalysisStart({ ...cfg, pathwayId: id });
-                              }
-                            }}
-                            dataType={
-                              ((activeAnalysis?.entityKind as any) === 'other' ? 'gene' : (activeAnalysis?.entityKind as any)) ||
-                              (((draftConfig?.dataType as any) === 'other' ? 'gene' : (draftConfig?.dataType as any)) || 'gene')
-                            }
-                            sendCommand={sendCommand}
-                          />
+                    <div className="panel-body" style={{ position: 'relative', display: 'flex', flexDirection: 'column', height: '100%', paddingTop: '12px' }}>
+                      {(engineLoading || batchRunning) && (
+                        <div style={{
+                          position: 'absolute', inset: 0, zIndex: 50,
+                          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                          background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)'
+                        }}>
+                          <div className="spinner" style={{ marginBottom: '16px' }}></div>
+                          <p style={{ color: 'white' }}>{t('Processing Analysis...')}</p>
                         </div>
                       )}
-                    </div>
-                  </div>
-                </div>
-              }
-              rightPanel={
-                <div className="studio-dashboard-right" style={{
-                  height: '100%',
-                  borderLeft: '1px solid var(--border-subtle)',
-                  background: 'var(--bg-panel)',
-                  display: 'flex',
-                  flexDirection: 'column'
-                }}>
-                  {/* Contextual Hub Header */}
-                  <div style={{
-                    padding: '12px',
-                    borderBottom: '1px solid var(--border-subtle)',
-                    background: 'rgba(255,255,255,0.02)',
-                    flexShrink: 0
-                  }}>
-                    {/* Primary Hub Tabs (Phase-specific) */}
-                    <div className="studio-right-tabs">
-                      {[
-                        { id: 'data-explorer', label: 'Data', icon: '📊', show: workflowPhase === 'perception' },
-                        { id: 'narrative', label: 'Report', icon: '📝', show: workflowPhase === 'synthesis' },
-                        {
-                          // Mapping phase: Show the persistent analyzer tab
-                          id: explorationTool,
-                          label: 'ANALYZER',
-                          icon: '🔬',
-                          show: workflowPhase === 'exploration'
-                        },
-                        { id: 'ai-chat', label: 'Chat', icon: '🤖', show: true }
-                      ].filter(tab => tab.show).map(tb => (
-                        <button
-                          key={tb.id}
-                          onClick={() => setRightPanelView(tb.id as any)}
-                          className={`studio-tab-btn ${rightPanelView === tb.id ? 'active' : ''}`}
-                        >
-                          <span style={{ fontSize: '16px' }}>{tb.icon}</span>
-                          <span>{tb.label}</span>
-                        </button>
-                      ))}
-                    </div>
 
-                  {/* Contextual Instrument Bar (Phase 2 Exploration ONLY) */}
-                  {workflowPhase === 'exploration' && (
-                    <div className="hub-instrument-bar" style={{
-                      display: 'flex',
-                      gap: '2px',
-                      background: 'rgba(0,0,0,0.3)',
-                      borderRadius: '10px',
-                      padding: '4px',
-                      border: '1px solid rgba(255,255,255,0.08)'
-                    }}>
-                      {rightPanelView === 'ai-chat' ? (
-                        /* AI Smart Tools Bar (When Chat is active) */
-                        [
-                          { id: 'sum', label: 'Sum', icon: '🧾', prompt: "Summarize the most significant findings" },
-                          { id: 'exp', label: 'Exp', icon: '🧠', prompt: "Explain the biological significance of these results" },
-                          { id: 'hyp', label: 'Hyp', icon: '💡', prompt: "Generate a speculative mechanism hypothesis" },
-                          { id: 'ref', label: 'Ref', icon: '📚', prompt: "Find relevant literature evidence" },
-                          { id: 'cmp', label: 'Cmp', icon: '🧬', prompt: "Compare functional differences in this data" }
-                        ].map(skill => (
-                          <button
-                            key={skill.id}
-                            onClick={() => {
-                              // Execute AI skill command via helper
-                              executeAISkill(skill.prompt);
-                            }}
-                            className="module-btn"
-                            style={{
-                              flex: 1,
-                              display: 'flex',
-                              flexDirection: 'column',
-                              alignItems: 'center',
-                              gap: '2px',
-                              background: 'transparent',
-                              border: '1px solid transparent',
-                              borderRadius: '8px',
-                              padding: '6px 2px',
-                              cursor: 'pointer',
-                              transition: 'all 0.2s'
-                            }}
-                          >
-                            <span style={{ fontSize: '16px' }}>{skill.icon}</span>
-                            <span style={{ fontSize: '10px', fontWeight: 700, color: 'rgba(255,255,255,0.4)' }}>{skill.label}</span>
-                          </button>
-                        ))
-                      ) : (
-                        /* Scientific Analysis Modules + Chart Selector (When Analyzer is active) */
-                        [
-                          { id: 'de-analysis', label: 'DE', icon: '🧪', type: 'module' },
-                          { id: 'enrichment', label: 'Sets', icon: '🧬', type: 'module' },
-                          { id: 'multi-sample', label: 'Multi', icon: '🔄', type: 'module' },
-                          { id: 'singlecell', label: 'SC', icon: '🧬', type: 'module' },
-                          { id: 'images', label: 'Ref', icon: '🖼️', type: 'module' },
-                          {
-                            id: 'stats',
-                            label: 'Stats',
-                            icon: '📈',
-                            type: 'chart'
-                          }
-                        ].map(item => (
-                          <button
-                            key={item.id}
-                            onClick={() => {
-                              if ((item as any).type === 'chart') {
-                                // Cycle through chart modes: volcano -> ma -> ranked -> volcano
-                                const modes: VolcanoViewMode[] = ['volcano', 'ma', 'ranked'];
-                                const currentIndex = modes.indexOf(chartViewMode);
-                                const nextMode = modes[(currentIndex + 1) % modes.length];
-                                setRightPanelView('data-explorer');
-                                setChartViewMode(nextMode);
-                                setLeftView('chart');
-                              } else {
-                                setExplorationTool(item.id as any);
-                                setRightPanelView(item.id as any);
-                              }
-                            }}
-                            className={`module-btn ${(item as any).type === 'chart'
-                              ? (rightPanelView === 'data-explorer' && chartViewMode === item.id ? 'active' : '')
-                              : (rightPanelView === item.id ? 'active' : '')
-                              }`}
-                            style={{
-                              flex: 1,
-                              display: 'flex',
-                              flexDirection: 'column',
-                              alignItems: 'center',
-                              gap: '2px',
-                              background: (
-                                ((item as any).type === 'chart' && rightPanelView === 'data-explorer' && chartViewMode === item.id)
-                                || ((item as any).type !== 'chart' && rightPanelView === item.id)
-                              ) ? 'rgba(99, 102, 241, 0.15)' : 'transparent',
-                              border: (
-                                ((item as any).type === 'chart' && rightPanelView === 'data-explorer' && chartViewMode === item.id)
-                                || ((item as any).type !== 'chart' && rightPanelView === item.id)
-                              ) ? '1px solid rgba(99, 102, 241, 0.3)' : '1px solid transparent',
-                              borderRadius: '8px',
-                              padding: '6px 2px',
-                              cursor: 'pointer',
-                              transition: 'all 0.2s'
-                            }}
-                          >
-                            <span style={{ fontSize: '16px' }}>{item.icon}</span>
-                            <span style={{
-                              fontSize: '10px',
-                              fontWeight: 700,
-                              color: (
-                                ((item as any).type === 'chart' && rightPanelView === 'data-explorer' && chartViewMode === item.id)
-                                || ((item as any).type !== 'chart' && rightPanelView === item.id)
-                              ) ? '#818cf8' : 'rgba(255,255,255,0.4)'
-                            }}>{item.label}</span>
-                          </button>
-                        ))
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                <div className="panel-body" style={{ flex: 1, minHeight: 0, padding: rightPanelView === 'ai-chat' ? '0' : '20px', overflowY: 'auto' }}>
-                  {/* Explicitly split Chat Panels to ensure correct context and unmounting */}
-                  {/* Single AI Chat Panel (Context aware) */}
-                  {rightPanelView === 'ai-chat' && (
-                    <AIChatPanel
-                      key={`chat-${workflowPhase}`}
-                      sendCommand={async (cmd, data) => { await sendCommand(cmd, data, false); }}
-                      isConnected={isConnected}
-                      lastResponse={lastResponse}
-                      analysisContext={activeAnalysis ? {
-                        pathway: activeAnalysis.pathway,
-                        volcanoData: activeAnalysis.volcano_data,
-                        statistics: activeAnalysis.statistics
-                      } : undefined}
-                      chatHistory={activeAnalysis?.chatHistory || []}
-                      onChatUpdate={(messages) => {
-                        if (activeAnalysis) {
-                          setAnalysisResults(prev => {
-                            const updated = [...prev];
-                            if (updated[activeResultIndex]) {
-                              updated[activeResultIndex] = { ...updated[activeResultIndex], chatHistory: messages };
-                            }
-                            return updated;
-                          });
-                        }
-                      }}
-                      workflowPhase={workflowPhase}
-                    />
-                  )}
-
-                  {rightPanelView === 'data-explorer' && activeAnalysis && (
-                    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: '16px' }}>
-                      <div className="left-panel-toggle-group">
-                        <button
-                          onClick={() => { setLeftView('chart'); setChartViewMode('volcano'); }}
-                          className={`left-toggle-btn ${leftView === 'chart' && chartViewMode === 'volcano' ? 'active' : ''}`}
-                        >Volcano</button>
-                        <button
-                          onClick={() => { setLeftView('chart'); setChartViewMode('ranked'); }}
-                          className={`left-toggle-btn ${leftView === 'chart' && chartViewMode === 'ranked' ? 'active' : ''}`}
-                        >Ranked</button>
-                        <button
-                          onClick={() => setLeftView('table')}
-                          className={`left-toggle-btn ${leftView === 'table' ? 'active' : ''}`}
-                        >Table</button>
-                      </div>
-
-                      <div style={{ flex: 1, minHeight: '350px', background: 'rgba(0,0,0,0.2)', borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--border-subtle)' }}>
-                        {leftView === 'chart' ? (
-                          <VolcanoPlot
-                            data={activeAnalysis.volcano_data}
-                            viewMode={chartViewMode}
-                            onSelectionChange={setFilteredGenes}
-                            onPointClick={setActiveGene}
-                          />
+                      <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+                        {activeAnalysis && activeAnalysis.pathway ? (
+                          <>
+                            {activeAnalysis.insights && (
+                              <InsightBadges insights={activeAnalysis.insights} />
+                            )}
+                            <div style={{ flex: 1, minHeight: 0 }}>
+                              <PathwayVisualizer
+                                ref={vizRef}
+                                nodes={activeAnalysis.pathway.nodes}
+                                edges={activeAnalysis.pathway.edges}
+                                title={activeAnalysis.pathway.title || activeAnalysis.pathway.name}
+                                pathwayId={activeAnalysis.pathway.id}
+                                dataType={activeAnalysis.entityKind}
+                                onNodeClick={handlePathwayNodeClick}
+                                selectedNodeNames={filteredGenes}
+                                isPro={isPro}
+                                sourceFileBase={uploadedFileBase}
+                                enrichmentResults={activeAnalysis.enrichmentResults}
+                                gseaResults={activeAnalysis.gseaResults}
+                              />
+                            </div>
+                          </>
                         ) : (
-                          <DataTable
-                            data={activeAnalysis.volcano_data}
-                            onRowClick={setActiveGene}
-                            labels={entityLabels}
-                          />
+                          <div className="pathway-empty-state">
+                            <div className="pathway-empty-header">
+                              <h3>{t('Common Pathways')}</h3>
+                              <p>{t('Recommended based on usage frequency. Click to switch.')}</p>
+                            </div>
+                            <div className="pathway-empty-grid">
+                              {commonPathways.map((pathway) => (
+                                <button
+                                  key={`empty-pathway-${pathway.pathway_id}`}
+                                  className="pathway-empty-card"
+                                  onClick={() => {
+                                    const cfg = activeAnalysis?.config || draftConfig;
+                                    if (cfg) {
+                                      handleAnalysisStart({ ...cfg, pathwayId: pathway.pathway_id });
+                                    } else {
+                                      addLog(t('Import data to use pathway: {pathway}', { pathway: pathway.pathway_name || pathway.pathway_id || '' }));
+                                    }
+                                  }}
+                                >
+                                  <div className="pathway-empty-title">{pathway.pathway_name || pathway.pathway_id}</div>
+                                  <div className="pathway-empty-meta">×{pathway.count || 0}</div>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
                         )}
                       </div>
                     </div>
-                  )}
+                  </div>
+                }
+                rightPanel={
+                  <div className="studio-dashboard-right">
+                    {/* Contextual Hub Header */}
+                    <div style={{
+                      padding: '12px',
+                      borderBottom: '1px solid var(--border-subtle)',
+                      background: 'rgba(255,255,255,0.02)',
+                      flexShrink: 0
+                    }}>
+                      {/* Primary Hub Tabs (Phase-specific) */}
+                      <div className="studio-right-tabs">
+                        {[
+                          { id: 'data-explorer', label: t('Data'), icon: '📊', show: workflowPhase === 'perception' },
+                          { id: 'narrative', label: t('Report'), icon: '📝', show: workflowPhase === 'synthesis' },
+                          {
+                            // Mapping phase: Show the persistent analyzer tab
+                            id: explorationTool,
+                            label: t('Analyzer'),
+                            icon: '🔬',
+                            show: workflowPhase === 'exploration'
+                          },
+                          { id: 'ai-chat', label: t('Chat'), icon: '🤖', show: true }
+                        ].filter(tab => tab.show).map(tb => (
+                          <button
+                            key={tb.id}
+                            onClick={() => setRightPanelView(tb.id as any)}
+                            className={`studio-tab-btn ${rightPanelView === tb.id ? 'active' : ''}`}
+                          >
+                            <span style={{ fontSize: '16px' }}>{tb.icon}</span>
+                            <span>{tb.label}</span>
+                          </button>
+                        ))}
+                      </div>
 
-                  {rightPanelView === 'enrichment' && (
-                    <EnrichmentPanel
-                      volcanoData={activeAnalysis?.volcano_data}
-                      onEnrichmentComplete={handleEnrichmentComplete}
-                      onPathwayClick={async (pathwayNameOrId, source, metadata) => {
-                        console.log(`Pathway clicked: ${pathwayNameOrId} (${source})`, metadata);
-                        addLog(`🔍 Loading pathway: ${pathwayNameOrId}`);
-
-                        try {
-                          if (source === 'reactome') {
-                            const response = await sendCommand(
-                              'SEARCH_AND_LOAD_PATHWAY',
+                      {/* Contextual Instrument Bar (Phase 2 Exploration ONLY) */}
+                      {workflowPhase === 'exploration' && (
+                        <div className="hub-instrument-bar" style={{
+                          display: 'flex',
+                          gap: '2px',
+                          background: 'rgba(0,0,0,0.3)',
+                          borderRadius: '10px',
+                          padding: '4px',
+                          border: '1px solid rgba(255,255,255,0.08)'
+                        }}>
+                          {rightPanelView === 'ai-chat' ? (
+                            /* AI Smart Tools Bar (When Chat is active) */
+                            [
+                              { id: 'sum', label: t('Sum'), icon: '🧾', prompt: t('Summarize the most significant findings') },
+                              { id: 'exp', label: t('Exp'), icon: '🧠', prompt: t('Explain the biological significance of these results') },
+                              { id: 'hyp', label: t('Hyp'), icon: '💡', prompt: t('Generate a speculative mechanism hypothesis') },
+                              { id: 'ref', label: t('Ref'), icon: '📚', prompt: t('Find relevant literature evidence') },
+                              { id: 'cmp', label: t('Cmp'), icon: '🧬', prompt: t('Compare functional differences in this data') }
+                            ].map(skill => (
+                              <button
+                                key={skill.id}
+                                onClick={() => {
+                                  // Execute AI skill command via helper
+                                  executeAISkill(skill.prompt, skill.id);
+                                }}
+                                className="module-btn"
+                                style={{
+                                  flex: 1,
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  alignItems: 'center',
+                                  gap: '2px',
+                                  background: 'transparent',
+                                  border: '1px solid transparent',
+                                  borderRadius: '8px',
+                                  padding: '6px 2px',
+                                  cursor: 'pointer',
+                                  transition: 'all 0.2s'
+                                }}
+                              >
+                                <span style={{ fontSize: '16px' }}>{skill.icon}</span>
+                                <span style={{ fontSize: '10px', fontWeight: 700, color: 'rgba(255,255,255,0.4)' }}>{skill.label}</span>
+                              </button>
+                            ))
+                          ) : (
+                            /* Scientific Analysis Modules + Chart Selector (When Analyzer is active) */
+                            [
+                              { id: 'de-analysis', label: t('DE'), icon: '🧪', type: 'module' },
+                              { id: 'enrichment', label: t('Sets'), icon: '🧬', type: 'module' },
+                              { id: 'multi-sample', label: t('Multi'), icon: '🔄', type: 'module' },
+                              { id: 'singlecell', label: t('SC'), icon: '🧬', type: 'module' },
+                              { id: 'images', label: t('Ref'), icon: '🖼️', type: 'module' },
                               {
-                                pathway_name: pathwayNameOrId,
-                                source: source,
-                                species: 'human'
-                              },
-                              true
-                            );
-
-                            if (response?.status === 'ok' && response.pathway) {
-                              addLog(`✓ Found: ${response.pathway_name} (${response.gene_count} genes)`);
-                              setAnalysisResults(prev => prev.map((item, idx) =>
-                                idx === activeResultIndex
-                                  ? { ...item, pathway: response.pathway as any }
-                                  : item
-                              ));
-                              setMainView('pathway');
-                            } else {
-                              addLog(`❌ Pathway not found: ${pathwayNameOrId}`);
-                            }
-                          } else {
-                            if (activeAnalysis?.volcano_data) {
-                              if (!pathwayNameOrId || pathwayNameOrId.trim() === '') {
-                                addLog(`❌ Invalid pathway ID: "${pathwayNameOrId}"`);
-                                return;
+                                id: 'stats',
+                                label: t('Stats'),
+                                icon: '📈',
+                                type: 'chart'
                               }
+                            ].map(item => (
+                              <button
+                                key={item.id}
+                                onClick={() => {
+                                  if ((item as any).type === 'chart') {
+                                    // Cycle through chart modes: volcano -> ma -> ranked -> volcano
+                                    const modes: VolcanoViewMode[] = ['volcano', 'ma', 'ranked'];
+                                    const currentIndex = modes.indexOf(chartViewMode);
+                                    const nextMode = modes[(currentIndex + 1) % modes.length];
+                                    setRightPanelView('data-explorer');
+                                    setChartViewMode(nextMode);
+                                    setLeftView('chart');
+                                  } else {
+                                    setExplorationTool(item.id as any);
+                                    setRightPanelView(item.id as any);
+                                  }
+                                }}
+                                className={`module-btn ${(item as any).type === 'chart'
+                                  ? (rightPanelView === 'data-explorer' && chartViewMode === item.id ? 'active' : '')
+                                  : (rightPanelView === item.id ? 'active' : '')
+                                  } `}
+                                style={{
+                                  flex: 1,
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  alignItems: 'center',
+                                  gap: '2px',
+                                  background: (
+                                    ((item as any).type === 'chart' && rightPanelView === 'data-explorer' && chartViewMode === item.id)
+                                    || ((item as any).type !== 'chart' && rightPanelView === item.id)
+                                  ) ? 'rgba(99, 102, 241, 0.15)' : 'transparent',
+                                  border: (
+                                    ((item as any).type === 'chart' && rightPanelView === 'data-explorer' && chartViewMode === item.id)
+                                    || ((item as any).type !== 'chart' && rightPanelView === item.id)
+                                  ) ? '1px solid rgba(99, 102, 241, 0.3)' : '1px solid transparent',
+                                  borderRadius: '8px',
+                                  padding: '6px 2px',
+                                  cursor: 'pointer',
+                                  transition: 'all 0.2s'
+                                }}
+                              >
+                                <span style={{ fontSize: '16px' }}>{item.icon}</span>
+                                <span style={{
+                                  fontSize: '10px',
+                                  fontWeight: 700,
+                                  color: (
+                                    ((item as any).type === 'chart' && rightPanelView === 'data-explorer' && chartViewMode === item.id)
+                                    || ((item as any).type !== 'chart' && rightPanelView === item.id)
+                                  ) ? '#818cf8' : 'rgba(255,255,255,0.4)'
+                                }}>{item.label}</span>
+                              </button>
+                            ))
+                          )}
+                        </div>
+                      )}
+                    </div>
 
-                              addLog(`🎨 Generating ${source} pathway diagram for: ${pathwayNameOrId}...`);
-
-                              const geneExpression: Record<string, number> = {};
-                              activeAnalysis.volcano_data.forEach((p: any) => {
-                                if (p.gene && p.x !== undefined) {
-                                  geneExpression[p.gene] = p.x;
+                    <div className="panel-body" style={{ flex: 1, minHeight: 0, padding: rightPanelView === 'ai-chat' ? '0' : '20px', overflowY: 'auto' }}>
+                      {/* Explicitly split Chat Panels to ensure correct context and unmounting */}
+                      {/* Single AI Chat Panel (Context aware) */}
+                      {rightPanelView === 'ai-chat' && (
+                        <AIChatPanel
+                          sendCommand={async (cmd, data) => { await sendCommand(cmd, data, false); }}
+                          isConnected={isConnected}
+                          lastResponse={lastResponse}
+                          analysisContext={activeAnalysis ? {
+                            pathway: activeAnalysis.pathway,
+                            volcanoData: activeAnalysis.volcano_data,
+                            statistics: activeAnalysis.statistics
+                          } : undefined}
+                          chatHistory={activeAnalysis?.explorationChatHistory || activeAnalysis?.chatHistory}
+                          onChatUpdate={(messages) => {
+                            if (activeAnalysis) {
+                              setAnalysisResults(prev => {
+                                const updated = [...prev];
+                                if (updated[activeResultIndex]) {
+                                  updated[activeResultIndex] = { ...updated[activeResultIndex], explorationChatHistory: messages };
                                 }
+                                return updated;
+                              });
+                            }
+                          }}
+                          workflowPhase={workflowPhase}
+                          onEntityClick={handleAIEntityClick}
+                        />
+                      )}
+
+                      {rightPanelView === 'data-explorer' && activeAnalysis && (
+                        <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: '16px' }}>
+                          <div className="left-panel-toggle-group">
+                            <button
+                              onClick={() => { setLeftView('chart'); setChartViewMode('volcano'); }}
+                              className={`left-toggle-btn ${leftView === 'chart' && chartViewMode === 'volcano' ? 'active' : ''}`}
+                            >{t('Volcano')}</button>
+                            <button
+                              onClick={() => { setLeftView('chart'); setChartViewMode('ranked'); }}
+                              className={`left-toggle-btn ${leftView === 'chart' && chartViewMode === 'ranked' ? 'active' : ''}`}
+                            >{t('Ranked')}</button>
+                            <button
+                              onClick={() => setLeftView('table')}
+                              className={`left-toggle-btn ${leftView === 'table' ? 'active' : ''}`}
+                            >{t('Table')}</button>
+                          </div>
+
+                          <div style={{ flex: 1, minHeight: '350px', background: 'rgba(0,0,0,0.2)', borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--border-subtle)' }}>
+                            {leftView === 'chart' ? (
+                              <VolcanoPlot
+                                data={activeAnalysis.volcano_data}
+                                viewMode={chartViewMode}
+                                onSelectionChange={setFilteredGenes}
+                                onPointClick={setActiveGene}
+                              />
+                            ) : (
+                              <DataTable
+                                data={activeAnalysis.volcano_data}
+                                onRowClick={setActiveGene}
+                                labels={entityLabels}
+                              />
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {rightPanelView === 'enrichment' && (
+                        <EnrichmentPanel
+                          volcanoData={activeAnalysis?.volcano_data}
+                          filePath={activeAnalysis?.sourceFilePath}
+                          multiSampleSets={multiSampleSets}
+                          onEnrichmentComplete={handleEnrichmentComplete}
+                          onPathwayClick={async (pathwayNameOrId, source, metadata) => {
+                            console.log(`Pathway clicked: ${pathwayNameOrId} (${source})`, metadata);
+                            addLog(t('🔍 Loading pathway: {pathway}', { pathway: pathwayNameOrId }));
+
+                            try {
+                              if (source === 'reactome') {
+                                const response = await sendCommand(
+                                  'SEARCH_AND_LOAD_PATHWAY',
+                                  {
+                                    pathway_name: pathwayNameOrId,
+                                    source: source,
+                                    species: 'human'
+                                  },
+                                  true
+                                );
+
+                                if (response?.status === 'ok' && response.pathway) {
+                                  addLog(t('✓ Found: {pathway} ({count} genes)', { pathway: response.pathway_name, count: response.gene_count }));
+                                  setAnalysisResults(prev => prev.map((item, idx) =>
+                                    idx === activeResultIndex
+                                      ? { ...item, pathway: response.pathway as any }
+                                      : item
+                                  ));
+                                  setMainView('pathway');
+                                } else {
+                                  addLog(t('❌ Pathway not found: {pathway}', { pathway: pathwayNameOrId }));
+                                }
+                              } else {
+                                if (activeAnalysis?.volcano_data) {
+                                  if (!pathwayNameOrId || pathwayNameOrId.trim() === '') {
+                                    addLog(t('❌ Invalid pathway ID: "{pathway}"', { pathway: pathwayNameOrId }));
+                                    return;
+                                  }
+
+                                  addLog(t('🎨 Generating {source} pathway diagram for: {pathway}...', { source, pathway: pathwayNameOrId }));
+
+                                  const geneExpression: Record<string, number> = {};
+                                  activeAnalysis.volcano_data.forEach((p: any) => {
+                                    if (p.gene && p.x !== undefined) {
+                                      geneExpression[p.gene] = p.x;
+                                    }
+                                  });
+
+                                  const response = await sendCommand(
+                                    'VISUALIZE_PATHWAY',
+                                    {
+                                      template_id: pathwayNameOrId.trim(),
+                                      pathway_source: source,
+                                      pathway_name: metadata?.pathway_name || pathwayNameOrId,
+                                      hit_genes: metadata?.hit_genes || [],
+                                      gene_expression: geneExpression,
+                                      data_type: activeAnalysis.entityKind === 'other' ? 'gene' : activeAnalysis.entityKind
+                                    },
+                                    true
+                                  );
+
+                                  if (response?.status === 'ok' && response.pathway) {
+                                    addLog(t('✓ Pathway diagram generated ({count} genes)', { count: response.gene_count }));
+
+                                    setAnalysisResults(prev => prev.map((item, idx) =>
+                                      idx === activeResultIndex
+                                        ? {
+                                          ...item,
+                                          pathway: response.pathway as any,
+                                          statistics: response.statistics as any
+                                        }
+                                        : item
+                                    ));
+
+                                    setMainView('pathway');
+                                  } else {
+                                    addLog(t('❌ Failed to generate diagram: {error}', { error: response?.message || t('Unknown error') }));
+                                  }
+                                } else {
+                                  addLog(t('❌ No data available for visualization'));
+                                }
+                              }
+                            } catch (err) {
+                              console.error('Failed to load pathway:', err);
+                              addLog(t('❌ Error: {error}', { error: err }));
+                            }
+                          }}
+                        />
+                      )}
+
+                      {rightPanelView === 'narrative' && activeAnalysis && (
+                        <NarrativePanel
+                          enrichmentResults={activeAnalysis?.enrichmentResults}
+                          analysisContext={{
+                            filePath: activeAnalysis?.sourceFilePath,
+                            mapping: activeAnalysis?.config?.mapping,
+                            dataType: activeAnalysis?.config?.dataType,
+                            filters: activeAnalysis?.config?.analysisMethods?.length
+                              ? { methods: activeAnalysis?.config?.analysisMethods }
+                              : undefined
+                          }}
+                          onEntityClick={handleAIEntityClick}
+                          onComplete={(narrative) => {
+                            addLog(t('📝 Narrative report generated ({count} chars)', { count: narrative.length }));
+                          }}
+                        />
+                      )}
+
+                      {/* Operational Panels linked from Hub */}
+                      {rightPanelView === 'de-analysis' && (
+                        <DEAnalysisPanel
+                          sendCommand={sendCommand}
+                          isConnected={isConnected}
+                          lastResponse={lastResponse}
+                          currentFilePath={activeAnalysis?.sourceFilePath}
+                          onAnalysisComplete={handleDEAnalysisComplete}
+                          onReset={handleResetDE}
+                        />
+                      )}
+                      {rightPanelView === 'multi-sample' && (
+                        <MultiSamplePanel
+                          sendCommand={async (cmd, data) => { await sendCommand(cmd, data, false); }}
+                          isConnected={isConnected}
+                          onMultiSampleData={setMultiSampleData}
+                          currentFilePath={activeAnalysis?.sourceFilePath}
+                          lastResponse={lastResponse}
+                          onSampleGroupChange={(groupName, groupData) => {
+                            if (activeAnalysis && groupData.length > 0) {
+                              const newVolcanoData = groupData.map(d => ({
+                                gene: d.gene,
+                                x: d.logfc,
+                                y: -Math.log10(d.pvalue),
+                                pvalue: d.pvalue,
+                                status: d.logfc > 0 && d.pvalue < 0.05 ? 'UP' as const :
+                                  (d.logfc < 0 && d.pvalue < 0.05 ? 'DOWN' as const : 'NS' as const)
+                              }));
+
+                              setAnalysisResults(prev => {
+                                const updated = [...prev];
+                                if (updated[activeResultIndex]) {
+                                  updated[activeResultIndex] = {
+                                    ...updated[activeResultIndex],
+                                    volcano_data: newVolcanoData,
+                                  };
+                                }
+                                return updated;
                               });
 
-                              const response = await sendCommand(
-                                'VISUALIZE_PATHWAY',
-                                {
-                                  template_id: pathwayNameOrId.trim(),
-                                  pathway_source: source,
-                                  pathway_name: metadata?.pathway_name || pathwayNameOrId,
-                                  hit_genes: metadata?.hit_genes || [],
-                                  gene_expression: geneExpression,
-                                  data_type: activeAnalysis.entityKind === 'other' ? 'gene' : activeAnalysis.entityKind
-                                },
-                                true
-                              );
-
-                              if (response?.status === 'ok' && response.pathway) {
-                                addLog(`✓ Pathway diagram generated (${response.gene_count} genes)`);
-
-                                setAnalysisResults(prev => prev.map((item, idx) =>
-                                  idx === activeResultIndex
-                                    ? {
-                                      ...item,
-                                      pathway: response.pathway as any,
-                                      statistics: response.statistics as any
-                                    }
-                                    : item
-                                ));
-
-                                setMainView('pathway');
-                              } else {
-                                addLog(`❌ Failed to generate diagram: ${response?.message || 'Unknown error'}`);
-                              }
-                            } else {
-                              addLog(`❌ No data available for visualization`);
+                              addLog(t('📊 Switched to sample group: {group} ({count} genes)', { group: groupName, count: groupData.length }));
                             }
-                          }
-                        } catch (err) {
-                          console.error('Failed to load pathway:', err);
-                          addLog(`❌ Error: ${err}`);
-                        }
-                      }}
-                    />
-                  )}
-
-                  {rightPanelView === 'narrative' && activeAnalysis && (
-                    <NarrativePanel
-                      enrichmentResults={activeAnalysis?.enrichrResults}
-                      onComplete={(narrative) => {
-                        addLog(`📝 Narrative report generated (${narrative.length} chars)`);
-                      }}
-                    />
-                  )}
-
-                  {/* Operational Panels linked from Hub */}
-                  {rightPanelView === 'de-analysis' && (
-                    <DEAnalysisPanel
-                      sendCommand={sendCommand}
-                      isConnected={isConnected}
-                      lastResponse={lastResponse}
-                      currentFilePath={activeAnalysis?.sourceFilePath}
-                      onAnalysisComplete={handleDEAnalysisComplete}
-                      onReset={handleResetDE}
-                    />
-                  )}
-                  {rightPanelView === 'multi-sample' && (
-                    <MultiSamplePanel
-                      sendCommand={async (cmd, data) => { await sendCommand(cmd, data, false); }}
-                      isConnected={isConnected}
-                      currentFilePath={activeAnalysis?.sourceFilePath}
-                      lastResponse={lastResponse}
-                      onSampleGroupChange={(groupName, groupData) => {
-                        if (activeAnalysis && groupData.length > 0) {
-                          const newVolcanoData = groupData.map(d => ({
-                            gene: d.gene,
-                            x: d.logfc,
-                            y: -Math.log10(d.pvalue),
-                            pvalue: d.pvalue,
-                            status: d.logfc > 0 && d.pvalue < 0.05 ? 'UP' as const :
-                              (d.logfc < 0 && d.pvalue < 0.05 ? 'DOWN' as const : 'NS' as const)
-                          }));
-
-                          setAnalysisResults(prev => {
-                            const updated = [...prev];
-                            if (updated[activeResultIndex]) {
-                              updated[activeResultIndex] = {
-                                ...updated[activeResultIndex],
-                                volcano_data: newVolcanoData,
-                              };
-                            }
-                            return updated;
-                          });
-
-                          addLog(`📊 Switched to sample group: ${groupName} (${groupData.length} genes)`);
-                        }
-                      }}
-                    />
-                  )}
-                  {rightPanelView === 'singlecell' && (
-                    <SingleCellPanel
-                      onComplete={(result) => {
-                        addLog(`🧬 Single-cell analysis complete: ${result.metadata?.n_cells || 0} cells`);
-                      }}
-                    />
-                  )}
-                  {rightPanelView === 'images' && (
-                    <ImageUploader
-                      sendCommand={async (cmd, data) => { await sendCommand(cmd, data, false); }}
-                      isConnected={isConnected}
-                    />
-                  )}
-                </div>
-              </div>
-            }
-          />
+                          }}
+                        />
+                      )}
+                      {rightPanelView === 'singlecell' && (
+                        <SingleCellPanel
+                          onComplete={(result) => {
+                            addLog(t('🧬 Single-cell analysis complete: {count} cells', { count: result.metadata?.n_cells || 0 }));
+                          }}
+                        />
+                      )}
+                      {rightPanelView === 'images' && (
+                        <ImageUploader
+                          sendCommand={async (cmd, data) => { await sendCommand(cmd, data, false); }}
+                          isConnected={isConnected}
+                        />
+                      )}
+                    </div>
+                  </div>
+                }
+              />
+            </div>
           )}
-
           {/* Evidence Popup Overlay */}
-          {showEvidencePopup && activeGene && (
+          {showEvidencePopup && evidenceEntity && (
             <EvidencePopup
-              gene={activeGene}
+              entityType={evidenceEntity.type}
+              entityId={evidenceEntity.id}
               geneData={activeGeneDetail}
+              auditSnapshot={evidenceAudit}
+              distribution={evidenceDistribution}
               entityKind={entityKind}
               labels={entityLabels}
               onClose={() => {
                 setShowEvidencePopup(false);
                 setActiveGene(null);
+                setEvidenceEntity(null);
+                setEvidenceAudit(null);
+                setEvidenceDistribution(null);
               }}
             />
           )}
         </main>
+
 
         {/* Footer / Logs */}
         <footer style={{
@@ -1466,12 +2087,12 @@ function App() {
           padding: '0 12px', fontSize: '11px', color: 'var(--text-dim)',
           flexShrink: 0
         }}>
-          <div>BioViz Local v1.0.0 • Workbench Mode</div>
+          <div>BioViz Local v1.0.0 • {t('Workbench Mode')}</div>
           <div style={{ display: 'flex', gap: '8px', maxWidth: '500px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            <span style={{ color: 'var(--brand-primary)' }}>Last:</span> {logs.length > 0 ? logs[logs.length - 1] : 'Ready'}
+            <span style={{ color: 'var(--brand-primary)' }}>{t('Last')}:</span> {logs.length > 0 ? logs[logs.length - 1] : t('Ready')}
           </div>
           <button
-            className={`log-toggle-btn ${showRuntimeLog ? 'active' : ''}`}
+            className={`log - toggle - btn ${showRuntimeLog ? 'active' : ''} `}
             onClick={() => setShowRuntimeLog(!showRuntimeLog)}
             style={{
               background: showRuntimeLog ? 'rgba(88, 166, 255, 0.2)' : 'transparent',
@@ -1501,6 +2122,14 @@ function App() {
 
         {/* v2.0: AI Event Panel removed - consolidated into Agent Hub */}
       </div>
+      <LicenseModal
+        isOpen={showLicenseModal}
+        onClose={() => setShowLicenseModal(false)}
+        onSuccess={() => {
+          setIsPro(true);
+          // Refresh state or show success message
+        }}
+      />
     </div>
   );
 }

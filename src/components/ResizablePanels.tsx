@@ -52,23 +52,26 @@ export const ResizablePanels: React.FC<ResizablePanelsProps> = ({
     }, [isDragging, minLeftWidth, maxLeftWidth]);
 
     return (
-        <div className="resizable-panels-container" ref={containerRef}>
-            <div 
-                className="resizable-panel left-panel" 
+        <div
+            className={`resizable-panels-container ${isDragging ? 'is-resizing' : ''}`}
+            ref={containerRef}
+        >
+            <div
+                className="resizable-panel left-panel"
                 style={{ width: `${leftWidth}%` }}
             >
                 {leftPanel}
             </div>
-            
-            <div 
+
+            <div
                 className="resize-handle"
                 onMouseDown={() => setIsDragging(true)}
             >
                 <div className="resize-handle-line" />
             </div>
-            
-            <div 
-                className="resizable-panel right-panel" 
+
+            <div
+                className="resizable-panel right-panel"
                 style={{ width: `${100 - leftWidth}%` }}
             >
                 {rightPanel}

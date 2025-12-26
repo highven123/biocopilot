@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import './TemplatePicker.css';
 import useBioEngine from '../hooks/useBioEngine';
+import { useI18n } from '../i18n';
 
 interface TemplatePickerProps {
   onSelect: (pathwayId: string) => void;
@@ -46,6 +47,7 @@ export const TemplatePicker: React.FC<TemplatePickerProps> = ({
   dataType = 'gene',
   sendCommand: sendCommandProp
 }) => {
+  const { t } = useI18n();
   const [selectedId, setSelectedId] = useState<string>('');
   const [isOnlineMode, setIsOnlineMode] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -157,10 +159,10 @@ export const TemplatePicker: React.FC<TemplatePickerProps> = ({
         // Delay select until list refreshed
         handleSelect(id);
       } else { // @ts-ignore
-        alert(`Download failed: ${res?.message}`);
+        alert(t('Download failed: {message}', { message: res?.message || '' }));
       }
     } catch (e) {
-      alert(`Download error: ${e}`);
+      alert(t('Download error: {error}', { error: String(e) }));
     } finally {
       setDownloadingId(null);
     }
@@ -169,22 +171,22 @@ export const TemplatePicker: React.FC<TemplatePickerProps> = ({
   return (
     <div className="template-picker">
       <div className="template-header">
-        <h3>Select pathway template</h3>
+        <h3>{t('Select pathway template')}</h3>
         <button
           className={`mode-toggle-btn ${isOnlineMode ? 'active' : ''}`}
           onClick={() => setIsOnlineMode(!isOnlineMode)}
           disabled={disabled}
         >
-          {isOnlineMode ? 'Back to Library' : 'Search Online'}
+          {isOnlineMode ? t('Back to Library') : t('Search Online')}
         </button>
       </div>
 
       {!isOnlineMode ? (
         <>
           <p className="template-picker-hint">
-            Choose a KEGG pathway layout for visualization; templates are filtered by data type.
+            {t('Choose a KEGG pathway layout for visualization; templates are filtered by data type.')}
           </p>
-          {isLoadingTemplates && <div className="template-loading">Loading local templates...</div>}
+          {isLoadingTemplates && <div className="template-loading">{t('Loading local templates...')}</div>}
 
           <div className="template-grid">
             {localTemplates.filter(t => t.types.includes(dataType)).map((template) => (
@@ -200,11 +202,11 @@ export const TemplatePicker: React.FC<TemplatePickerProps> = ({
                   </div>
                   <p className="template-description">{template.description}</p>
                   <div className="template-tags">
-                    {template.types.map((t) => (
-                      <span key={t} className="template-tag">
-                        {t === 'gene' && 'Gene'}
-                        {t === 'protein' && 'Protein'}
-                        {t === 'cell' && 'Cell'}
+                    {template.types.map((type) => (
+                      <span key={type} className="template-tag">
+                        {type === 'gene' && t('Gene')}
+                        {type === 'protein' && t('Protein')}
+                        {type === 'cell' && t('Cell')}
                       </span>
                     ))}
                   </div>
@@ -221,20 +223,20 @@ export const TemplatePicker: React.FC<TemplatePickerProps> = ({
           <div className="search-bar">
             <input
               type="text"
-              placeholder="Search KEGG (e.g., 'Metabolism', 'Cell Cycle')..."
+                placeholder={t("Search KEGG (e.g., 'Metabolism', 'Cell Cycle')...")}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyDown={handleKeyDown}
               autoFocus
             />
-            <button onClick={handleSearch} disabled={isSearching}>
-              {isSearching ? 'Searching...' : 'Search'}
-            </button>
+              <button onClick={handleSearch} disabled={isSearching}>
+                {isSearching ? t('Searching...') : t('Search')}
+              </button>
           </div>
 
           <div className="search-results-list">
             {searchResults.length === 0 && !isSearching && searchQuery && (
-              <div className="no-results">No pathways found for "{searchQuery}"</div>
+              <div className="no-results">{t('No pathways found for "{query}"', { query: searchQuery })}</div>
             )}
 
             {searchResults.map((res) => (
@@ -249,7 +251,7 @@ export const TemplatePicker: React.FC<TemplatePickerProps> = ({
                   disabled={downloadingId === res.id}
                   onClick={() => handleDownload(res.id, res.name, res.description)}
                 >
-                  {downloadingId === res.id ? 'Loading...' : 'Download'}
+                  {downloadingId === res.id ? t('Loading...') : t('Download')}
                 </button>
               </div>
             ))}

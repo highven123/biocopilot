@@ -21,6 +21,7 @@ export interface SidecarResponse {
     model?: string;
     data?: unknown;
     error?: string;
+    __receivedAt?: number;
     [key: string]: unknown;
 }
 
@@ -53,7 +54,15 @@ export interface UseBioEngineReturn {
     /** Generate speculative hypotheses (Phase 3) */
     generateHypothesis: (significantGenes: unknown, pathways?: unknown, volcanoData?: unknown) => Promise<SidecarResponse | void>;
     /** Run Mechanistic Narrative Analysis (Phase 2) */
-    runNarrativeAnalysis: (enrichmentResults?: unknown) => Promise<SidecarResponse | void>;
+    runNarrativeAnalysis: (
+        enrichmentResults?: unknown,
+        context?: {
+            filePath?: string;
+            mapping?: Record<string, unknown>;
+            dataType?: string;
+            filters?: Record<string, unknown>;
+        }
+    ) => Promise<SidecarResponse | void>;
     /** Run Single-Cell Contextual Analysis (Phase 3) */
     runSingleCellAnalysis: (filePath: string, options?: { clusterKey?: string; pathways?: Record<string, string[]> }) => Promise<SidecarResponse | void>;
 }
@@ -79,6 +88,11 @@ export function useBioEngine(): UseBioEngineReturn {
 
     // Safety Guard: Active PROPOSAL awaiting user confirmation
     const [activeProposal, setActiveProposal] = useState<AIActionResponse | null>(null);
+
+    const getUiLanguage = useCallback(() => {
+        if (typeof localStorage === 'undefined') return 'en';
+        return localStorage.getItem('bioviz_language') || 'en';
+    }, []);
 
     type PendingRequest = {
         resolve: (response: SidecarResponse) => void;
@@ -126,7 +140,7 @@ export function useBioEngine(): UseBioEngineReturn {
                         }
                         // ============================================
 
-                        setLastResponse(response);
+                        setLastResponse({ ...response, __receivedAt: Date.now() });
                         setError(null);
 
                         // Resolve any pending waiter for this request_id
@@ -306,9 +320,14 @@ export function useBioEngine(): UseBioEngineReturn {
                 });
             }
 
+            const enrichedPayload = { ...(data || {}) } as Record<string, unknown>;
+            if (!Object.prototype.hasOwnProperty.call(enrichedPayload, 'ui_language')) {
+                enrichedPayload.ui_language = getUiLanguage();
+            }
+
             const payload = JSON.stringify({
                 cmd,
-                payload: data || {},
+                payload: enrichedPayload,
                 ...(requestId ? { request_id: requestId } : {}),
             });
 
@@ -333,7 +352,7 @@ export function useBioEngine(): UseBioEngineReturn {
         } finally {
             setIsLoading(false);
         }
-    }, []);
+    }, [getUiLanguage]);
 
     /**
      * Check sidecar health via heartbeat
@@ -428,10 +447,24 @@ export function useBioEngine(): UseBioEngineReturn {
      * Run Mechanistic Narrative Analysis (Phase 2)
      * Converts enrichment results into a paper-ready narrative report.
      */
-    const runNarrativeAnalysis = useCallback(async (enrichmentResults?: unknown): Promise<SidecarResponse | void> => {
+    const runNarrativeAnalysis = useCallback(async (
+        enrichmentResults?: unknown,
+        context?: {
+            filePath?: string;
+            mapping?: Record<string, unknown>;
+            dataType?: string;
+            filters?: Record<string, unknown>;
+        }
+    ): Promise<SidecarResponse | void> => {
         return sendCommand('AGENT_TASK', {
             intent: 'analyze_narrative',
-            params: { enrichment_results: enrichmentResults }
+            params: {
+                enrichment_results: enrichmentResults,
+                file_path: context?.filePath,
+                mapping: context?.mapping,
+                data_type: context?.dataType,
+                filters: context?.filters
+            }
         }, true);
     }, [sendCommand]);
 

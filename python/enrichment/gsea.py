@@ -13,6 +13,7 @@ import warnings
 try:
     import gseapy as gp
     import pandas as pd
+    import numpy as np
     GSEAPY_AVAILABLE = True
 except ImportError:
     GSEAPY_AVAILABLE = False
@@ -139,7 +140,7 @@ def run_gsea_prerank(
             duplicate_pct = rnk.duplicated().sum() / len(rnk) * 100
             logging.info(f"GSEA score jitter: Applied to {duplicate_pct:.1f}% duplicated values")
             # Shift slightly to ensure uniqueness without changing ranking order
-            import numpy as np
+            # Shift slightly to ensure uniqueness without changing ranking order
             noise = np.random.uniform(0, 1e-9, size=len(rnk))
             rnk = rnk + noise
             

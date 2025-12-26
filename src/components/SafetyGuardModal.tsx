@@ -10,6 +10,7 @@
  */
 
 import React from 'react';
+import { useI18n } from '../i18n';
 import { AIActionResponse, isRedZone } from '../types/aiSafety';
 import './SafetyGuardModal.css';
 
@@ -19,6 +20,7 @@ interface SafetyGuardModalProps {
 }
 
 export const SafetyGuardModal: React.FC<SafetyGuardModalProps> = ({ proposal, onRespond }) => {
+    const { t } = useI18n();
     if (!proposal || proposal.type !== 'PROPOSAL' || !proposal.proposal_id) {
         return null;
     }
@@ -47,7 +49,7 @@ export const SafetyGuardModal: React.FC<SafetyGuardModalProps> = ({ proposal, on
                         {isRed ? '🚫' : '⚠️'}
                     </div>
                     <div className="safety-title">
-                        {isRed ? 'Action Blocked' : 'Action Requires Approval'}
+                        {isRed ? t('Action Blocked') : t('Action Requires Approval')}
                     </div>
                     <div className={`safety-badge ${safetyLevel.toLowerCase()}`}>
                         {safetyLevel}
@@ -62,19 +64,19 @@ export const SafetyGuardModal: React.FC<SafetyGuardModalProps> = ({ proposal, on
 
                     {proposal.proposal_reason && (
                         <div className="safety-reason">
-                            <strong>Reason:</strong> {proposal.proposal_reason}
+                            <strong>{t('Reason')}:</strong> {proposal.proposal_reason}
                         </div>
                     )}
 
                     {proposal.tool_name && (
                         <div className="safety-details">
                             <div className="detail-row">
-                                <span className="detail-label">Tool:</span>
+                                <span className="detail-label">{t('Tool')}:</span>
                                 <code className="detail-value">{proposal.tool_name}</code>
                             </div>
                             {proposal.tool_args && Object.keys(proposal.tool_args).length > 0 && (
                                 <div className="detail-row">
-                                    <span className="detail-label">Parameters:</span>
+                                    <span className="detail-label">{t('Parameters')}:</span>
                                     <pre className="detail-json">
                                         {JSON.stringify(proposal.tool_args, null, 2)}
                                     </pre>
@@ -85,8 +87,8 @@ export const SafetyGuardModal: React.FC<SafetyGuardModalProps> = ({ proposal, on
 
                     {isRed && (
                         <div className="red-zone-warning">
-                            <strong>🔒 High-risk action blocked by system policy.</strong>
-                            <p>This action cannot be authorized. Please contact your administrator if you believe this is an error.</p>
+                            <strong>🔒 {t('High-risk action blocked by system policy.')}</strong>
+                            <p>{t('This action cannot be authorized. Please contact your administrator if you believe this is an error.')}</p>
                         </div>
                     )}
                 </div>
@@ -97,7 +99,7 @@ export const SafetyGuardModal: React.FC<SafetyGuardModalProps> = ({ proposal, on
                         className="safety-btn reject"
                         onClick={handleReject}
                     >
-                        {isRed ? 'Dismiss' : 'Reject'}
+                        {isRed ? t('Dismiss') : t('Reject')}
                     </button>
 
                     {!isRed && (
@@ -105,14 +107,14 @@ export const SafetyGuardModal: React.FC<SafetyGuardModalProps> = ({ proposal, on
                             className="safety-btn confirm"
                             onClick={handleConfirm}
                         >
-                            Confirm & Authorize
+                            {t('Confirm & Authorize')}
                         </button>
                     )}
                 </div>
 
                 {/* Footer */}
                 <div className="safety-guard-footer">
-                    <span className="proposal-id">ID: {proposal.proposal_id.slice(0, 8)}...</span>
+                    <span className="proposal-id">{t('ID')}: {proposal.proposal_id.slice(0, 8)}...</span>
                 </div>
             </div>
         </div>

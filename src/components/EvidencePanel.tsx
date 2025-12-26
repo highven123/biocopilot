@@ -1,4 +1,5 @@
 import React from 'react';
+import { useI18n } from '../i18n';
 import ReactECharts from 'echarts-for-react';
 import type { EChartsOption } from 'echarts';
 import { EntityKind, EntityMeta, EXTERNAL_RESOURCES } from '../entityTypes';
@@ -25,6 +26,7 @@ export const EvidencePanel: React.FC<EvidencePanelProps> = ({
     entityKind,
     labels
 }) => {
+    const { t } = useI18n();
     const { labelSingular } = labels;
 
     if (!gene) {
@@ -32,9 +34,9 @@ export const EvidencePanel: React.FC<EvidencePanelProps> = ({
             <div className="empty-evidence">
                 <div className="click-prompt">
                     <div className="empty-icon">👆</div>
-                    <p className="prompt-text">Click to show evidence</p>
+                    <p className="prompt-text">{t('Click to show evidence')}</p>
                     <p className="prompt-hint">
-                        Select a {labelSingular.toLowerCase()} from the volcano plot or pathway
+                        {t('Select a {label} from the volcano plot or pathway', { label: labelSingular.toLowerCase() })}
                     </p>
                 </div>
             </div>
@@ -44,7 +46,7 @@ export const EvidencePanel: React.FC<EvidencePanelProps> = ({
     if (!geneData) {
         return (
             <div className="empty-evidence">
-                <p>No data found for {gene}</p>
+                <p>{t('No data found for {gene}', { gene })}</p>
             </div>
         );
     }
@@ -58,7 +60,7 @@ export const EvidencePanel: React.FC<EvidencePanelProps> = ({
             grid: { top: 30, right: 10, bottom: 30, left: 50 },
             xAxis: {
                 type: 'category',
-                data: ['LogFC'],
+                data: [t('LogFC')],
                 axisLine: { lineStyle: { color: '#64748b' } },
                 axisLabel: { color: '#94a3b8' }
             },
@@ -92,20 +94,20 @@ export const EvidencePanel: React.FC<EvidencePanelProps> = ({
                 <div className="gene-title-row">
                     <span className="gene-symbol">{gene}</span>
                     <span className={`fc-badge ${badgeClass}`}>
-                        FC: {roundedFC}x
+                        {t('FC')}: {roundedFC}x
                     </span>
                 </div>
                 <div className="gene-stats-row">
-                    <span>Log2FC: {geneData.logFC.toFixed(3)}</span>
+                    <span>{t('Log2FC')}: {geneData.logFC.toFixed(3)}</span>
                     {geneData.pvalue !== undefined && (
-                        <span>P: {geneData.pvalue.toExponential(2)}</span>
+                        <span>{t('P')}: {geneData.pvalue.toExponential(2)}</span>
                     )}
                 </div>
             </div>
 
             {/* Chart Area */}
             <div className="evidence-content">
-                <h4 className="section-label">Expression Level</h4>
+                <h4 className="section-label">{t('Expression Level')}</h4>
                 <div className="chart-container">
                     <ReactECharts
                         option={getChartOption()}
@@ -118,7 +120,7 @@ export const EvidencePanel: React.FC<EvidencePanelProps> = ({
             {/* External Resources */}
             {resources.length > 0 && (
                 <div className="evidence-footer">
-                    <h4 className="section-label">External Resources</h4>
+                    <h4 className="section-label">{t('External Resources')}</h4>
                     <div className="external-links">
                         {resources.map(resource => (
                             <a

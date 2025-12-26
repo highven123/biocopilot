@@ -82,8 +82,6 @@ logging.info(f"Python sys.path: {sys.path[:3]}...")  # Log first 3 entries
 is_packaged = hasattr(sys, '_MEIPASS')
 
 try:
-    # Direct import is the most reliable way for PyInstaller
-    # It ensures we use the version bundled in the PYZ archive
     import bio_core
     logging.info("bio_core imported successfully")
 except ImportError as e:
@@ -94,9 +92,34 @@ except ImportError as e:
         import bio_core
         logging.info("bio_core imported successfully after path fix")
     except ImportError as e2:
-        logging.error(f"FATAL: Failed to import bio_core even after path fix: {e2}")
+        # Fallback: Create a dummy bio_core with just the run method if it's missing (for bootstrapping)
+        # This is CRITICAL if bio_core itself has import errors due to missing scipy/etc
+        logging.error(f"FATAL: Failed to import bio_core: {e2}")
         print(f"FATAL: Failed to import bio_core: {e2}", file=sys.stderr)
-        sys.exit(1)
+        # We don't exit yet, we might still be able to run SYS_CHECK if we import it manually
+        # sys.exit(1) (Removed to allow pure diagnostic mode)
+
+try:
+    import sys_check
+except ImportError:
+    logging.warning("sys_check module not found")
+    sys_check = None
+
+def handle_sys_check():
+    """Run system check isolation mode."""
+    if sys_check:
+        report = sys_check.perform_system_check()
+        print(f"JSON_START{json.dumps(report)}JSON_END", flush=True)
+    else:
+        print(f"JSON_START{{'status': 'error', 'message': 'sys_check module missing'}}JSON_END", flush=True)
+
+# Patch bio_core.run if we can mod it, OR just intercept the command here?
+# Since bio_core.run() reads stdin loop, we're better off adding a special case handled here 
+# OR trusting bio_core imports. 
+# 
+# ACTUALLY: The best way is to let bio_core handle it. I will modify bio_core.py next.
+# But if bio_core fails to load due to missing deps (scipy), we need a fallback here.
+
 
 
 if __name__ == "__main__":

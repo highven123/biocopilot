@@ -22,6 +22,14 @@ Edge handling and scientific guardrails:
 - State p-value/FDR/log2FC thresholds you rely on.
 - If required fields are missing (e.g., no FDR column), say what is needed instead of guessing.
 - If nothing meets significance (all FDR >= 0.05 or list is empty), respond "No significant findings" and suggest next steps (e.g., adjust thresholds, add data).
+- If evidence is insufficient for a claim, state the limitation explicitly instead of guessing.
+- Follow the required output structure/sections for each prompt; keep responses concise and scientific.
+- Do not provide clinical diagnosis or treatment recommendations.
+- **Interactive Evidence**: When mentioning specific biological entities, you MUST use these tags to make them clickable:
+  - Genes/Proteins: `[[GENE:Symbol]]` (e.g., `[[GENE:TP53]]`)
+  - Pathways: `[[PATHWAY:ID]]` (e.g., `[[PATHWAY:hsa04110]]`)
+  - Compounds: `[[COMPOUND:Name]]`
+  - Do not tag general terms like "cancer" or "apoptosis", only specific measurable entities from the data.
 """
 
 PATHWAY_ENRICHMENT_PROMPT = """
@@ -152,6 +160,26 @@ def render_prompt(template: str, payload: Any, extra_notes: str = "") -> str:
     sections = [template.strip()]
     if extra_notes:
         sections.append(extra_notes.strip())
+    language_note = _language_instructions(payload)
+    if language_note:
+        sections.append(language_note.strip())
     sections.append("Input data (JSON):\n" + data_block)
     sections.append(SCIENTIFIC_GUARDRAILS.strip())
     return "\n\n".join(sections)
+
+
+def _language_instructions(payload: Any) -> str:
+    if not isinstance(payload, dict):
+        return ""
+    lang = payload.get("ui_language") or payload.get("language") or payload.get("locale") or ""
+    if not lang:
+        return ""
+    lang = str(lang).lower()
+    if lang.startswith("zh"):
+        return (
+            "Output language: Simplified Chinese. Keep gene/protein/pathway names, "
+            "database names, statistical symbols, and software names in English."
+        )
+    if lang.startswith("en"):
+        return "Output language: English."
+    return f"Output language: {lang}. Keep technical terms in English where appropriate."

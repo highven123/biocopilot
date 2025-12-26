@@ -6,6 +6,20 @@
     overflow: hidden;
 }
 
+/* 拖动时强制禁止文本选择 */
+.resizable-panels-container.is-resizing,
+.resizable-panels-container.is-resizing * {
+    user-select: none !important;
+    -webkit-user-select: none !important;
+    -moz-user-select: none !important;
+    -ms-user-select: none !important;
+    pointer-events: none;
+}
+
+.resizable-panels-container.is-resizing .resize-handle {
+    pointer-events: auto;
+}
+
 .resizable-panel {
     height: 100%;
     overflow: hidden;
@@ -28,6 +42,8 @@
     z-index: 10;
     background: transparent;
     transition: background 0.2s;
+    user-select: none;
+    -webkit-user-select: none;
 }
 
 .resize-handle:hover {

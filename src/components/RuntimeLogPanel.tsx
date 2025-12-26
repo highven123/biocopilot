@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useI18n } from '../i18n';
 import { eventBus, BioVizEvents } from '../stores/eventBus';
 import './RuntimeLogPanel.css';
 
@@ -14,6 +15,7 @@ interface LogEntry {
 export const RuntimeLogPanel: React.FC<{
     onClose: () => void;
 }> = ({ onClose }) => {
+    const { t } = useI18n();
     const [logs, setLogs] = useState<LogEntry[]>([]);
     const [filter, setFilter] = useState<'all' | 'info' | 'warning' | 'error'>('all');
     const scrollRef = useRef<HTMLDivElement>(null);
@@ -49,8 +51,8 @@ export const RuntimeLogPanel: React.FC<{
         });
 
         // Add some initial logs
-        addLog('Runtime Log Monitor Started', 'info', 'system');
-        addLog('Listening for application events...', 'debug', 'system');
+        addLog(t('Runtime Log Monitor Started'), 'info', 'system');
+        addLog(t('Listening for application events...'), 'debug', 'system');
 
         return () => {
             Object.values(BioVizEvents).forEach((eventType, idx) => {
@@ -76,22 +78,22 @@ export const RuntimeLogPanel: React.FC<{
             <div className="log-header">
                 <div className="title">
                     <span className="icon">📋</span>
-                    运行日志 (Log)
+                    {t('Runtime Logs')} (Log)
                 </div>
                 <div className="controls">
                     <select value={filter} onChange={(e) => setFilter(e.target.value as any)}>
-                        <option value="all">全部日志</option>
-                        <option value="info">常规</option>
-                        <option value="warning">警告</option>
-                        <option value="error">错误</option>
+                        <option value="all">{t('All logs')}</option>
+                        <option value="info">{t('Info')}</option>
+                        <option value="warning">{t('Warning')}</option>
+                        <option value="error">{t('Error')}</option>
                     </select>
-                    <button className="clear-btn" onClick={() => setLogs([])}>清除</button>
+                    <button className="clear-btn" onClick={() => setLogs([])}>{t('Clear')}</button>
                     <button className="close-btn" onClick={onClose}>✕</button>
                 </div>
             </div>
             <div className="log-body" ref={scrollRef}>
                 {filteredLogs.length === 0 ? (
-                    <div className="empty-logs">等待事件触发...</div>
+                    <div className="empty-logs">{t('Waiting for events...')}</div>
                 ) : (
                     filteredLogs.map(log => (
                         <div key={log.id} className={`log-entry ${log.level}`}>
@@ -100,7 +102,7 @@ export const RuntimeLogPanel: React.FC<{
                             <span className="message">{log.message}</span>
                             {log.payload && (
                                 <details className="payload">
-                                    <summary>Details</summary>
+                                    <summary>{t('Details')}</summary>
                                     <pre>{JSON.stringify(log.payload, null, 2)}</pre>
                                 </details>
                             )}

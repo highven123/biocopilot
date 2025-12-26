@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import splashImage from '../assets/splash.png';
+import { useI18n } from '../i18n';
 
 interface SplashScreenProps {
   onEnter: () => void;
 }
 
 export const SplashScreen: React.FC<SplashScreenProps> = ({ onEnter }) => {
+  const { t } = useI18n();
   const [isHovered, setIsHovered] = useState(false);
 
   return (
@@ -85,7 +87,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onEnter }) => {
             gap: '12px'
           }}
         >
-          <span>Initialize Workspace</span>
+          <span>{t('Initialize Workspace')}</span>
           <span style={{ fontSize: '20px' }}>➜</span>
         </button>
       </div>

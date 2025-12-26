@@ -1,6 +1,7 @@
 import React from 'react';
 import { open } from '@tauri-apps/plugin-dialog';
 import { useDropzone } from 'react-dropzone';
+import { useI18n } from '../i18n';
 
 // Single file info returned after loading
 export interface LoadedFileInfo {
@@ -35,6 +36,7 @@ const getFileName = (filePath: string): string => {
 };
 
 export const FileDropZone: React.FC<FileDropZoneProps> = ({ onLoadSuccess, addLog, sendCommand }) => {
+    const { t } = useI18n();
     const [loading, setLoading] = React.useState(false);
     const [loadingProgress, setLoadingProgress] = React.useState<string>('');
     const [dataType, setDataType] = React.useState<'gene' | 'protein' | 'cell' | null>(null);
@@ -65,11 +67,17 @@ export const FileDropZone: React.FC<FileDropZoneProps> = ({ onLoadSuccess, addLo
                     dataType: dtype
                 };
             } else {
-                addLog(`❌ Error loading ${getFileName(filePath)}: ${response?.message || 'Unknown error'}`);
+                addLog(t('❌ Error loading {file}: {error}', {
+                    file: getFileName(filePath),
+                    error: response?.message || t('Unknown error')
+                }));
                 return null;
             }
         } catch (e: any) {
-            addLog(`❌ Error loading ${getFileName(filePath)}: ${e.message || e}`);
+            addLog(t('❌ Error loading {file}: {error}', {
+                file: getFileName(filePath),
+                error: e.message || e
+            }));
             return null;
         }
     };
@@ -85,13 +93,17 @@ export const FileDropZone: React.FC<FileDropZoneProps> = ({ onLoadSuccess, addLo
             const filePath = filePaths[i];
             const fileName = getFileName(filePath);
 
-            setLoadingProgress(`Loading ${i + 1}/${filePaths.length}: ${fileName}`);
-            addLog(`📂 Loading file: ${fileName}`);
+            setLoadingProgress(t('Loading {index}/{total}: {file}', {
+                index: i + 1,
+                total: filePaths.length,
+                file: fileName
+            }));
+            addLog(t('📂 Loading file: {file}', { file: fileName }));
 
             const result = await loadSingleFile(filePath, dataType);
             if (result) {
                 loadedFiles.push(result);
-                addLog(`✅ Loaded: ${fileName}`);
+                addLog(t('✅ Loaded: {file}', { file: fileName }));
             }
         }
 
@@ -121,7 +133,7 @@ export const FileDropZone: React.FC<FileDropZoneProps> = ({ onLoadSuccess, addLo
             const selected = await open({
                 multiple: true, // Enable multi-select
                 filters: [{
-                    name: 'Data Files',
+                    name: t('Data Files'),
                     extensions: ['csv', 'xlsx', 'xls', 'txt', 'tsv']
                 }]
             });
@@ -159,34 +171,34 @@ export const FileDropZone: React.FC<FileDropZoneProps> = ({ onLoadSuccess, addLo
         return (
             <div className="dtype-selection-container">
                 <h3 className="dtype-title">
-                    Select Data Type
+                    {t('Select Data Type')}
                 </h3>
                 <p className="dtype-subtitle">
-                    Choose what kind of biological data you are uploading so BioViz can apply the right defaults.
+                    {t('Choose what kind of biological data you are uploading so BioViz can apply the right defaults.')}
                 </p>
 
                 <div className="dtype-grid">
                     <button onClick={() => setDataType('gene')} className="dtype-card">
                         <div className="dtype-badge">RNA</div>
                         <div className="dtype-text">
-                            <span className="dtype-label">Transcriptomics</span>
-                            <span className="dtype-caption">Gene expression (bulk / single‑cell)</span>
+                            <span className="dtype-label">{t('Transcriptomics')}</span>
+                            <span className="dtype-caption">{t('Gene expression (bulk / single-cell)')}</span>
                         </div>
                     </button>
 
                     <button onClick={() => setDataType('protein')} className="dtype-card">
                         <div className="dtype-badge">PROT</div>
                         <div className="dtype-text">
-                            <span className="dtype-label">Proteomics</span>
-                            <span className="dtype-caption">Protein abundance or ratios</span>
+                            <span className="dtype-label">{t('Proteomics')}</span>
+                            <span className="dtype-caption">{t('Protein abundance or ratios')}</span>
                         </div>
                     </button>
 
                     <button onClick={() => setDataType('cell')} className="dtype-card">
                         <div className="dtype-badge">FLOW</div>
                         <div className="dtype-text">
-                            <span className="dtype-label">Flow Cytometry</span>
-                            <span className="dtype-caption">Cell population frequencies</span>
+                            <span className="dtype-label">{t('Flow Cytometry')}</span>
+                            <span className="dtype-caption">{t('Cell population frequencies')}</span>
                         </div>
                     </button>
                 </div>
@@ -196,9 +208,9 @@ export const FileDropZone: React.FC<FileDropZoneProps> = ({ onLoadSuccess, addLo
 
     // Phase 2: File Upload
     const typeLabels = {
-        'gene': { icon: 'gene', text: 'Gene Expression' },
-        'protein': { icon: 'protein', text: 'Proteomics' },
-        'cell': { icon: 'cell', text: 'Flow Cytometry' }
+        'gene': { icon: 'gene', text: t('Gene Expression') },
+        'protein': { icon: 'protein', text: t('Proteomics') },
+        'cell': { icon: 'cell', text: t('Flow Cytometry') }
     };
     const currentLabel = typeLabels[dataType];
 
@@ -210,7 +222,7 @@ export const FileDropZone: React.FC<FileDropZoneProps> = ({ onLoadSuccess, addLo
                 className="file-drop-back-btn"
             >
                 <span>←</span>
-                <span>Change Data Type</span>
+                <span>{t('Change Data Type')}</span>
             </button>
 
             <div
@@ -227,7 +239,7 @@ export const FileDropZone: React.FC<FileDropZoneProps> = ({ onLoadSuccess, addLo
                 {loading ? (
                     <div style={{ textAlign: 'center', color: 'var(--text-secondary)' }}>
                         <div className="spinner" style={{ marginBottom: '16px' }}>⏳</div>
-                        <p>{loadingProgress || 'Parsing datasets...'}</p>
+                        <p>{loadingProgress || t('Parsing datasets...')}</p>
                     </div>
                 ) : (
                     <div style={{ textAlign: 'center' }}>
@@ -246,18 +258,18 @@ export const FileDropZone: React.FC<FileDropZoneProps> = ({ onLoadSuccess, addLo
                                 textTransform: 'uppercase',
                                 letterSpacing: '1px'
                             }}>
-                                {currentLabel.text} Mode
+                                {currentLabel.text} {t('Mode')}
                             </span>
                         </div>
 
                         <h3 className="file-drop-main-title">
-                            Drag & Drop your {currentLabel.text} Files
+                            {t('Drag & Drop your {type} Files', { type: currentLabel.text })}
                         </h3>
                         <p className="file-drop-subtitle">
-                            Supports .xlsx and .csv — select multiple files for batch analysis.
+                            {t('Supports .xlsx and .csv — select multiple files for batch analysis.')}
                         </p>
                         <button className="file-drop-cta">
-                            Choose Files
+                            {t('Choose Files')}
                         </button>
                     </div>
                 )}

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 
 export type WorkflowStep = 'upload' | 'mapping' | 'viz';
 
@@ -19,6 +19,40 @@ const STEPS: { key: WorkflowStep; label: string; icon: string }[] = [
 export const WorkflowBreadcrumb: React.FC<Props> = ({ currentStep, onStepClick, variant = 'horizontal', ...props }) => {
     const stepOrder = ['upload', 'mapping', 'viz'];
     const currentIndex = stepOrder.indexOf(currentStep);
+    const [isExpanded, setIsExpanded] = useState(false);
+    const hubRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (variant !== 'hub') return;
+        const stored = window.localStorage.getItem('bioviz:hub-stepper-expanded');
+        if (stored === 'true') {
+            setIsExpanded(true);
+        }
+    }, [variant]);
+
+    useEffect(() => {
+        if (variant !== 'hub') return;
+        window.localStorage.setItem('bioviz:hub-stepper-expanded', String(isExpanded));
+    }, [isExpanded, variant]);
+
+    useEffect(() => {
+        if (variant !== 'hub') return;
+        const handleClickOutside = (event: MouseEvent) => {
+            const target = event.target as Node | null;
+            if (!hubRef.current || !target) return;
+            if (!hubRef.current.contains(target)) {
+                setIsExpanded(false);
+            }
+        };
+
+        if (isExpanded) {
+            document.addEventListener('mousedown', handleClickOutside);
+        }
+
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, [isExpanded, variant]);
 
     const canAccess = (stepKey: WorkflowStep) => {
         const stepIndex = stepOrder.indexOf(stepKey);
@@ -70,64 +104,94 @@ export const WorkflowBreadcrumb: React.FC<Props> = ({ currentStep, onStepClick, 
 
     if (variant === 'hub') {
         return (
-            <div className="operation-hub-bar" style={{
-                display: 'flex',
+            <div className="operation-hub-bar" ref={hubRef} style={{
+                display: 'inline-flex',
                 alignItems: 'center',
-                gap: '16px',
-                padding: '0 16px',
-                height: '40px',
+                gap: '10px',
+                padding: '0 10px',
+                height: '34px',
                 background: 'rgba(0,0,0,0.2)',
                 borderRadius: '8px',
                 border: '1px solid var(--border-subtle)',
-                width: '100%',
-                maxWidth: '1200px'
+                width: 'auto',
+                margin: 0
             }}>
                 {/* Slim Stepper */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    {STEPS.map((step, index) => {
-                        const isCurrent = step.key === currentStep;
-                        const isCompleted = index < currentIndex;
-                        const isSelectable = canAccess(step.key);
+                    {isExpanded ? (
+                        STEPS.map((step, index) => {
+                            const isCurrent = step.key === currentStep;
+                            const isCompleted = index < currentIndex;
+                            const isSelectable = canAccess(step.key);
 
-                        return (
-                            <div
-                                key={step.key}
-                                onClick={() => isSelectable && onStepClick(step.key)}
-                                style={{
-                                    width: '24px',
-                                    height: '24px',
-                                    borderRadius: '50%',
-                                    background: isCompleted ? 'var(--color-success)' : (isCurrent ? 'var(--brand-primary)' : 'transparent'),
-                                    border: isCurrent || isCompleted ? 'none' : '1px solid var(--border-subtle)',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    fontSize: '11px',
-                                    fontWeight: 700,
-                                    color: 'white',
-                                    cursor: isSelectable ? 'pointer' : 'default',
-                                    opacity: isSelectable ? 1 : 0.4,
-                                    transition: 'all 0.2s',
-                                    boxShadow: isCurrent ? '0 0 10px rgba(99, 102, 241, 0.3)' : 'none'
-                                }}
-                                title={step.label}
-                            >
-                                {isCompleted ? '✓' : index + 1}
+                            return (
+                                <div
+                                    key={step.key}
+                                    onClick={() => {
+                                        if (!isSelectable) return;
+                                        onStepClick(step.key);
+                                        setIsExpanded(false);
+                                    }}
+                                    style={{
+                                        width: '24px',
+                                        height: '24px',
+                                        borderRadius: '50%',
+                                        background: isCompleted ? 'var(--color-success)' : (isCurrent ? 'var(--brand-primary)' : 'transparent'),
+                                        border: isCurrent || isCompleted ? 'none' : '1px solid var(--border-subtle)',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        fontSize: '11px',
+                                        fontWeight: 700,
+                                        color: 'white',
+                                        cursor: isSelectable ? 'pointer' : 'default',
+                                        opacity: isSelectable ? 1 : 0.4,
+                                        transition: 'all 0.2s',
+                                        boxShadow: isCurrent ? '0 0 10px rgba(99, 102, 241, 0.3)' : 'none'
+                                    }}
+                                    title={step.label}
+                                >
+                                    {isCompleted ? '✓' : index + 1}
+                                </div>
+                            );
+                        })
+                    ) : (
+                        <button
+                            type="button"
+                            onClick={() => setIsExpanded(true)}
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                border: 'none',
+                                background: 'transparent',
+                                padding: 0,
+                                cursor: 'pointer',
+                                color: 'var(--text-secondary)'
+                            }}
+                            title="Show steps"
+                        >
+                            <div style={{
+                                width: '24px',
+                                height: '24px',
+                                borderRadius: '50%',
+                                background: 'var(--brand-primary)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontSize: '11px',
+                                fontWeight: 700,
+                                color: 'white',
+                                boxShadow: '0 0 10px rgba(99, 102, 241, 0.3)'
+                            }}>
+                                {currentIndex + 1}
                             </div>
-                        );
-                    })}
+                            <span style={{ fontSize: '12px', fontWeight: 600 }}>▾</span>
+                        </button>
+                    )}
                 </div>
 
-                <div style={{ width: '1px', height: '20px', background: 'var(--border-subtle)' }} />
-
-                {/* Hub Content Placeholder - will be populated by children or props later if needed */}
-                <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '20px', fontSize: '12px', color: 'var(--text-secondary)' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <span style={{ color: 'var(--text-dim)' }}>STP:</span>
-                        <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{STEPS[currentIndex].label}</span>
-                    </div>
-                    {/* The slot for Data Info and Controls will be handled in App.tsx by wrapping this or passing children */}
-                </div>
+                <div style={{ width: '1px', height: '18px', background: 'var(--border-subtle)', opacity: isExpanded ? 1 : 0 }} />
             </div>
         );
     }

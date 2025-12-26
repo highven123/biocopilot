@@ -6,18 +6,28 @@
  */
 
 import { useState } from 'react';
+import { useI18n } from '../i18n';
 import { useBioEngine } from '../hooks/useBioEngine';
+import { renderEvidenceContent } from '../utils/evidenceRenderer';
 import './NarrativePanel.css';
 
 interface NarrativePanelProps {
     /** Enrichment results to analyze */
     enrichmentResults?: any[];
+    analysisContext?: {
+        filePath?: string;
+        mapping?: Record<string, unknown>;
+        dataType?: string;
+        filters?: Record<string, unknown>;
+    };
     /** Callback when analysis completes */
     onComplete?: (narrative: string) => void;
+    onEntityClick?: (type: string, id: string) => void;
 }
 
-export function NarrativePanel({ enrichmentResults, onComplete }: NarrativePanelProps) {
+export function NarrativePanel({ enrichmentResults, analysisContext, onComplete, onEntityClick }: NarrativePanelProps) {
 
+    const { t } = useI18n();
     const { runNarrativeAnalysis, isLoading } = useBioEngine();
 
     const [narrative, setNarrative] = useState<string | null>(null);
@@ -31,7 +41,7 @@ export function NarrativePanel({ enrichmentResults, onComplete }: NarrativePanel
         setNarrative(null);
 
         try {
-            const response = await runNarrativeAnalysis(enrichmentResults) as any;
+            const response = await runNarrativeAnalysis(enrichmentResults, analysisContext) as any;
 
             // Response format: {status: "ok", result: {status: "completed", narrative: "..."}}
             if (response?.status === 'ok' && response?.result?.status === 'completed') {
@@ -39,10 +49,10 @@ export function NarrativePanel({ enrichmentResults, onComplete }: NarrativePanel
                 setModulesFound(response.result.modules_found || 0);
                 onComplete?.(response.result.narrative);
             } else if (response?.status === 'error' || response?.result?.status === 'error') {
-                setError(response.error || response.message || response.result?.error || 'Analysis failed');
+                setError(response.error || response.message || response.result?.error || t('Analysis failed'));
             } else {
                 console.log('Unexpected response:', response);
-                setError('Unexpected response from backend');
+                setError(t('Unexpected response from backend'));
             }
         } catch (e) {
             setError(e instanceof Error ? e.message : String(e));
@@ -61,13 +71,12 @@ export function NarrativePanel({ enrichmentResults, onComplete }: NarrativePanel
     return (
         <div className="narrative-panel">
             <div className="narrative-header">
-                <h3>📝 Mechanistic Narrative</h3>
-                <span className="narrative-badge">AI Analysis</span>
+                <h3>📝 {t('Mechanistic Narrative')}</h3>
+                <span className="narrative-badge">{t('AI Analysis')}</span>
             </div>
 
             <div className="narrative-description">
-                Generate a paper-ready biological narrative from your enrichment results.
-                The AI will identify key functional modules and synthesize mechanistic insights.
+                {t('Generate a paper-ready biological narrative from your enrichment results. The AI will identify key functional modules and synthesize mechanistic insights.')}
             </div>
 
             <button
@@ -78,11 +87,11 @@ export function NarrativePanel({ enrichmentResults, onComplete }: NarrativePanel
                 {isGenerating ? (
                     <>
                         <span className="spinner"></span>
-                        Generating Report...
+                        {t('Generating Report...')}
                     </>
                 ) : (
                     <>
-                        🧬 Generate Narrative Report
+                        🧬 {t('Generate Narrative Report')}
                     </>
                 )}
             </button>
@@ -97,30 +106,15 @@ export function NarrativePanel({ enrichmentResults, onComplete }: NarrativePanel
                 <div className="narrative-result">
                     <div className="narrative-stats">
                         <span className="stat-item">
-                            📊 {modulesFound} Functional Modules Identified
+                            📊 {t('{count} Functional Modules Identified', { count: modulesFound })}
                         </span>
-                        <button className="copy-btn" onClick={handleCopy} title="Copy to clipboard">
-                            📋 Copy
+                        <button className="copy-btn" onClick={handleCopy} title={t('Copy to clipboard')}>
+                            📋 {t('Copy')}
                         </button>
                     </div>
 
                     <div className="narrative-content">
-                        {/* Render markdown-like content */}
-                        {narrative.split('\n').map((line, idx) => {
-                            if (line.startsWith('### ')) {
-                                return <h3 key={idx}>{line.replace('### ', '')}</h3>;
-                            }
-                            if (line.startsWith('**') && line.endsWith('**')) {
-                                return <h4 key={idx}>{line.replace(/\*\*/g, '')}</h4>;
-                            }
-                            if (line.startsWith('*') && line.endsWith('*')) {
-                                return <em key={idx}>{line.replace(/\*/g, '')}</em>;
-                            }
-                            if (line.trim() === '') {
-                                return <br key={idx} />;
-                            }
-                            return <p key={idx}>{line}</p>;
-                        })}
+                        {renderEvidenceContent(narrative, onEntityClick)}
                     </div>
                 </div>
             )}

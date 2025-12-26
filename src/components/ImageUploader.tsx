@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import './ImageUploader.css';
+import { useI18n } from '../i18n';
 
 interface ImageInfo {
     id: string;
@@ -31,6 +32,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
     isConnected,
     onImageAnalyzed: _onImageAnalyzed,
 }) => {
+    const { t } = useI18n();
     const [selectedType, setSelectedType] = useState('western_blot');
     const [uploadedImages, _setUploadedImages] = useState<ImageInfo[]>([]);
     const [isUploading, setIsUploading] = useState(false);
@@ -97,10 +99,10 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
                         key={type.id}
                         className={selectedType === type.id ? 'active' : ''}
                         onClick={() => setSelectedType(type.id)}
-                        title={type.name}
+                        title={t(type.name)}
                     >
                         <span className="type-icon">{type.icon}</span>
-                        <span className="type-name">{type.name}</span>
+                        <span className="type-name">{t(type.name)}</span>
                     </button>
                 ))}
             </div>
@@ -129,10 +131,10 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
                     hidden
                 />
                 {isUploading ? (
-                    <div className="upload-status">⏳ Uploading...</div>
+                    <div className="upload-status">{t('⏳ Uploading...')}</div>
                 ) : previewImage ? (
                     <div className="preview-container">
-                        <img src={previewImage} alt="Preview" className="preview-image" />
+                        <img src={previewImage} alt={t('Preview')} className="preview-image" />
                         <button className="clear-preview" onClick={(e) => {
                             e.stopPropagation();
                             setPreviewImage(null);
@@ -141,8 +143,8 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
                 ) : (
                     <div className="upload-prompt">
                         <span className="upload-icon">📤</span>
-                        <span>Drop image here or click to upload</span>
-                        <span className="upload-hint">Supports PNG, JPG, TIFF</span>
+                        <span>{t('Drop image here or click to upload')}</span>
+                        <span className="upload-hint">{t('Supports PNG, JPG, TIFF')}</span>
                     </div>
                 )}
             </div>
@@ -154,14 +156,14 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
                     onClick={() => handleAnalyze('preview')}
                     disabled={!isConnected || isAnalyzing !== null}
                 >
-                    {isAnalyzing ? '🔄 Analyzing...' : '🤖 Analyze with AI'}
+                    {isAnalyzing ? t('🔄 Analyzing...') : t('🤖 Analyze with AI')}
                 </button>
             )}
 
             {/* Uploaded Images List */}
             {uploadedImages.length > 0 && (
                 <div className="uploaded-list">
-                    <h4>Uploaded Images</h4>
+                    <h4>{t('Uploaded Images')}</h4>
                     {uploadedImages.map((img) => (
                         <div key={img.id} className="uploaded-item">
                             <span className="item-icon">
@@ -182,8 +184,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
 
             <div className="image-info">
                 <p>
-                    💡 AI can analyze Western Blots, Flow plots, and histology images
-                    to detect bands, cell populations, and staining patterns.
+                    {t('💡 AI can analyze Western Blots, Flow plots, and histology images to detect bands, cell populations, and staining patterns.')}
                 </p>
             </div>
         </div>

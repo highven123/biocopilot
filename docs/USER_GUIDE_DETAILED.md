@@ -1,0 +1,265 @@
+# BioViz Local 使用说明书（详尽版）
+
+本文档面向项目当前实现，覆盖完整工作流、所有界面功能、关键算法与审计机制，并附详细 Q&A 以便排查问题与答辩。
+
+---
+
+## 1. 环境与启动
+
+### 1.1 开发模式启动
+- 前端 + Tauri：`npm run tauri dev`
+- 后端：Python sidecar 会随 Tauri 启动（无需单独启动）
+
+### 1.2 Python 依赖（关键模块）
+- 基础：`pandas`, `numpy`, `scipy`
+- 富集：`gseapy`（可选）
+- DESeq2：`pydeseq2`（可选）
+- QC/PCA：`scikit-learn`（可选）
+
+---
+
+## 2. 端到端主流程（四步）
+
+### Step 1：Import Data
+- 支持格式：`.csv / .tsv / .xlsx`
+- 数据模式：
+  - **Summary 表**：包含 `Gene/Protein/Cell` + `Log2FC/Value` + 可选 `P-value`。
+  - **Raw Counts**：第一列为基因名，其后为样本列（counts）。
+
+### Step 2：Map Columns
+- Summary 表：选择实体列（gene/protein/cell）与数值列（log2FC 或表达值）。
+- Raw Counts：不需要映射 log2FC，后续在 DE 模块完成分组与统计。
+
+### Step 3：Select Pathway
+- 选择通路模板（KEGG/Reactome/WikiPathways/GO）。
+- KEGG 通路可在可视化工具栏打开官方页面。
+
+### Step 4：Visualize（分析工作台）
+进入完整可视化与分析面板：火山图、通路图、富集、DE、AI 解释与报告。
+
+---
+
+## 3. 界面功能详解（逐模块）
+
+### 3.1 Analyzer / Chat 顶层切换
+- **Analyzer**：进入结构化分析模块（DE/Sets/Multi/SC/Ref/Stats）。
+- **Chat**：进入 AI 对话与解释区。
+
+### 3.2 Analyzer 子模块
+
+#### 3.2.1 DE（差异表达分析）
+**作用**：从 Raw Counts 计算差异表达（log2FC/pvalue/FDR）。
+
+**工作原理**：
+- 前端 `DEAnalysisPanel` 读取 counts 文件列名。
+- 用户选择 Group1/Group2；调用后端 `DE_ANALYSIS`。
+- 后端 `de_analysis.py`：
+  - `auto` 优先 PyDESeq2，否则 t-test。
+  - 生成结果 + QC 报告（Library Size + PCA）。
+- 前端更新火山图 + 通路着色，并写入审计记录。
+
+**测试方案**：
+1) 选择两组样本并运行；火山图刷新。
+2) 通路颜色随 log2FC 更新。
+3) QC 报告显示 PCA 和样本库大小统计。
+4) `~/.bioviz_local/project_memory.db` 中 `de_analyses` 表新增记录。
+
+---
+
+#### 3.2.2 Sets（富集分析）
+**作用**：ORA/GSEA 富集分析与结果解读。
+
+**工作原理**：
+- 调用 `ENRICH_RUN` 或 `ENRICH_FUSION_RUN`。
+- 后端 `EnrichmentPipeline` 计算结果，返回 Repro 元数据。
+- 前端展示结果表 + UpSet 交集。
+
+**UpSet 扩展**：
+- Source 可选：Current / Fusion / MultiSample。
+- 支持用户自选集合；默认 3（可调 2/3/4）。
+
+**测试方案**：
+1) 运行 ORA/GSEA，结果表正常显示。
+2) UpSet 切换正常，Source=MultiSample 时可用。
+3) 元数据显示 gene set 版本 / hash。
+4) `enrichment_audits` 表写入。
+
+---
+
+#### 3.2.3 Multi（多样本）
+**作用**：切换多条件/多时间点结果并支持 UpSet。
+
+**工作原理**：
+- `LOAD_MULTI_SAMPLE` 解析多组 logFC/pvalue。
+- 切换组更新火山图 + 统计。
+
+**测试方案**：
+1) 多组 tab/slider 切换，统计变化。
+2) UpSet Source=MultiSample 能切换。
+
+---
+
+#### 3.2.4 SC（单细胞）
+**作用**：单细胞路径/趋势分析入口。
+
+**工作原理**：`AGENT_TASK` -> `sc_contextual`。
+
+**测试方案**：
+运行后返回 `metadata.n_cells` 等字段。
+
+---
+
+#### 3.2.5 Ref（参考图像）
+**作用**：上传图像证据并分析。
+
+**工作原理**：`UPLOAD_IMAGE`/`ANALYZE_IMAGE`。
+
+**测试方案**：
+上传图片后可分析返回结果。
+
+---
+
+#### 3.2.6 Stats（图表切换）
+**作用**：Volcano / MA / Ranked 视图切换。
+
+**工作原理**：切换 `chartViewMode` 重绘。
+
+**测试方案**：
+- MA 无 mean 数据时自动回退。
+
+---
+
+### 3.3 可视化主区
+
+#### 3.3.1 Pathway 主画布
+**作用**：通路渲染 + 颜色映射。
+
+**原理**：后端生成通路模板 -> 前端 ECharts 渲染。节点颜色按 log2FC。点击节点弹出 Evidence。
+
+**测试方案**：
+- 切换通路模板，节点/边更新。
+- 点击节点，Evidence 弹窗出现。
+
+---
+
+#### 3.3.2 Volcano Plot（火山图）
+**作用**：展示显著性分布并联动筛选。
+
+**原理**：ECharts scatter；阈值线拖拽影响筛选；悬停显示 tooltip，含 UniProt/NCBI 外链。
+
+**测试方案**：
+- 拖拽阈值线后筛选联动。
+- hover tooltip 可点击外链。
+
+---
+
+#### 3.3.3 MA / Ranked 图
+**作用**：表达趋势/排序展示。
+
+**测试方案**：
+- Ranked 有序；MA 正确显示均值与 log2FC。
+
+---
+
+#### 3.3.4 Data Table
+**作用**：基因级数据浏览与定位。
+
+**测试方案**：
+- 点击行联动 Evidence。
+
+---
+
+### 3.4 Evidence 与报告
+
+#### 3.4.1 Evidence Popup
+**作用**：展示基因证据与审计快照。
+
+**原理**：点击基因或 AI 实体触发；审计快照来自 `LIST_ENRICHMENT_AUDITS`；分布摘要来自当前 volcano。
+
+**测试方案**：
+- log2FC/pvalue 显示。
+- 审计字段完整。
+- 分布摘要显示（min/max/median）。
+
+---
+
+#### 3.4.2 AI Narrative / Insights
+**作用**：机制叙事与综合洞察。
+
+**原理**：`AGENT_TASK` 工作流 + Evidence 标签。
+
+**测试方案**：
+- 生成叙事并可点击实体。
+
+---
+
+#### 3.4.3 报告导出
+**作用**：HTML/PPTX/JSON 输出，含审计与分布。
+
+**测试方案**：
+- HTML Evidence Audit 显示 DE/Enrich 元数据与分布摘要。
+- PPTX 含富集结果页。
+
+---
+
+## 4. 后端隐藏模块与算法清单
+
+### 4.1 差异分析（de_analysis.py）
+- t-test：快速近似
+- PyDESeq2：统计严谨
+- QC：Library Size + PCA
+
+### 4.2 富集框架（enrichment/**）
+- ORA/GSEA 统计
+- GeneSetSourceManager 缓存
+- ReproLogger 元数据
+
+### 4.3 通路适配器（pathway/**）
+- KEGG/Reactome/WikiPathways/GO 适配器
+- GO 需要自动布局
+
+### 4.4 项目记忆（project_manager.py）
+- projects / project_genes / enrichment_audits / de_analyses
+
+### 4.5 AI 工作流（agent_runtime.py / workflow_registry.py）
+- narrative / literature / pattern discovery
+- 实体标签与证据链输出
+
+---
+
+## 5. 常见 Q&A（详细）
+
+### Q1：KEGG 为什么不能直接内置？
+A：许可限制。商业用途必须自带 GMT 或授权数据源。
+
+### Q2：PyDESeq2 是否等价于 R DESeq2？
+A：高度一致，但可能存在细微差异，应在报告中注明“Python 实现”。
+
+### Q3：为什么没有操作级 History 回滚？
+A：当前仅实现审计追溯（参数、版本、哈希），不记录每一步 UI 操作。
+
+### Q4：UpSet 为什么默认 3 组？
+A：图形可读性与交互复杂度考虑；用户可自选 2/3/4 组。
+
+### Q5：没有 P-value 是否能分析？
+A：可以，但火山图显著性不准确；建议补充统计或使用 DE 模块。
+
+### Q6：QC 报告的 PCA 是否总是可用？
+A：取决于数据规模与 sklearn 是否安装；失败时仅显示警告。
+
+### Q7：Evidence Popup 的审计快照来自哪里？
+A：`enrichment_audits` 或 `de_analyses` 表记录的最新审计条目。
+
+### Q8：AI 解释会不会幻觉？
+A：已加入证据链与实体标注，但仍建议用户核对统计与数据来源。
+
+---
+
+## 6. 可靠性与风险提示
+- KEGG 需合法数据来源。
+- PyDESeq2 对 counts 格式敏感；建议至少 2 个样本/组。
+- 多组 UpSet 目前为原型（交互有限）。
+
+---
+
+如需进一步补充（命令级 API、参数表、异常处理列表），可继续扩展附录。

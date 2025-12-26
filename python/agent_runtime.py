@@ -66,15 +66,123 @@ class AgentRuntime:
         """
         logger.info("Starting Mechanistic Narrative Workflow...")
         
-        # 1. Simulating Enrichment Inputs (In real app, this comes from 'enrichment_results')
-        # For MVP, we load a dummy CSV that looks like enrichment results if not provided
         enrichment_data = params.get('enrichment_results')
         if not enrichment_data:
+            file_path = params.get('file_path')
+            mapping = params.get('mapping') or {}
+            filters = params.get('filters') or {}
+            pvalue_threshold = float(filters.get('pvalue_threshold', 0.05))
+            logfc_threshold = float(filters.get('logfc_threshold', 1.0))
+            top_n = int(filters.get('top_n', 200))
+            volcano_data = params.get('volcano_data') or params.get('volcanoData')
+            gene_list = params.get('genes') or params.get('gene_list') or params.get('geneList')
+
+            def extract_genes_from_volcano(rows):
+                if not rows:
+                    return []
+                picked = []
+                ranked = []
+                for row in rows:
+                    gene = (
+                        row.get('gene')
+                        or row.get('Gene')
+                        or row.get('symbol')
+                        or row.get('Symbol')
+                    )
+                    if not gene:
+                        continue
+                    logfc = (
+                        row.get('log2FC')
+                        or row.get('logfc')
+                        or row.get('logFC')
+                        or row.get('x')
+                    )
+                    pval = (
+                        row.get('pvalue')
+                        or row.get('p_value')
+                        or row.get('PVal')
+                    )
+                    if pval is None and row.get('y') is not None:
+                        try:
+                            pval = 10 ** (-float(row.get('y')))
+                        except Exception:
+                            pval = None
+                    if logfc is not None:
+                        try:
+                            ranked.append((gene, abs(float(logfc)), float(pval) if pval is not None else None))
+                        except Exception:
+                            continue
+                    if pval is not None and logfc is not None:
+                        try:
+                            if float(pval) < pvalue_threshold and abs(float(logfc)) > logfc_threshold:
+                                picked.append(gene)
+                        except Exception:
+                            continue
+                if picked:
+                    return list(dict.fromkeys(picked))
+                ranked.sort(key=lambda item: item[1], reverse=True)
+                return [gene for gene, _, _ in ranked[:top_n]]
+
+            if gene_list:
+                genes = [str(g) for g in gene_list if g]
+            else:
+                genes = extract_genes_from_volcano(volcano_data)
+
+            if genes:
+                try:
+                    from enrichment.fusion import fusion_pipeline
+                    logger.info("Deriving enrichment results from volcano_data for narrative workflow.")
+                    fusion = fusion_pipeline.run_fusion_analysis(genes=genes, method="ORA")
+                    if fusion.get("status") == "ok":
+                        enrichment_data = []
+                        for cluster in fusion.get("fusion_results", []):
+                            term = cluster.get("representative_term") or "Unknown"
+                            genes_list = cluster.get("genes") or []
+                            enrichment_data.append({
+                                "Term": term,
+                                "P-value": cluster.get("p_value", 1.0),
+                                "Adjusted P-value": cluster.get("fdr", 1.0),
+                                "Genes": " ".join(genes_list)
+                            })
+                except Exception as e:
+                    logger.warning(f"Failed to derive enrichment results from volcano_data: {e}")
+
+            if not enrichment_data and file_path and mapping:
+                try:
+                    from enrichment.fusion import fusion_pipeline
+                    logger.info("Deriving enrichment results from file_path for narrative workflow.")
+                    df = step_load_data(file_path=file_path, mapping=mapping)
+                    if 'pvalue' in df.columns:
+                        sig = df[(df['pvalue'] < pvalue_threshold) & (df['log2FC'].abs() > logfc_threshold)]
+                        genes = sig['gene'].dropna().astype(str).unique().tolist()
+                    else:
+                        df = df.dropna(subset=['log2FC'])
+                        df = df.reindex(df['log2FC'].abs().sort_values(ascending=False).index)
+                        genes = df['gene'].dropna().astype(str).unique().tolist()[:top_n]
+
+                    if genes:
+                        fusion = fusion_pipeline.run_fusion_analysis(genes=genes, method="ORA")
+                        if fusion.get("status") == "ok":
+                            enrichment_data = []
+                            for cluster in fusion.get("fusion_results", []):
+                                term = cluster.get("representative_term") or "Unknown"
+                                genes_list = cluster.get("genes") or []
+                                enrichment_data.append({
+                                    "Term": term,
+                                    "P-value": cluster.get("p_value", 1.0),
+                                    "Adjusted P-value": cluster.get("fdr", 1.0),
+                                    "Genes": " ".join(genes_list)
+                                })
+                except Exception as e:
+                    logger.warning(f"Failed to derive enrichment results: {e}")
+
+        if not enrichment_data:
             # Fallback for testing: Generate synthetic data
+            logger.warning("Narrative workflow using synthetic enrichment data (fallback).")
             enrichment_data = [
                 {'Term': 'Cell Cycle', 'P-value': 1e-5, 'Genes': 'TP53 CDK2 CCNB1'},
                 {'Term': 'Mitotic Cell Cycle', 'P-value': 1e-4, 'Genes': 'CDK2 CCNB1'},
-                {'Term': 'Viral Reproduction', 'P-value': 0.001, 'Genes': 'TP53'}, # Garbage to filter?
+                {'Term': 'Viral Reproduction', 'P-value': 0.001, 'Genes': 'TP53'},
                 {'Term': 'T Cell Receptor Signaling', 'P-value': 1e-6, 'Genes': 'CD3D CD28 ZAP70'},
                 {'Term': 'PD-1 Checkpoint Pathway', 'P-value': 1e-5, 'Genes': 'PDCD1 CD274'}
             ]
@@ -194,13 +302,22 @@ class AgentRuntime:
         if intent == "analyze_all":
             return self.run_workflow("comprehensive_analysis", params)
         elif intent == "analyze_narrative":
-            # Direct shortcut for Phase 2 demo
             return self.run_workflow("narrative_analysis", params)
         elif intent == "sc_contextual":
-            # Phase 3: Single-cell contextual analysis
             return self.run_workflow("sc_contextual", params)
-        
-        return {"status": "error", "message": "Unrecognized intent"}
+            
+        # Natural Language Heuristics
+        intent_lower = str(intent).lower()
+        if any(k in intent_lower for k in ["summarize", "findings", "significance", "mechanism", "evidence", "literature"]):
+             logger.info(f"Mapping structured prompt '{intent}' to narrative_analysis")
+             return self.run_workflow("narrative_analysis", params)
+        elif any(k in intent_lower for k in ["single cell", "spatial", "trajectory", "sc"]):
+             logger.info(f"Mapping structured prompt '{intent}' to sc_contextual")
+             return self.run_workflow("sc_contextual", params)
+             
+        # Default fallback for Synthesis Panel context
+        logger.info(f"Unknown intent '{intent}', defaulting to narrative_analysis")
+        return self.run_workflow("narrative_analysis", params)
 
 
 # Singleton instance

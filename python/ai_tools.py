@@ -185,7 +185,16 @@ def _normalize_enriched_terms(enrichment_data: Any) -> List[Dict[str, Any]]:
     for term in terms:
         if not isinstance(term, dict):
             continue
-        name = term.get("term") or term.get("name") or term.get("pathway_name") or term.get("pathway") or term.get("pathway_id") or term.get("id") or "unknown"
+        name = (
+            term.get("term")
+            or term.get("name")
+            or term.get("pathway_name")
+            or term.get("representative_term")
+            or term.get("pathway")
+            or term.get("pathway_id")
+            or term.get("id")
+            or "unknown"
+        )
         pval = _to_float(term.get("p_value") or term.get("pvalue") or term.get("p") or term.get("NOM p-val"))
         fdr = _to_float(term.get("adjusted_p_value") or term.get("fdr") or term.get("q_value") or term.get("FDR q-val"))
         genes_raw = term.get("genes") or term.get("hit_genes") or term.get("overlap") or term.get("leadingEdge")
@@ -206,6 +215,56 @@ def _normalize_enriched_terms(enrichment_data: Any) -> List[Dict[str, Any]]:
         })
 
     return normalized
+
+
+def _derive_significant_genes(
+    volcano_data: Optional[List[Dict[str, Any]]],
+    pvalue_threshold: float = 0.05,
+    logfc_threshold: float = 1.0
+) -> List[str]:
+    """Extract significant gene symbols from volcano data."""
+    if not volcano_data:
+        return []
+    up, down, _ = _split_significant_genes(volcano_data, pvalue_threshold, logfc_threshold)
+    genes = [g.get("gene") for g in up + down if g.get("gene")]
+    # Keep order but remove duplicates
+    seen = set()
+    uniq = []
+    for gene in genes:
+        if gene in seen:
+            continue
+        seen.add(gene)
+        uniq.append(gene)
+    return uniq
+
+
+def _auto_enrich_from_volcano(
+    volcano_data: Optional[List[Dict[str, Any]]],
+    sources: Optional[List[str]] = None,
+    species: str = "auto",
+    parameters: Optional[Dict[str, Any]] = None
+) -> Optional[Dict[str, Any]]:
+    """Run fusion enrichment when no enrichment results are provided."""
+    genes = _derive_significant_genes(volcano_data)
+    if len(genes) < 3:
+        return None
+    try:
+        from enrichment.fusion import fusion_pipeline
+    except Exception:
+        return None
+
+    resolved_sources = sources or ["reactome", "wikipathways"]
+    params = parameters or {}
+    result = fusion_pipeline.run_fusion_analysis(
+        genes=genes,
+        method="ORA",
+        sources=resolved_sources,
+        species=species,
+        parameters=params
+    )
+    if not isinstance(result, dict) or result.get("status") != "ok":
+        return None
+    return result
 
 
 def _split_significant_genes(
@@ -314,39 +373,53 @@ def _explain_pathway(pathway_id: str) -> str:
     return descriptions.get(pathway_id, f"KEGG pathway {pathway_id}")
 
 
-def _run_enrichment(gene_list: List[str], gene_sets: str = "KEGG_2021_Human") -> Dict[str,  Any]:
+def _run_enrichment(gene_list: List[str], gene_sets: str = "reactome") -> Dict[str,  Any]:
     """
-    Run enrichment analysis on a list of genes.
-    This tool automatically extracts genes from the current analysis context.
+    Run enrichment analysis on a list of genes using the v2.0 pipeline.
     """
-    import gsea_module
     import sys
-    
+
     if not gene_list or len(gene_list) == 0:
         return {
             "error": "No genes provided for enrichment analysis",
             "enriched_terms": []
         }
-    
-    print(f"[AI Tool] Running Enrichr with {len(gene_list)} genes on {gene_sets}", file=sys.stderr)
-    
-    try:
-        result = gsea_module.run_enrichr(gene_list, gene_sets)
-        
-        # run_enrichr returns a dict with 'status', 'enriched_terms', etc.
-        if result.get("status") == "error":
-            return {
-                "error": result.get("message", "Unknown error"),
-                "enriched_terms": []
-            }
-        
-        enriched_terms = result.get("enriched_terms", [])
-        
+
+    source_map = {
+        "reactome": "reactome",
+        "wikipathways": "wikipathways",
+        "go_bp": "go_bp",
+        "kegg": "kegg",
+    }
+    normalized = gene_sets.lower()
+    resolved_source = next((v for k, v in source_map.items() if k in normalized), "reactome")
+
+    if resolved_source == "kegg":
         return {
-            "gene_sets": gene_sets,
+            "error": "KEGG enrichment requires a custom GMT file (license).",
+            "enriched_terms": []
+        }
+
+    print(f"[AI Tool] Running enrichment with {len(gene_list)} genes on {resolved_source}", file=sys.stderr)
+
+    try:
+        from enrichment.pipeline import EnrichmentPipeline
+
+        pipeline = EnrichmentPipeline()
+        result = pipeline.run_ora(
+            gene_list=gene_list,
+            gene_set_source=resolved_source,
+            species="auto",
+        )
+
+        enriched_terms = result.get("results", [])
+        return {
+            "gene_sets": resolved_source,
             "input_genes": len(gene_list),
             "enriched_terms": enriched_terms[:20] if isinstance(enriched_terms, list) else [],
-            "total_terms": result.get("total_terms", len(enriched_terms))
+            "total_terms": len(enriched_terms) if isinstance(enriched_terms, list) else 0,
+            "metadata": result.get("metadata"),
+            "warnings": result.get("warnings", []),
         }
     except Exception as e:
         print(f"[AI Tool] Enrichment error: {e}", file=sys.stderr)
@@ -361,11 +434,33 @@ def _run_enrichment(gene_list: List[str], gene_sets: str = "KEGG_2021_Human") ->
 def summarize_enrichment(
     enrichment_data: Any,
     volcano_data: Optional[List[Dict[str, Any]]] = None,
-    metadata: Optional[Dict[str, Any]] = None
+    metadata: Optional[Dict[str, Any]] = None,
+    ui_language: Optional[str] = None
 ) -> Dict[str, Any]:
     """Summarize enrichment output into a structured narrative."""
-    normalized_terms = _normalize_enriched_terms(enrichment_data or {})
     metadata = metadata or {}
+    normalized_terms = _normalize_enriched_terms(enrichment_data or {})
+
+    if not normalized_terms and volcano_data:
+        auto_result = _auto_enrich_from_volcano(
+            volcano_data,
+            sources=["reactome", "wikipathways"],
+            species="auto",
+            parameters=metadata.get("parameters") if isinstance(metadata, dict) else None
+        )
+        if auto_result and auto_result.get("fusion_results"):
+            enrichment_data = {"results": auto_result.get("fusion_results", [])}
+            normalized_terms = _normalize_enriched_terms(enrichment_data)
+            metadata = {
+                **metadata,
+                "auto_enrich": {
+                    "enabled": True,
+                    "sources": auto_result.get("sources") or ["reactome", "wikipathways", "fusion"],
+                    "total_terms": auto_result.get("total_original_terms"),
+                    "total_modules": auto_result.get("total_modules"),
+                    "warnings": auto_result.get("warnings", [])
+                }
+            }
 
     significant_terms = [
         t for t in normalized_terms
@@ -375,7 +470,7 @@ def summarize_enrichment(
     if not normalized_terms:
         return {
             "status": "ok",
-            "summary": "No enrichment results were provided. Run Enrichr/GSEA first, then retry the explanation step.",
+            "summary": "No enrichment results were provided and auto-enrichment could not run. Please run enrichment first or provide differential expression data.",
             "terms_used": []
         }
 
@@ -395,6 +490,8 @@ def summarize_enrichment(
             g.get("gene") for g in (volcano_data or []) if g.get("status") in {"UP", "DOWN"}
         ][:20]
     }
+    if ui_language:
+        payload["ui_language"] = ui_language
 
     prompt = render_prompt(PATHWAY_ENRICHMENT_PROMPT, payload)
     content, model, error = _invoke_structured_prompt(prompt, temperature=0.25)
@@ -412,7 +509,8 @@ def summarize_enrichment(
 
 def summarize_de_genes(
     volcano_data: Optional[List[Dict[str, Any]]],
-    thresholds: Optional[Dict[str, Any]] = None
+    thresholds: Optional[Dict[str, Any]] = None,
+    ui_language: Optional[str] = None
 ) -> Dict[str, Any]:
     """Generate a standardized summary for differential expression results."""
     if not volcano_data:
@@ -440,6 +538,8 @@ def summarize_de_genes(
         "top_up": top_up,
         "top_down": top_down
     }
+    if ui_language:
+        payload["ui_language"] = ui_language
 
     prompt = render_prompt(DE_SUMMARY_PROMPT, payload)
     content, model, error = _invoke_structured_prompt(prompt, temperature=0.2)
@@ -459,7 +559,8 @@ def summarize_de_genes(
 
 def parse_filter_query(
     natural_language_query: str,
-    available_fields: Optional[List[str]] = None
+    available_fields: Optional[List[str]] = None,
+    ui_language: Optional[str] = None
 ) -> Dict[str, Any]:
     """Translate natural language filters into structured conditions."""
     if not natural_language_query or not natural_language_query.strip():
@@ -469,6 +570,8 @@ def parse_filter_query(
         "query": natural_language_query,
         "available_fields": available_fields or []
     }
+    if ui_language:
+        payload["ui_language"] = ui_language
     prompt = render_prompt(NL_FILTER_PROMPT, payload, extra_notes="Respond with the JSON object only.")
     content, model, error = _invoke_structured_prompt(prompt, temperature=0.0, max_tokens=700)
 
@@ -496,7 +599,7 @@ def parse_filter_query(
     }
 
 
-def describe_visualization(table_data: Any) -> Dict[str, Any]:
+def describe_visualization(table_data: Any, ui_language: Optional[str] = None) -> Dict[str, Any]:
     """Describe enrichment/visualization trends without making causal claims."""
     if not table_data:
         return {"status": "ok", "summary": "No visualization data provided to describe."}
@@ -506,7 +609,10 @@ def describe_visualization(table_data: Any) -> Dict[str, Any]:
     if isinstance(table_data, list):
         preview = table_data[:25]
 
-    prompt = render_prompt(VISUALIZATION_PROMPT, {"preview": preview})
+    payload = {"preview": preview}
+    if ui_language:
+        payload["ui_language"] = ui_language
+    prompt = render_prompt(VISUALIZATION_PROMPT, payload)
     content, model, error = _invoke_structured_prompt(prompt, temperature=0.2, max_tokens=600)
 
     if error or not content:
@@ -518,15 +624,24 @@ def describe_visualization(table_data: Any) -> Dict[str, Any]:
 def generate_hypothesis(
     significant_genes: Optional[List[str]] = None,
     pathways: Optional[Any] = None,
-    volcano_data: Optional[List[Dict[str, Any]]] = None
+    volcano_data: Optional[List[Dict[str, Any]]] = None,
+    ui_language: Optional[str] = None
 ) -> Dict[str, Any]:
     """Produce Phase 3 exploratory hypotheses with explicit disclaimers."""
     gene_list = significant_genes or []
     if not gene_list and volcano_data:
-        up, down, _ = _split_significant_genes(volcano_data)
-        gene_list = [g.get("gene") for g in up + down if g.get("gene")]
+        gene_list = _derive_significant_genes(volcano_data)
 
     normalized_pathways = _normalize_enriched_terms(pathways or [])
+    if not normalized_pathways and volcano_data:
+        auto_result = _auto_enrich_from_volcano(
+            volcano_data,
+            sources=["reactome", "wikipathways"],
+            species="auto",
+            parameters=None
+        )
+        if auto_result and auto_result.get("fusion_results"):
+            normalized_pathways = _normalize_enriched_terms(auto_result.get("fusion_results", []))
 
     if not gene_list and not normalized_pathways:
         return {
@@ -538,6 +653,8 @@ def generate_hypothesis(
         "significant_genes": gene_list[:40],
         "pathways": normalized_pathways[:10]
     }
+    if ui_language:
+        payload["ui_language"] = ui_language
     prompt = render_prompt(HYPOTHESIS_PROMPT, payload, extra_notes="Always prefix speculative content with 'Hypothesis (not validated)'.")
     content, model, error = _invoke_structured_prompt(prompt, temperature=0.35, max_tokens=800)
 
@@ -552,7 +669,7 @@ def generate_hypothesis(
 
 
 
-def discover_patterns(expression_matrix: Any) -> Dict[str, Any]:
+def discover_patterns(expression_matrix: Any, ui_language: Optional[str] = None) -> Dict[str, Any]:
     """Exploratory pattern discovery for Phase 3."""
     if not expression_matrix:
         return {"status": "ok", "summary": "No expression matrix provided. Provide DE results or expression values to discover patterns."}
@@ -562,7 +679,10 @@ def discover_patterns(expression_matrix: Any) -> Dict[str, Any]:
         # Trim to keep payload small
         preview = expression_matrix[:60]
 
-    prompt = render_prompt(PATTERN_DISCOVERY_PROMPT, {"expression_preview": preview}, extra_notes="Treat all findings as exploratory.")
+    payload = {"expression_preview": preview}
+    if ui_language:
+        payload["ui_language"] = ui_language
+    prompt = render_prompt(PATTERN_DISCOVERY_PROMPT, payload, extra_notes="Treat all findings as exploratory.")
     content, model, error = _invoke_structured_prompt(prompt, temperature=0.3, max_tokens=850)
 
     if error or not content:
@@ -571,7 +691,11 @@ def discover_patterns(expression_matrix: Any) -> Dict[str, Any]:
     return {"status": "ok", "summary": content, "model": model}
 
 
-def summarize_studio_intelligence(intelligence_data: Dict[str, Any]) -> Dict[str, Any]:
+def summarize_studio_intelligence(
+    intelligence_data: Dict[str, Any],
+    ui_language: Optional[str] = None,
+    **_kwargs: Any
+) -> Dict[str, Any]:
     """
     [Phase 6] Generate a 'Super Narrative' by synthesizing all 7 analytical layers.
     This provides the cohesive executive summary for the Intelligence Dashboard.
@@ -589,6 +713,8 @@ def summarize_studio_intelligence(intelligence_data: Dict[str, Any]) -> Dict[str
     layers = root.get("layers", {})
     summary = root.get("summary", "Standard overview")
     drivers = root.get("drivers", [])
+    if not ui_language:
+        ui_language = intelligence_data.get("ui_language") or root.get("ui_language")
 
     payload = {
         "multi_omics": layers.get("multi_omics", {}),
@@ -601,6 +727,8 @@ def summarize_studio_intelligence(intelligence_data: Dict[str, Any]) -> Dict[str
         "summary_stats": summary,
         "key_drivers": drivers[:20] if isinstance(drivers, list) else []
     }
+    if ui_language:
+        payload["ui_language"] = ui_language
 
     prompt = render_prompt(STUDIO_INSIGHTS_PROMPT, payload)
     content, model, error = _invoke_structured_prompt(prompt, temperature=0.3, max_tokens=1500)
@@ -740,7 +868,7 @@ TOOLS: List[ToolDefinition] = [
     
     ToolDefinition(
         name="run_enrichment",
-        description="Run enrichment analysis (Enrichr) on a list of significant genes to find enriched pathways and gene sets. Use this when user asks about pathway enrichment or which pathways are most significant.",
+        description="Run enrichment analysis (ORA) on a list of significant genes using local gene set sources.",
         parameters={
             "type": "object",
             "properties": {
@@ -751,9 +879,9 @@ TOOLS: List[ToolDefinition] = [
                 },
                 "gene_sets": {
                     "type": "string",
-                    "enum": ["KEGG_2021_Human", "GO_Biological_Process_2021", "GO_Molecular_Function_2021", "Reactome_2022"],
+                    "enum": ["reactome", "wikipathways", "go_bp"],
                     "description": "Gene set database to use",
-                    "default": "KEGG_2021_Human"
+                    "default": "reactome"
                 }
             },
             "required": ["gene_list"]
