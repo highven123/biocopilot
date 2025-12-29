@@ -44,7 +44,7 @@ export interface UseBioEngineReturn {
     /** Restart the sidecar process */
     restartSidecar: () => Promise<void>;
     /** Resolve (confirm or reject) an active proposal */
-    resolveProposal: (proposalId: string, accepted: boolean) => Promise<void>;
+    resolveProposal: (proposalId: string, accepted: boolean, context?: Record<string, unknown>) => Promise<void>;
     /** Summarize enrichment results using structured prompts */
     summarizeEnrichment: (enrichmentData: unknown, extras?: Record<string, unknown>) => Promise<SidecarResponse | void>;
     /** Summarize differential expression results */
@@ -126,17 +126,33 @@ export function useBioEngine(): UseBioEngineReturn {
                         console.log('[BioViz] Sidecar JSON:', response);
 
                         // ============================================
-                        // SAFETY GUARD: Intercept PROPOSAL actions
-                        // ============================================
                         // If this is a PROPOSAL type (Yellow/Red Zone), 
                         // STOP all normal processing and activate the Safety Guard.
                         // The backend will NOT execute until we send CHAT_CONFIRM.
+                        // ============================================
+                        // SAFETY GUARD: Intercept PROPOSAL actions
+                        // ============================================
                         const aiResponse = response as unknown as AIActionResponse;
                         if (aiResponse.type === 'PROPOSAL' && isProposal(aiResponse)) {
                             console.log('[BioViz] 🛡️ SAFETY GUARD: Intercepted PROPOSAL:', aiResponse.proposal_id);
                             setActiveProposal(aiResponse);
-                            // Do NOT set as lastResponse - this is intercepted
-                            continue; // Skip normal processing for this message
+                            continue;
+                        }
+
+                        // ============================================
+                        // PROCESS VISIBILITY: Intercept AI_PROCESS events
+                        // ============================================
+                        if (response.type === 'AI_PROCESS_START') {
+                            eventBus.emit(BioVizEvents.AI_PROCESS_START, response);
+                            continue;
+                        }
+                        if (response.type === 'AI_PROCESS_UPDATE') {
+                            eventBus.emit(BioVizEvents.AI_PROCESS_UPDATE, response);
+                            continue;
+                        }
+                        if (response.type === 'AI_PROCESS_COMPLETE') {
+                            eventBus.emit(BioVizEvents.AI_PROCESS_COMPLETE, response);
+                            continue;
                         }
                         // ============================================
 
@@ -205,7 +221,13 @@ export function useBioEngine(): UseBioEngineReturn {
 
                 // Treat log-level lines as console logs, not fatal errors
                 if (text) {
-                    if (/\[(DEBUG|INFO)\]/.test(text) || text.startsWith('[BioEngine]')) {
+                    const isLogLine = /\[(DEBUG|INFO)\]/.test(text)
+                        || text.startsWith('[BioEngine]')
+                        || text.startsWith('[AI Core]')
+                        || text.startsWith('[BioCore]')
+                        || text.startsWith('[AI Tool]')
+                        || text.startsWith('[AI Tools]');
+                    if (isLogLine) {
                         console.log('[BioViz] Sidecar log:', text);
                         return;
                     }
@@ -394,7 +416,7 @@ export function useBioEngine(): UseBioEngineReturn {
      * @param proposalId The UUID of the proposal
      * @param accepted True to confirm and execute, False to reject
      */
-    const resolveProposal = useCallback(async (proposalId: string, accepted: boolean): Promise<void> => {
+    const resolveProposal = useCallback(async (proposalId: string, accepted: boolean, context?: Record<string, unknown>): Promise<void> => {
         if (!activeProposal || activeProposal.proposal_id !== proposalId) {
             console.warn('[BioViz] resolveProposal called with mismatched proposal ID');
             setActiveProposal(null);
@@ -405,7 +427,7 @@ export function useBioEngine(): UseBioEngineReturn {
             // Send confirmation to backend - this is the ONLY way to execute Yellow Zone actions
             console.log('[BioViz] 🟢 User CONFIRMED proposal:', proposalId);
             try {
-                await sendCommand('CHAT_CONFIRM', { proposal_id: proposalId }, true);
+                await sendCommand('CHAT_CONFIRM', { proposal_id: proposalId, context: context || {} }, true);
             } catch (e) {
                 console.error('[BioViz] Failed to confirm proposal:', e);
                 setError(`Failed to confirm proposal: ${e}`);

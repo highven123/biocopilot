@@ -22,8 +22,10 @@ interface IntelligenceDashboardProps {
     };
     onGenerateSuperNarrative?: () => void;
     isGenerating?: boolean;
-    chatHistory?: Array<{ role: 'user' | 'assistant', content: string, timestamp: number }>;
-    onChatUpdate?: (messages: Array<{ role: 'user' | 'assistant', content: string, timestamp: number }>) => void;
+    chatHistory?: Array<{ role: 'user' | 'assistant', content: string, timestamp: number; kind?: string; proposal?: any; status?: string }>;
+    onChatUpdate?: (messages: Array<{ role: 'user' | 'assistant', content: string, timestamp: number; kind?: string; proposal?: any; status?: string }>) => void;
+    metadata?: any;
+    analysisContext?: Record<string, unknown>;
 }
 
 export const IntelligenceDashboard: React.FC<IntelligenceDashboardProps> = ({
@@ -31,12 +33,14 @@ export const IntelligenceDashboard: React.FC<IntelligenceDashboardProps> = ({
     onGenerateSuperNarrative,
     isGenerating,
     chatHistory,
-    onChatUpdate
+    onChatUpdate,
+    metadata,
+    analysisContext
 }) => {
     if (!data) return null;
 
     const { t } = useI18n();
-    const { sendCommand, isConnected, lastResponse } = useBioEngine();
+    const { sendCommand, isConnected, lastResponse, activeProposal, resolveProposal } = useBioEngine();
 
     // Safety fallback for layers to prevent crashes
     const layers = data.layers || {
@@ -306,6 +310,13 @@ export const IntelligenceDashboard: React.FC<IntelligenceDashboardProps> = ({
                         sendCommand={sendCommand as (cmd: string, data?: Record<string, unknown>) => Promise<void>}
                         isConnected={isConnected}
                         lastResponse={lastResponse}
+                        activeProposal={activeProposal}
+                        onResolveProposal={resolveProposal}
+                        analysisContext={{
+                            ...(analysisContext || {}),
+                            data,
+                            metadata
+                        }}
                         chatHistory={chatHistory}
                         onChatUpdate={onChatUpdate}
                         workflowPhase="synthesis"

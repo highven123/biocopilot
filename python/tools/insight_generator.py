@@ -112,14 +112,17 @@ def generate_insights(analysis_result: Dict[str, Any]) -> Dict[str, Any]:
                 ))
     
     # ============================================
-    # Rule 3: QC/Risk Badges
+    # Rule 3: QC/Risk Badges & Confidence Calculation
     # ============================================
+    confidence_score = 1.0
+    
     if gene_count < 10:
         badges.append(InsightBadge(
             type="RISK",
             message="⚠️ Low Gene Count",
             detail=f"Only {gene_count} genes mapped. Results may be unreliable."
         ))
+        confidence_score -= 0.1
     
     if not has_pvalue:
         badges.append(InsightBadge(
@@ -127,6 +130,7 @@ def generate_insights(analysis_result: Dict[str, Any]) -> Dict[str, Any]:
             message="⚠️ No Statistical Testing",
             detail="P-values missing in source data. Cannot assess significance."
         ))
+        confidence_score -= 0.2
     
     # Low coverage check
     if total_nodes > 0 and gene_count > 0:
@@ -137,6 +141,12 @@ def generate_insights(analysis_result: Dict[str, Any]) -> Dict[str, Any]:
                 message="⚠️ Low Pathway Coverage",
                 detail=f"Only {coverage:.1f}% of pathway nodes have data ({gene_count}/{total_nodes})"
             ))
+            # Deduct up to 0.3 based on how low coverage is
+            deduction = 0.3 * (1.0 - (coverage / 20.0))
+            confidence_score -= deduction
+    
+    # Ensure confidence score is within [0.1, 1.0]
+    confidence_score = max(0.1, min(1.0, confidence_score))
     
     # ============================================
     # Rule 4: Generate Summary (Deterministic Template)
@@ -155,7 +165,10 @@ def generate_insights(analysis_result: Dict[str, Any]) -> Dict[str, Any]:
     # ============================================
     return {
         "summary": summary,
-        "badges": [badge.to_dict() for badge in badges]
+        "badges": [badge.to_dict() for badge in badges],
+        "statistics": {
+            "confidence_score": confidence_score
+        }
     }
 
 

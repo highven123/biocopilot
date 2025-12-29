@@ -1,10 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
 import { useBioEngine } from '../hooks/useBioEngine';
 import { AIChatPanel } from './AIChatPanel';
+import { AnalysisSummaryCard } from './AnalysisSummaryCard';
 import { ResizablePanels } from './ResizablePanels';
 import { renderEvidenceContent } from '../utils/evidenceRenderer';
 import './AIInsightsDashboard.css';
 import { useI18n } from '../i18n';
+
+import { AnalysisInsights } from '../types/insights';
 
 export interface InsightCard {
     id: string;
@@ -27,14 +30,17 @@ interface AIInsightsDashboardProps {
         mapping?: Record<string, unknown>;
         dataType?: string;
         filters?: Record<string, unknown>;
+        metadata?: any;
     };
-    chatHistory?: Array<{ role: 'user' | 'assistant', content: string, timestamp: number }>;
-    onChatUpdate?: (messages: Array<{ role: 'user' | 'assistant', content: string, timestamp: number }>) => void;
+    insights?: AnalysisInsights; // AI-generated insights from backend
+    chatHistory?: Array<{ role: 'user' | 'assistant', content: string, timestamp: number; kind?: string; proposal?: any; status?: string }>;
+    onChatUpdate?: (messages: Array<{ role: 'user' | 'assistant', content: string, timestamp: number; kind?: string; proposal?: any; status?: string }>) => void;
 }
 
 export function AIInsightsDashboard({
     volcanoData = [],
     enrichmentResults,
+    insights: backendInsights,
     onInsightClick,
     onPathwaySelect,
     onEntityClick,
@@ -43,7 +49,7 @@ export function AIInsightsDashboard({
     onChatUpdate
 }: AIInsightsDashboardProps) {
     const { t } = useI18n();
-    const { runNarrativeAnalysis, sendCommand, isConnected, lastResponse } = useBioEngine();
+    const { runNarrativeAnalysis, sendCommand, isConnected, lastResponse, activeProposal, resolveProposal } = useBioEngine();
     const mountedRef = useRef(true);
 
     const [insights, setInsights] = useState<InsightCard[]>([]);
@@ -162,20 +168,17 @@ export function AIInsightsDashboard({
             </div>
 
             {volcanoData.length > 0 && (
-                <div className="ai-stats-row">
-                    <div className="ai-stat-card">
-                        <div className="ai-stat-value">{stats.total.toLocaleString()}</div>
-                        <div className="ai-stat-label">{t('Total Genes')}</div>
-                    </div>
-                    <div className="ai-stat-card up">
-                        <div className="ai-stat-value">{stats.upRegulated}</div>
-                        <div className="ai-stat-label">↑ {t('Upregulated')}</div>
-                    </div>
-                    <div className="ai-stat-card down">
-                        <div className="ai-stat-value">{stats.downRegulated}</div>
-                        <div className="ai-stat-label">↓ {t('Downregulated')}</div>
-                    </div>
-                </div>
+                <AnalysisSummaryCard
+                    statistics={{
+                        total_nodes: stats.total,
+                        upregulated: stats.upRegulated,
+                        downregulated: stats.downRegulated,
+                        unchanged: stats.unchanged,
+                        confidence_score: backendInsights?.statistics?.confidence_score || 0.92
+                    }}
+                    insights={backendInsights}
+                    dataType={analysisContext?.dataType as any || 'gene'}
+                />
             )}
 
             {isAnalyzing && (
@@ -279,7 +282,10 @@ export function AIInsightsDashboard({
                         sendCommand={sendCommand as (cmd: string, data?: Record<string, unknown>) => Promise<void>}
                         isConnected={isConnected}
                         lastResponse={lastResponse}
+                        activeProposal={activeProposal}
+                        onResolveProposal={resolveProposal}
                         analysisContext={{
+                            ...analysisContext,
                             volcanoData: volcanoData
                         }}
                         chatHistory={chatHistory}

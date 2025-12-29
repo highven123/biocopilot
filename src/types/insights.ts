@@ -25,4 +25,7 @@ export interface AnalysisInsights {
         rag_hints: any;
     };
     drivers: any[];
+    statistics?: {
+        confidence_score: number;
+    };
 }

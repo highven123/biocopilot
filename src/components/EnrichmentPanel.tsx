@@ -55,8 +55,11 @@ export const EnrichmentPanel: React.FC<EnrichmentPanelProps> = ({
     const [summary, setSummary] = useState<string | null>(null);
     const [isSummaryOpen, setIsSummaryOpen] = useState(false);
     const [isSummarizing, setIsSummarizing] = useState(false);
+    const [summaryStale, setSummaryStale] = useState(false);
     const [feedback, setFeedback] = useState<{ type: 'success' | 'warning' | 'error'; message: string } | null>(null);
     const [metadata, setMetadata] = useState<any | null>(null);
+    const [fusionStats, setFusionStats] = useState<{ original: number; modules: number } | null>(null);
+    const [runTimeSec, setRunTimeSec] = useState<number | null>(null);
     const [viewMode, setViewMode] = useState<'table' | 'upset'>('table');
     const [upsetSource, setUpsetSource] = useState<'current' | 'fusion' | 'multisample'>('current');
     const [upsetMaxSets, setUpsetMaxSets] = useState(3);
@@ -132,6 +135,9 @@ export const EnrichmentPanel: React.FC<EnrichmentPanelProps> = ({
                 setResults(res);
                 setIntelligenceReport(lastResponse.intelligence_report || null);
                 setMetadata(lastResponse.metadata || null);
+                setFusionStats(null);
+                const elapsed = Number(lastResponse?.metadata?.elapsed_time ?? lastResponse?.metadata?.runtime);
+                setRunTimeSec(Number.isFinite(elapsed) ? elapsed : null);
                 const warnings = (lastResponse.warnings || []) as string[];
                 setFeedback({
                     type: warnings.length > 0 ? 'warning' : 'success',
@@ -177,6 +183,12 @@ export const EnrichmentPanel: React.FC<EnrichmentPanelProps> = ({
                 } as any)));
 
                 setMetadata(lastResponse.metadata || { sources: lastResponse.sources });
+                setFusionStats({
+                    original: Number(lastResponse.total_original_terms || 0),
+                    modules: Number(lastResponse.total_modules || 0)
+                });
+                const elapsed = Number(lastResponse?.metadata?.elapsed_time ?? lastResponse?.metadata?.runtime);
+                setRunTimeSec(Number.isFinite(elapsed) ? elapsed : null);
                 setFeedback({
                     type: 'success',
                     message: t('Fusion complete. Consolidated {terms} terms into {modules} biological modules.', {
@@ -217,10 +229,32 @@ export const EnrichmentPanel: React.FC<EnrichmentPanelProps> = ({
         return () => window.clearTimeout(timer);
     }, [summary, summaryFromProps]);
 
-    const displaySummary = summary || summaryFromProps || null;
+    useEffect(() => {
+        setSummary(null);
+        setIsSummaryOpen(false);
+        setIsSummarizing(false);
+        setSummaryStale(true);
+    }, [geneSetSource, method]);
+
+    useEffect(() => {
+        if (!summaryFromProps) return;
+        setSummaryStale(false);
+    }, [summaryFromProps]);
+
+    const displaySummary = summary || (!summaryStale ? summaryFromProps : null);
 
     const resolvedPCutoff = Number(metadata?.parameters?.p_cutoff ?? ENRICHMENT_DEFAULTS.p_cutoff) || ENRICHMENT_DEFAULTS.p_cutoff;
     const resolvedFdrMethod = (metadata?.parameters?.fdr_method || ENRICHMENT_DEFAULTS.fdr_method) as string;
+    const estimateConfidence = (fdr: number | null) => {
+        if (fdr === null || Number.isNaN(fdr)) return 0.5;
+        if (fdr <= 0.001) return 0.9;
+        if (fdr <= 0.01) return 0.8;
+        if (fdr <= 0.05) return 0.65;
+        return 0.5;
+    };
+    const topFdr = results.length > 0 ? Math.min(...results.map((r) => r.fdr ?? 1)) : null;
+    const confidenceScore = estimateConfidence(topFdr);
+    const confidencePercent = Math.round(confidenceScore * 100);
 
     const generateSummary = async (enrichmentResults: EnrichmentResult[]) => {
         setIsSummarizing(true);
@@ -229,7 +263,11 @@ export const EnrichmentPanel: React.FC<EnrichmentPanelProps> = ({
             await sendCommand('SUMMARIZE_ENRICHMENT', {
                 enrichment_data: enrichmentResults,
                 volcano_data: volcanoData,
-                method: method
+                method: method,
+                metadata: {
+                    ...(metadata || {}),
+                    gene_set_source: geneSetSource
+                }
             });
         } catch (err) {
             console.error('Failed to generate summary:', err);
@@ -523,6 +561,28 @@ export const EnrichmentPanel: React.FC<EnrichmentPanelProps> = ({
             <div className="enrichment-info">
                 <span>📊 {volcanoData?.length || 0} genes loaded</span>
                 <span>✓ {method === 'ORA' ? t('Over-Representation') : t('Gene Set Enrichment')}</span>
+                {fusionStats && (
+                    <span className="info-badge">
+                        🔁 {t('Deduplicated')} {fusionStats.original} → {fusionStats.modules}
+                    </span>
+                )}
+            </div>
+            <div className="enrichment-trust">
+                <div className="confidence-row">
+                    <span className="confidence-label">{t('Confidence')}</span>
+                    <div className="confidence-bar">
+                        <div className="confidence-fill" style={{ width: `${confidencePercent}%` }} />
+                    </div>
+                    <span className="confidence-value">{confidencePercent}%</span>
+                </div>
+                <div className="efficiency-row">
+                    <span className="efficiency-label">{t('Efficiency')}</span>
+                    <span className="efficiency-value">
+                        {runTimeSec !== null
+                            ? t('Runtime {seconds}s (manual ~30 min)', { seconds: runTimeSec.toFixed(1) })
+                            : t('Manual ~30 min')}
+                    </span>
+                </div>
             </div>
 
             {/* Metadata & QC */}
@@ -561,7 +621,9 @@ export const EnrichmentPanel: React.FC<EnrichmentPanelProps> = ({
                     <div className="report-main-header">
                         <div className="summary-status">
                             <span className="status-dot"></span>
-                            <span className="summary-text">{intelligenceReport.summary}</span>
+                            <span className="summary-text">
+                                {isSummarizing ? t('AI Deep Analysis in progress') : intelligenceReport.summary}
+                            </span>
                         </div>
                         {!summary && !isSummarizing && (
                             <button
@@ -569,6 +631,11 @@ export const EnrichmentPanel: React.FC<EnrichmentPanelProps> = ({
                                 onClick={() => generateSummary(results)}
                             >
                                 ✨ {t('AI Deep Analysis')}
+                            </button>
+                        )}
+                        {isSummarizing && (
+                            <button className="ai-insight-btn" disabled>
+                                ✨ {t('Analyzing...')}
                             </button>
                         )}
                     </div>
@@ -636,6 +703,42 @@ export const EnrichmentPanel: React.FC<EnrichmentPanelProps> = ({
                                 ))}
                             </div>
                         )}
+                    </div>
+                </div>
+            )}
+
+            {!intelligenceReport && !summary && !isSummarizing && results.length > 0 && (
+                <div className="intelligence-report-box">
+                    <div className="report-main-header">
+                        <div className="summary-status">
+                            <span className="status-dot"></span>
+                            <span className="summary-text">
+                                {geneSetSource === 'fusion' ? t('Fusion results ready') : t('Analysis ready')}
+                            </span>
+                        </div>
+                        <button
+                            className="ai-insight-btn"
+                            onClick={() => generateSummary(results)}
+                        >
+                            ✨ {t('AI Deep Analysis')}
+                        </button>
+                    </div>
+                    {geneSetSource === 'fusion' && (
+                        <div className="fusion-note">{t('Fusion modules summarized')}</div>
+                    )}
+                </div>
+            )}
+
+            {!intelligenceReport && isSummarizing && (
+                <div className="intelligence-report-box">
+                    <div className="report-main-header">
+                        <div className="summary-status">
+                            <span className="status-dot"></span>
+                            <span className="summary-text">{t('AI Deep Analysis in progress')}</span>
+                        </div>
+                        <button className="ai-insight-btn" disabled>
+                            ✨ {t('Analyzing...')}
+                        </button>
                     </div>
                 </div>
             )}

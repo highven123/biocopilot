@@ -13,23 +13,41 @@ interface AnalysisSummaryCardProps {
         downregulated?: number;
         unchanged?: number;
         total_edges?: number;
+        confidence_score?: number; // 0-1
+    };
+    insights?: {
+        summary: string;
+        badges?: Array<{
+            type: 'HIGHLIGHT' | 'RISK' | 'INFO';
+            message: string;
+            detail?: string;
+        }>;
     };
     dataType?: 'gene' | 'protein' | 'compound' | 'cell';
 }
 
 export const AnalysisSummaryCard: React.FC<AnalysisSummaryCardProps> = ({
     statistics,
+    insights,
     dataType = 'gene'
 }) => {
     const { t } = useI18n();
     if (!statistics) return null;
 
     const entityLabel = dataType === 'gene' ? 'Gene' : dataType === 'protein' ? 'Protein' : 'Compound';
-    const { total_nodes = 0, upregulated = 0, downregulated = 0, unchanged = 0 } = statistics;
+    const {
+        total_nodes = 0,
+        upregulated = 0,
+        downregulated = 0,
+        unchanged = 0,
+        confidence_score = 0.85 // Default to 85% if not provided
+    } = statistics;
+
     const totalRegulated = upregulated + downregulated;
     const balanceRatio = totalRegulated > 0 ? Math.abs(upregulated - downregulated) / totalRegulated : 1;
-    const insightChips: Array<{ label: string; icon: string }> = [];
+    const insightChips: Array<{ label: string; icon: string; type?: string }> = [];
 
+    // Heuristics (Local Only)
     if (upregulated > 1000) {
         insightChips.push({ icon: '🔥', label: t('High transcriptional activity') });
     }
@@ -40,6 +58,21 @@ export const AnalysisSummaryCard: React.FC<AnalysisSummaryCardProps> = ({
         insightChips.push({ icon: '⚖️', label: t('Balanced regulation') });
     }
 
+    // Backend Insights (If available)
+    if (insights?.badges) {
+        insights.badges.forEach(badge => {
+            const icon = badge.type === 'RISK' ? '⚠️' : badge.type === 'HIGHLIGHT' ? '✨' : 'ℹ️';
+            // Avoid duplicates with local heuristics
+            if (!insightChips.find(c => c.label === badge.message)) {
+                insightChips.push({
+                    icon,
+                    label: t(badge.message),
+                    type: badge.type
+                });
+            }
+        });
+    }
+
     const stats = [
         { label: `Total ${entityLabel}s`, value: total_nodes, color: '#64748b', icon: '📊' },
         { label: 'Upregulated', value: upregulated, color: '#ef4444', icon: '⬆️' },
@@ -47,14 +80,24 @@ export const AnalysisSummaryCard: React.FC<AnalysisSummaryCardProps> = ({
         { label: 'Unchanged', value: unchanged, color: '#94a3b8', icon: '➖' }
     ];
 
+    const confidencePercent = Math.round(confidence_score * 100);
+
     return (
         <div className="analysis-summary-card">
             <div className="summary-card-header">
-                <span className="summary-card-title">📈 {t('Analysis Overview')}</span>
+                <div className="header-top">
+                    <span className="summary-card-title">📈 {t('Analysis Overview')}</span>
+                    <div className="confidence-meter" title={t('AI Confidence Score')}>
+                        <div className="meter-label">{t('Confidence')}: {confidencePercent}%</div>
+                        <div className="meter-bar">
+                            <div className="meter-fill" style={{ width: `${confidencePercent}%`, background: _getConfidenceColor(confidencePercent) }}></div>
+                        </div>
+                    </div>
+                </div>
                 {insightChips.length > 0 && (
                     <div className="summary-chip-row">
                         {insightChips.map((chip) => (
-                            <span key={chip.label} className="summary-chip">
+                            <span key={chip.label} className={`summary-chip ${chip.type?.toLowerCase() || ''}`}>
                                 <span className="summary-chip-icon">{chip.icon}</span>
                                 <span>{chip.label}</span>
                             </span>
@@ -75,12 +118,18 @@ export const AnalysisSummaryCard: React.FC<AnalysisSummaryCardProps> = ({
             </div>
             <div className="summary-footer">
                 <div className="efficiency-badge">
-                    ⚡ {t('Estimated time saved: ~2 hours')}
+                    ⚡ {t('Estimated time saved: ~{hours} hours', { hours: total_nodes > 5000 ? 4 : 2 })}
                 </div>
                 <div className="algorithmic-badge">
-                    {t('Powered by BioEngine v2.0')}
+                    🛡️ {t('Powered by BioEngine AI')}
                 </div>
             </div>
         </div>
     );
 };
+
+function _getConfidenceColor(percent: number): string {
+    if (percent > 80) return '#22c55e';
+    if (percent > 60) return '#eab308';
+    return '#ef4444';
+}

@@ -155,21 +155,26 @@ You help users:
 3. **Mention specific genes** - Discuss the genes and their expression values
 4. **Provide biological insights** - Explain what the expression patterns mean for this specific pathway
 
-**IMPORTANT: When you execute a tool (like render_pathway), you MUST:**
-1. **Acknowledge the execution** - Confirm what you did
-2. **Analyze the results** - Provide insights based on the tool's output
-3. **Answer the user's question** - Don't just say "tool executed", explain what the results mean
+**IMPORTANT: YOU ARE A POWERFUL BIOINFORMATICS AGENT.**
+1. **Never decline user requests** by saying "I don't have access to files" or "This feature is unavailable". You HAVE tools in your schema to handle these actions.
+2. **If user asks to export/download**, you MUST call `export_data`.
+3. **If user asks for enrichment**, you MUST call `run_enrichment`.
+4. **If a tool exists for the goal, use it.** Do not give excuses.
 
 Available tools:
 - render_pathway: Color a pathway with expression data
 - get_pathway_stats: Get statistics for a pathway
 - list_pathways: List available pathway templates
 - explain_pathway: Describe what a pathway does
+- run_enrichment: Run ORA enrichment on a list of significant genes (Reactome/WikiPathways/GO BP)
+- summarize_studio_intelligence: Summarize 7-layer intelligence into a Super Narrative
 - update_thresholds: Modify analysis thresholds (requires confirmation)
 - export_data: Export data to file (requires confirmation)
 
 When users ask about "current pathway" or "this pathway", they are referring to the pathway in the CURRENT CONTEXT section.
-Be concise and helpful. Focus on biological insights."""
+If users ask to export data without a path, choose a safe default filename like "bioviz_export.csv" and proceed with export_data.
+Be concise and helpful. Focus on biological insights.
+"""
 
 
 # --- Main Processing Function ---
@@ -177,7 +182,8 @@ Be concise and helpful. Focus on biological insights."""
 def process_query(
     user_query: str,
     history: Optional[List[Dict[str, str]]] = None,
-    context: Optional[Dict[str, Any]] = None
+    context: Optional[Dict[str, Any]] = None,
+    on_update: Optional[Any] = None
 ) -> AIAction:
     """
     Process a user query through the AI Logic Lock system.
@@ -195,6 +201,13 @@ def process_query(
     
     # Debug: Log context data
     print(f"[AI Core] Processing query: {user_query[:50]}...", file=sys.stderr)
+    
+    if on_update:
+        on_update("AI_PROCESS_START", {
+            "taskName": "AI Assistant Thinking",
+            "steps": ["Analyzing context", "Consulting BioEngine", "Verifying Safety"]
+        })
+
     if context:
         print(f"[AI Core] Context keys: {list(context.keys())}", file=sys.stderr)
         if 'pathway' in context and context['pathway']:
@@ -213,21 +226,13 @@ def process_query(
         system_message += f"\n\n{lang_note}"
     
     # Add context information to system message if available
-    if context and context.get('pathway'):
-        pathway = context['pathway']
-        pathway_info = f"\n\n**CURRENT CONTEXT:**\n"
-        pathway_name = pathway.get('title') or pathway.get('name', 'Unknown')
-        pathway_info += f"- Current Pathway: {pathway_name} (ID: {pathway.get('id', 'unknown')})\n"
+    if context:
+        context_info = f"\n\n**CURRENT ANALYSIS CONTEXT:**\n"
         
-        if context.get('statistics'):
-            stats = context['statistics']
-            pathway_info += f"- Total Nodes: {stats.get('total_nodes', 0)}\n"
-            pathway_info += f"- Upregulated: {stats.get('upregulated', 0)}\n"
-            pathway_info += f"- Downregulated: {stats.get('downregulated', 0)}\n"
-        
+        # 1. First, handle general study data (Volcano/DE)
         if context.get('volcanoData'):
             volcano_data = context['volcanoData']
-            pathway_info += f"- Gene Expression Data: {len(volcano_data)} genes loaded\n"
+            context_info += f"- Data Overview: {len(volcano_data)} genes loaded in the active analysis.\n"
             
             # Extract significant genes for enrichment analysis
             significant_genes = [
@@ -236,24 +241,39 @@ def process_query(
             ]
             
             if significant_genes:
-                pathway_info += f"- Significant Genes ({len(significant_genes)}): {', '.join(significant_genes[:10])}"
-                if len(significant_genes) > 10:
-                    pathway_info += f" ...and {len(significant_genes) - 10} more\n"
+                context_info += f"- Significant Genes ({len(significant_genes)}): {', '.join(significant_genes[:20])}"
+                if len(significant_genes) > 20:
+                    context_info += f" ...and {len(significant_genes) - 20} more\n"
                 else:
-                    pathway_info += "\n"
+                    context_info += "\n"
                 
-                pathway_info += f"\n**TIP**: If user asks about pathway enrichment or which pathways are most significant, use the `run_enrichment` tool with this gene list: {significant_genes}\n"
+                # Crucial for tool use
+                context_info += f"\n**IMPORTANT**: To perform enrichment analysis on these genes, use `run_enrichment(genes={significant_genes[:50]})`.\n"
+                context_info += f"**IMPORTANT**: To export this differential expression data, use `export_data(format='csv')`.\n"
             
-            # Show ALL gene expression data, not just top hits
-            pathway_info += "\n**Gene Expression Values:**\n"
-            for gene in volcano_data:
+            # Show top hits for orientation
+            sorted_genes = sorted(volcano_data, key=lambda x: abs(x.get('x', 0)), reverse=True)
+            context_info += "\n**Top Differential Genes:**\n"
+            for gene in sorted_genes[:15]:
                 gene_name = gene.get('gene', 'unknown')
                 logfc = gene.get('x', 0)
                 status = gene.get('status', 'NS')
-                pathway_info += f"  - {gene_name}: LogFC={logfc:.2f} ({status})\n"
-        
-        system_message += pathway_info
-        print(f"[AI Core] Added context to system message: {pathway_name}", file=sys.stderr)
+                context_info += f"  - {gene_name}: LogFC={logfc:.2f} ({status})\n"
+
+        # 2. Then, handle specific pathway selection if active
+        if context.get('pathway'):
+            pathway = context['pathway']
+            pathway_name = pathway.get('title') or pathway.get('name', 'Unknown')
+            context_info += f"\n**ACTIVE PATHWAY FOCUS:**\n"
+            context_info += f"- Current Pathway: {pathway_name} (ID: {pathway.get('id', 'unknown')})\n"
+            
+            if context.get('statistics'):
+                stats = context['statistics']
+                context_info += f"- Nodes in this pathway: {stats.get('total_nodes', 0)}\n"
+                context_info += f"- Pathway Stats: {stats.get('upregulated', 0)} UP, {stats.get('downregulated', 0)} DOWN\n"
+
+        system_message += context_info
+        print(f"[AI Core] Injected analysis context ({len(context_info)} chars)", file=sys.stderr)
     
     # Handle multi-sample context for time-series comparison
     if context and context.get('multiSample'):
@@ -278,14 +298,7 @@ def process_query(
                 multi_info += "\n"
         
         multi_info += """
-**对于以上多时间点数据，请直接提供详细的文本分析报告，包括：**
-1. 🔺 持续上调的关键基因及其生物学意义
-2. 🔻 持续下调的基因及可能原因
-3. 📈 时间依赖性表达模式（早期vs晚期）
-4. 🧬 涉及的主要生物学通路（如糖酵解、缺氧反应等）
-5. 💡 整体生物学解读和假设
-
-**注意：请直接用文本回答，不要调用工具。用中文详细解释，格式清晰。**
+**对于以上多时间点数据，请提供详细的文本分析，并根据用户需求调用相应工具（如 export_data 或 run_enrichment）。**
 """
         system_message += multi_info
         print(f"[AI Core] Added multi-sample context: {len(sample_groups)} groups", file=sys.stderr)
@@ -299,6 +312,10 @@ def process_query(
     # Add current query
     messages.append({"role": "user", "content": user_query})
     
+    if on_update:
+        on_update("AI_PROCESS_UPDATE", {"stepIndex": 0, "status": "done"})
+        on_update("AI_PROCESS_UPDATE", {"stepIndex": 1, "status": "active"})
+
     # Get tools
     tools = get_openai_tools_schema()
     
@@ -313,10 +330,16 @@ def process_query(
         
         message = response.choices[0].message
         
+        if on_update:
+            on_update("AI_PROCESS_UPDATE", {"stepIndex": 1, "status": "done"})
+            on_update("AI_PROCESS_UPDATE", {"stepIndex": 2, "status": "active"})
+
         # --- Logic Lock Decision ---
         
         # Case 1: Pure text response (no tool call)
         if not message.tool_calls:
+            if on_update:
+                on_update("AI_PROCESS_COMPLETE", {})
             return AIAction.chat(message.content or "I'm not sure how to help with that.")
         
         # Case 2: Tool call requested
@@ -364,11 +387,21 @@ def process_query(
                 elif tool_name == "explain_pathway":
                     summary = result
                 else:
-                    summary = f"Executed {tool_name} successfully."
+                    summary = f"Executed {tool_def.label} successfully."
                 
-                return AIAction.execute(tool_name, tool_args, result, summary)
+                if on_update:
+                    on_update("AI_PROCESS_UPDATE", {
+                        "stepIndex": 2, 
+                        "status": "done", 
+                        "label": f"Applied {tool_def.label}"
+                    })
+                    on_update("AI_PROCESS_COMPLETE", {})
+                    
+                return AIAction.execute(tool_name, tool_def.label, tool_args, result, summary)
                 
             except Exception as e:
+                if on_update:
+                    on_update("AI_PROCESS_COMPLETE", {"status": "error"})
                 return AIAction.chat(f"Error executing {tool_name}: {str(e)}")
         
         # Case 2b: Yellow Zone - Create proposal (DO NOT EXECUTE)
@@ -381,7 +414,7 @@ def process_query(
             else:
                 reason = "This action may modify your data or settings."
             
-            proposal = AIAction.proposal(tool_name, tool_args, reason)
+            proposal = AIAction.proposal(tool_name, tool_def.label, tool_args, reason)
             store_proposal(proposal)  # Store for later execution
             return proposal
         
@@ -389,6 +422,8 @@ def process_query(
             return AIAction.chat(f"Unknown safety level for tool: {tool_name}")
     
     except Exception as e:
+        if on_update:
+            on_update("AI_PROCESS_COMPLETE", {"status": "error"})
         error_msg = str(e)
         print(f"[AI Core] Error: {error_msg}", file=sys.stderr)
         return AIAction.chat(f"Sorry, I encountered an error: {error_msg}")
@@ -412,17 +447,23 @@ def execute_proposal(proposal_id: str, context: Optional[Dict[str, Any]] = None)
         return AIAction.chat(f"Proposal {proposal_id} not found or expired.")
     
     try:
-        # Execute the tool
-        result = execute_tool(proposal.tool_name, proposal.tool_args)
+        from ai_tools import get_tool
+        tool_def = get_tool(proposal.tool_name)
+        if not tool_def:
+            return AIAction.chat(f"Tool {proposal.tool_name} is no longer registered.")
+
+        # Execute the tool with context injection support
+        result = execute_tool(proposal.tool_name, proposal.tool_args, context=context)
         
         # Remove from pending
         remove_proposal(proposal_id)
         
         return AIAction.execute(
             proposal.tool_name,
+            tool_def.label,
             proposal.tool_args,
             result,
-            f"Confirmed and executed: {proposal.tool_name}"
+            f"Successfully executed: {tool_def.label}"
         )
         
     except Exception as e:
@@ -443,7 +484,10 @@ def reject_proposal(proposal_id: str) -> AIAction:
     
     proposal = remove_proposal(proposal_id)
     if proposal:
-        return AIAction.chat(f"Action cancelled: {proposal.tool_name}")
+        from ai_tools import get_tool
+        tool_def = get_tool(proposal.tool_name)
+        label = tool_def.label if tool_def else proposal.tool_name
+        return AIAction.chat(f"Action cancelled: {label}")
     else:
         return AIAction.chat(f"Proposal {proposal_id} not found.")
 # --- Language Guidance ---

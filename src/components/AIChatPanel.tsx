@@ -6,21 +6,40 @@ import React, { useState, useRef, useEffect } from 'react';
 import './AIChatPanel.css';
 import { renderEvidenceContent } from '../utils/evidenceRenderer';
 import { useI18n } from '../i18n';
+import { eventBus, BioVizEvents } from '../stores/eventBus';
+import { AIActionResponse, isRedZone } from '../types/aiSafety';
 
-interface Message {
+interface BaseMessage {
     role: 'user' | 'assistant';
     content: string;
     timestamp: number;
 }
 
+interface ProposalMessage extends BaseMessage {
+    kind: 'proposal';
+    proposal: AIActionResponse;
+    status: 'pending' | 'approved' | 'rejected';
+}
+
+type Message = BaseMessage | ProposalMessage;
+
 interface AIChatPanelProps {
     sendCommand: (cmd: string, data?: Record<string, unknown>) => Promise<void>;
     isConnected: boolean;
     lastResponse: any; // Response from useBioEngine
+    activeProposal?: AIActionResponse | null;
+    onResolveProposal?: (proposalId: string, accepted: boolean, context?: any) => Promise<void>;
     analysisContext?: {
         pathway?: any;
         volcanoData?: any[];
         statistics?: any;
+        enrichmentResults?: any;
+        data?: any;
+        metadata?: any;
+        filePath?: string;
+        mapping?: Record<string, unknown>;
+        dataType?: string;
+        filters?: Record<string, unknown>;
     };
     chatHistory?: Message[];  // Chat history from parent
     onChatUpdate?: (messages: Message[]) => void;  // Callback to update parent
@@ -32,6 +51,8 @@ export const AIChatPanel: React.FC<AIChatPanelProps> = ({
     sendCommand,
     isConnected,
     lastResponse,
+    activeProposal,
+    onResolveProposal,
     analysisContext,
     chatHistory,
     onChatUpdate,
@@ -45,6 +66,8 @@ export const AIChatPanel: React.FC<AIChatPanelProps> = ({
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const isSyncingFromParent = useRef(false);
     const mountedAtRef = useRef<number>(Date.now());
+    const [aiActivity, setAiActivity] = useState<{ taskName: string, currentStep?: string } | null>(null);
+    const lastProposalIdRef = useRef<string | null>(null);
 
     // Sync with parent chatHistory when it changes (e.g., switching analysis)
     useEffect(() => {
@@ -60,6 +83,57 @@ export const AIChatPanel: React.FC<AIChatPanelProps> = ({
     };
 
     const formatAIContent = (content: string) => renderEvidenceContent(content, onEntityClick);
+
+    const formatInlineValue = (value: unknown): string => {
+        if (value === null || value === undefined) return t('N/A');
+        if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+            return String(value);
+        }
+        if (Array.isArray(value)) {
+            if (value.length === 0) return `0 ${t('items')}`;
+            const primitive = value.every(v => v === null || ['string', 'number', 'boolean'].includes(typeof v));
+            if (primitive) {
+                const preview = value.slice(0, 3).map(v => String(v)).join(', ');
+                return value.length > 3 ? `${preview}, +${value.length - 3}` : preview;
+            }
+            return `${value.length} ${t('items')}`;
+        }
+        if (typeof value === 'object') {
+            const keys = Object.keys(value as Record<string, unknown>);
+            if (keys.length === 0) return t('N/A');
+            const preview = keys.slice(0, 3).join(', ');
+            return keys.length > 3 ? `{${preview}, ...}` : `{${preview}}`;
+        }
+        return String(value);
+    };
+
+    const formatObjectInline = (obj: Record<string, unknown>) => {
+        const entries = Object.entries(obj);
+        if (entries.length === 0) return t('N/A');
+        return entries.slice(0, 4).map(([key, value]) => `${key}: ${formatInlineValue(value)}`).join('; ');
+    };
+
+    const formatGenericToolResult = (result: unknown): string => {
+        if (Array.isArray(result)) {
+            const items = result.map(item => {
+                if (item && typeof item === 'object' && !Array.isArray(item)) {
+                    return formatObjectInline(item as Record<string, unknown>);
+                }
+                return formatInlineValue(item);
+            });
+            const lines = items.map(item => `- ${item}`);
+            return `**${t('Result')}** (${result.length} ${t('items')}):\n${lines.join('\n')}`;
+        }
+        if (result && typeof result === 'object') {
+            const entries = Object.entries(result as Record<string, unknown>);
+            if (entries.length === 0) {
+                return `**${t('Result')}**: ${t('N/A')}`;
+            }
+            const lines = entries.map(([key, value]) => `- ${key}: ${formatInlineValue(value)}`);
+            return `**${t('Result')}**:\n${lines.join('\n')}`;
+        }
+        return `**${t('Result')}**: ${formatInlineValue(result)}`;
+    };
 
     useEffect(() => {
         scrollToBottom();
@@ -80,12 +154,39 @@ export const AIChatPanel: React.FC<AIChatPanelProps> = ({
             return;
         }
         if (!onChatUpdate) return;
-        if (!chatHistory) return;
-        if (messages.length === 0) return;
-        if (JSON.stringify(messages) !== JSON.stringify(chatHistory)) {
+        if (messages.length === 0 && (!chatHistory || chatHistory.length === 0)) return;
+
+        if (JSON.stringify(messages) !== JSON.stringify(chatHistory || [])) {
             onChatUpdate(messages);
         }
     }, [messages, chatHistory, onChatUpdate]);
+
+    // Subscribe to AI process events for real-time visibility
+    useEffect(() => {
+        const subStart = eventBus.subscribe(BioVizEvents.AI_PROCESS_START, (payload) => {
+            setAiActivity({
+                taskName: payload.taskName || t('AI Thinking'),
+                currentStep: payload.steps?.[0]
+            });
+        });
+
+        const subUpdate = eventBus.subscribe(BioVizEvents.AI_PROCESS_UPDATE, (payload) => {
+            setAiActivity(prev => ({
+                taskName: prev?.taskName || t('AI Thinking'),
+                currentStep: payload.label || (payload.steps && payload.steps[payload.stepIndex]) || prev?.currentStep
+            }));
+        });
+
+        const subComplete = eventBus.subscribe(BioVizEvents.AI_PROCESS_COMPLETE, () => {
+            setAiActivity(null);
+        });
+
+        return () => {
+            eventBus.unsubscribe(BioVizEvents.AI_PROCESS_START, subStart);
+            eventBus.unsubscribe(BioVizEvents.AI_PROCESS_UPDATE, subUpdate);
+            eventBus.unsubscribe(BioVizEvents.AI_PROCESS_COMPLETE, subComplete);
+        };
+    }, []);
 
     // Listen for AI responses from useBioEngine's lastResponse
     useEffect(() => {
@@ -146,10 +247,8 @@ export const AIChatPanel: React.FC<AIChatPanelProps> = ({
                                         });
                                     }
                                 }
-                            } else if (typeof result === 'object') {
-                                responseContent += `\n\n**${t('Result')}**: ${JSON.stringify(result, null, 2)}`;
                             } else {
-                                responseContent += `\n\n**${t('Result')}**: ${String(result)}`;
+                                responseContent += `\n\n${formatGenericToolResult(result)}`;
                             }
                         }
                     }
@@ -162,6 +261,7 @@ export const AIChatPanel: React.FC<AIChatPanelProps> = ({
                     }];
                 });
                 setIsLoading(false);
+                setAiActivity(null); // Ensure cleared on response
             } else if (lastResponse.cmd === 'AGENT_TASK') {
                 const narrative =
                     lastResponse.result?.narrative ||
@@ -193,6 +293,33 @@ export const AIChatPanel: React.FC<AIChatPanelProps> = ({
             console.error('[AIChatPanel] Failed to process AI response:', error);
         }
     }, [lastResponse]);
+
+    useEffect(() => {
+        if (!activeProposal || !activeProposal.proposal_id) return;
+
+        // Check if we've already seen this proposal ID in our messages history to prevent duplicates
+        // (especially when switching between tabs/phases)
+        const isDuplicate = messages.some(msg =>
+            'kind' in msg && msg.kind === 'proposal' && msg.proposal.proposal_id === activeProposal.proposal_id
+        );
+        if (isDuplicate) return;
+
+        if (lastProposalIdRef.current === activeProposal.proposal_id) return;
+        lastProposalIdRef.current = activeProposal.proposal_id;
+        updateMessages(prev => ([
+            ...prev,
+            {
+                role: 'assistant',
+                content: activeProposal.content,
+                timestamp: Date.now(),
+                kind: 'proposal',
+                proposal: activeProposal,
+                status: 'pending'
+            }
+        ]));
+        setIsLoading(false);
+        setAiActivity(null);
+    }, [activeProposal]);
 
     const handleSend = async () => {
         if (!input.trim() || !isConnected || isLoading) return;
@@ -226,6 +353,7 @@ export const AIChatPanel: React.FC<AIChatPanelProps> = ({
             };
             updateMessages(prev => [...prev, errorMessage]);
             setIsLoading(false);
+            setAiActivity(null);
         }
     };
 
@@ -233,6 +361,35 @@ export const AIChatPanel: React.FC<AIChatPanelProps> = ({
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
             handleSend();
+        }
+    };
+
+    const handleProposalDecision = async (proposalId: string, accepted: boolean) => {
+        updateMessages(prev => prev.map(msg => {
+            if ('kind' in msg && msg.kind === 'proposal' && msg.proposal.proposal_id === proposalId) {
+                return { ...msg, status: accepted ? 'approved' : 'rejected' };
+            }
+            return msg;
+        }));
+        try {
+            if (onResolveProposal) {
+                await onResolveProposal(proposalId, accepted, analysisContext);
+            } else {
+                await sendCommand(accepted ? 'CHAT_CONFIRM' : 'CHAT_REJECT', {
+                    proposal_id: proposalId,
+                    context: analysisContext || {}
+                });
+            }
+        } catch (error) {
+            console.error('[AIChatPanel] Failed to resolve proposal:', error);
+            updateMessages(prev => ([
+                ...prev,
+                {
+                    role: 'assistant',
+                    content: t('Failed to resolve the proposal. Please try again.'),
+                    timestamp: Date.now()
+                }
+            ]));
         }
     };
 
@@ -266,7 +423,23 @@ export const AIChatPanel: React.FC<AIChatPanelProps> = ({
                 {messages.length === 0 && (
                     <div className="welcome-message" style={{ padding: '20px 16px' }}>
                         <p style={{ fontSize: '15px', fontWeight: 600 }}>👋 {currentMilestone.title}</p>
-                        <p style={{ fontSize: '13px', opacity: 0.8 }}>{t('Choose a smart skill below to start your discovery.')}</p>
+                        <p style={{ fontSize: '13px', opacity: 0.8 }}>{t('Try one of these focused prompts to get started:')}</p>
+                        <ul className="welcome-examples">
+                            {(Object.entries({
+                                'enrich': t('对当前显著基因做富集分析（Reactome）'),
+                                'list': t('列出所有可用通路'),
+                                'explain': t('解释通路 hsa04110'),
+                                'thresh': t('把 p-value 阈值改到 0.01'),
+                                'export': t('导出当前结果为 CSV')
+                            })).map(([key, text]) => (
+                                <li key={key} onClick={() => {
+                                    setInput(text);
+                                    // Small delay to allow state update if we wanted to auto-send
+                                    // but usually just pre-filling is better.
+                                    // For best UX, let's just pre-fill.
+                                }}>{text}</li>
+                            ))}
+                        </ul>
                     </div>
                 )}
 
@@ -277,9 +450,63 @@ export const AIChatPanel: React.FC<AIChatPanelProps> = ({
                             {msg.role === 'user' ? '👤' : '🤖'}
                         </div>
                         <div className="message-content">
-                            <div className="message-text">
-                                {msg.role === 'assistant' ? formatAIContent(msg.content) : msg.content}
-                            </div>
+                            {'kind' in msg && msg.kind === 'proposal' ? (
+                                <div className="message-text proposal">
+                                    <div className="proposal-header">
+                                        <span className="proposal-icon">{isRedZone(msg.proposal) ? '🚫' : '⚠️'}</span>
+                                        <span className="proposal-title">
+                                            {isRedZone(msg.proposal) ? t('Action Blocked') : t('Action Requires Approval')}
+                                        </span>
+                                        <span className={`proposal-badge ${msg.proposal.safety_level?.toLowerCase() || 'yellow'}`}>
+                                            {msg.proposal.safety_level || 'YELLOW'}
+                                        </span>
+                                    </div>
+                                    <div className="proposal-body">{formatAIContent(msg.content)}</div>
+                                    {msg.proposal.proposal_reason && (
+                                        <div className="proposal-reason">
+                                            <strong>{t('Reason')}:</strong> {msg.proposal.proposal_reason}
+                                        </div>
+                                    )}
+                                    {msg.proposal.tool_name && (
+                                        <div className="proposal-details">
+                                            <div className="proposal-row">
+                                                <span className="proposal-label">{t('Tool')}:</span>
+                                                <code className="proposal-value">{msg.proposal.tool_name}</code>
+                                            </div>
+                                            {msg.proposal.tool_args && Object.keys(msg.proposal.tool_args).length > 0 && (
+                                                <div className="proposal-row">
+                                                    <span className="proposal-label">{t('Parameters')}:</span>
+                                                    <pre className="proposal-json">
+                                                        {JSON.stringify(msg.proposal.tool_args, null, 2)}
+                                                    </pre>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                    <div className="proposal-actions">
+                                        <button
+                                            className="proposal-btn reject"
+                                            onClick={() => handleProposalDecision(msg.proposal.proposal_id!, false)}
+                                            disabled={msg.status !== 'pending'}
+                                        >
+                                            {msg.status === 'rejected' ? t('Rejected') : t('Reject')}
+                                        </button>
+                                        {!isRedZone(msg.proposal) && (
+                                            <button
+                                                className="proposal-btn approve"
+                                                onClick={() => handleProposalDecision(msg.proposal.proposal_id!, true)}
+                                                disabled={msg.status !== 'pending'}
+                                            >
+                                                {msg.status === 'approved' ? t('Approved') : t('Approve')}
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="message-text">
+                                    {msg.role === 'assistant' ? formatAIContent(msg.content) : msg.content}
+                                </div>
+                            )}
                             <div className="message-time">
                                 {(() => {
                                     const date = new Date(msg.timestamp || Date.now());
@@ -291,14 +518,20 @@ export const AIChatPanel: React.FC<AIChatPanelProps> = ({
                 ))}
 
                 {isLoading && (
-                    <div className="message assistant">
+                    <div className="message assistant loading">
                         <div className="message-avatar">🤖</div>
-                        <div className="message-content">
+                        <div className="ai-thinking-box">
                             <div className="typing-indicator">
-                                <span></span>
-                                <span></span>
-                                <span></span>
+                                <span></span><span></span><span></span>
                             </div>
+                            {aiActivity && (
+                                <div className="ai-activity-info">
+                                    <div className="ai-task-name">{aiActivity.taskName}</div>
+                                    {aiActivity.currentStep && (
+                                        <div className="ai-current-step">🔄 {aiActivity.currentStep}</div>
+                                    )}
+                                </div>
+                            )}
                         </div>
                     </div>
                 )}

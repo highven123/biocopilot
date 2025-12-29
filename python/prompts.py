@@ -49,6 +49,24 @@ Edge handling:
 - Keep language scientific; avoid clinical claims or unprovided mechanisms.
 """
 
+FUSION_ENRICHMENT_PROMPT = """
+[Phase 1] Fusion enrichment summary (de-duplicated modules)
+Goal: Summarize multi-source fusion enrichment results with emphasis on module aggregation, de-duplication, and cross-source consistency.
+
+Expected inputs: representative term/module name, p-value, FDR/adjusted p-value, genes/overlap, and fusion metadata (sources, total terms, total modules).
+
+Output sections (in order):
+1) Summary: 1-2 sentences stating whether significant fusion modules exist (p < 0.05 or FDR < 0.05) and highlighting de-duplication.
+2) Top fusion modules: bullets with representative term, p/FDR, key genes, and which sources contributed (if available).
+3) Fusion quality: mention total original terms vs merged modules and any warnings about source coverage.
+4) Key genes: bullets with gene name and one-line role grounded in the module description.
+
+Edge handling:
+- If no significant module (FDR >= 0.05), explicitly say so and recommend follow-up analyses.
+- If source list or fusion metadata is missing, say what is needed instead of guessing.
+- Keep language scientific; avoid clinical claims or unprovided mechanisms.
+"""
+
 DE_SUMMARY_PROMPT = """
 [Phase 1] Differential expression summary (Volcano)
 Goal: Summarize significant genes from differential expression results.

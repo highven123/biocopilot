@@ -46,6 +46,7 @@ export const AIEventPanel: React.FC<AIEventPanelProps> = ({
     const [suggestions, setSuggestions] = useState<AISuggestion[]>([]);
     const [isMinimized, setIsMinimized] = useState(true); // Start collapsed
     const [liveActivity, setLiveActivity] = useState<LiveActivityState | null>(null);
+    const idCounterRef = React.useRef(0);
 
     // Draggable state
     const [position, setPosition] = useState({ x: window.innerWidth - 80, y: window.innerHeight / 2 });
@@ -62,9 +63,11 @@ export const AIEventPanel: React.FC<AIEventPanelProps> = ({
         .map((g: any) => g.gene)
         .filter(Boolean);
 
+    const nextId = (prefix: string) => `${prefix}_${Date.now()}_${idCounterRef.current++}`;
+
     const addSuggestion = (title: string, message: string, type: AISuggestion['type'] = 'info') => {
         const suggestion: AISuggestion = {
-            id: `${type}_${Date.now()}`,
+            id: nextId(type),
             type,
             title,
             message,
@@ -233,7 +236,7 @@ export const AIEventPanel: React.FC<AIEventPanelProps> = ({
         // Subscribe to AI suggestion events
         const subSuggestion = eventBus.subscribe(BioVizEvents.AI_SUGGESTION, (payload) => {
             const newSuggestion: AISuggestion = {
-                id: `sug_${Date.now()}`,
+                id: nextId('sug'),
                 type: payload.type || 'info',
                 title: payload.title || t('AI Insight'),
                 message: payload.message,
@@ -246,7 +249,7 @@ export const AIEventPanel: React.FC<AIEventPanelProps> = ({
         // Subscribe to AI warning events
         const subWarning = eventBus.subscribe(BioVizEvents.AI_WARNING, (payload) => {
             const warning: AISuggestion = {
-                id: `warn_${Date.now()}`,
+                id: nextId('warn'),
                 type: 'warning',
                 title: payload.title || t('⚠️ Warning'),
                 message: payload.message,
@@ -260,7 +263,7 @@ export const AIEventPanel: React.FC<AIEventPanelProps> = ({
             // Simulate AI QC check
             setTimeout(() => {
                 const qcResult: AISuggestion = {
-                    id: `qc_${Date.now()}`,
+                    id: nextId('qc'),
                     type: 'success',
                     title: t('✅ Data Quality Check'),
                     message: t('Loaded {rows} rows. No missing values detected.', { rows: payload?.rows || 0 }),
@@ -274,7 +277,7 @@ export const AIEventPanel: React.FC<AIEventPanelProps> = ({
         const subAnalysis = eventBus.subscribe(BioVizEvents.ANALYSIS_COMPLETE, (payload) => {
             setTimeout(() => {
                 const analysisHint: AISuggestion = {
-                    id: `analysis_${Date.now()}`,
+                    id: nextId('analysis'),
                     type: 'action',
                     title: t('🧬 Analysis Complete'),
                     message: t('Found {up} upregulated and {down} downregulated genes. Would you like to run enrichment analysis?', {
@@ -325,8 +328,14 @@ export const AIEventPanel: React.FC<AIEventPanelProps> = ({
                 const stepIndex = typeof payload?.stepIndex === 'number' ? payload.stepIndex : -1;
                 if (stepIndex < 0) return prev;
                 const nextSteps = prev.steps.map((step, idx) => {
-                    if (idx < stepIndex) return { ...step, status: 'done' };
-                    if (idx === stepIndex) return { ...step, status: 'active' };
+                    if (idx < stepIndex) return { ...step, status: 'done' as const };
+                    if (idx === stepIndex) {
+                        return {
+                            ...step,
+                            status: 'active' as const,
+                            label: (payload.label as string) || step.label
+                        };
+                    }
                     return step;
                 });
                 return { ...prev, steps: nextSteps, status: 'running' };

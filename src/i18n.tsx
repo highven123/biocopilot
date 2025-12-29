@@ -244,6 +244,11 @@ const translations: Record<Language, Record<string, string>> = {
     'Downloaded': '下载日期',
     'Hash': '哈希',
     'AI Deep Analysis': 'AI 深度分析',
+    'AI Deep Analysis in progress': 'AI 深度分析中',
+    'Analyzing...': '分析中……',
+    'Fusion results ready': '融合结果已就绪',
+    'Analysis ready': '结果已就绪',
+    'Fusion modules summarized': '融合模块将被总结',
     'Key Drivers': '关键驱动',
     'Influencing {count} pathways': '影响 {count} 条通路',
     'Orphan Genes': '孤立基因',
@@ -306,6 +311,11 @@ const translations: Record<Language, Record<string, string>> = {
     'Hypergeometric Test with Benjamini-Hochberg FDR correction': '超几何检验 + BH 方法多重校正',
     'AI summary ready': 'AI 摘要已生成',
     'View summary': '查看摘要',
+    'Deduplicated': '去冗余',
+    'Confidence': '置信度',
+    'Efficiency': '效率',
+    'Runtime {seconds}s (manual ~30 min)': '耗时 {seconds} 秒（人工约 30 分钟）',
+    'Manual ~30 min': '人工约 30 分钟',
     'Loading {index}/{total}: {file}': '正在加载 {index}/{total}：{file}',
     '📂 Loading file: {file}': '📂 正在加载文件：{file}',
     '✅ Loaded: {file}': '✅ 已加载：{file}',
@@ -848,7 +858,16 @@ export const LanguageProvider: React.FC<React.PropsWithChildren> = ({ children }
 export const useI18n = () => {
   const ctx = useContext(I18nContext);
   if (!ctx) {
-    throw new Error('useI18n must be used within LanguageProvider');
+    console.warn('useI18n must be used within LanguageProvider');
+    return {
+      lang: 'en' as Language,
+      setLang: () => {},
+      t: (key: string, vars?: Record<string, string | number>) => {
+        const table = translations.en || {};
+        const translated = table[key] ?? key;
+        return formatVars(translated, vars);
+      }
+    };
   }
   return ctx;
 };

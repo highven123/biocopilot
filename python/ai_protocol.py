@@ -41,7 +41,7 @@ class AIAction(BaseModel):
         return cls(type="CHAT", content=content)
     
     @classmethod
-    def execute(cls, tool_name: str, tool_args: Dict[str, Any], result: Any, summary: str) -> "AIAction":
+    def execute(cls, tool_name: str, tool_label: str, tool_args: Dict[str, Any], result: Any, summary: str) -> "AIAction":
         """Create an executed action response (Green Zone)."""
         return cls(
             type="EXECUTE",
@@ -52,11 +52,11 @@ class AIAction(BaseModel):
         )
     
     @classmethod
-    def proposal(cls, tool_name: str, tool_args: Dict[str, Any], reason: str) -> "AIAction":
+    def proposal(cls, tool_name: str, tool_label: str, tool_args: Dict[str, Any], reason: str) -> "AIAction":
         """Create a proposal for user confirmation (Yellow Zone)."""
         return cls(
             type="PROPOSAL",
-            content=f"I'd like to {tool_name}. {reason}",
+            content=f"I'd like to {tool_label}. {reason}",
             tool_name=tool_name,
             tool_args=tool_args,
             proposal_id=str(uuid.uuid4()),

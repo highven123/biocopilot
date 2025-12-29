@@ -7,8 +7,9 @@ import { PathwayVisualizer, PathwayVisualizerRef } from './components/PathwayVis
 import { DataTable } from './components/DataTable';
 import { WorkflowBreadcrumb, WorkflowStep } from './components/WorkflowBreadcrumb';
 import { SplashScreen } from './components/SplashScreen';
-import { SafetyGuardModal } from './components/SafetyGuardModal';
+
 import { AIChatPanel } from './components/AIChatPanel';
+import { AIEventPanel } from './components/AIEventPanel';
 import { InsightBadges } from './components/InsightBadges';
 import { EnrichmentPanel } from './components/EnrichmentPanel';
 import { ImageUploader } from './components/ImageUploader';
@@ -65,11 +66,11 @@ interface AnalysisResult {
   sourceFilePath: string;
   insights?: AnalysisInsights;  // AI-generated insights
   // Separate chat histories for each workflow phase
-  perceptionChatHistory?: Array<{ role: 'user' | 'assistant'; content: string; timestamp: number }>;  // Insight phase chat
-  explorationChatHistory?: Array<{ role: 'user' | 'assistant'; content: string; timestamp: number }>;  // Mapping phase chat
-  synthesisChatHistory?: Array<{ role: 'user' | 'assistant'; content: string; timestamp: number }>;  // Synthesis phase chat
+  perceptionChatHistory?: Array<{ role: 'user' | 'assistant'; content: string; timestamp: number; kind?: string; proposal?: any; status?: string }>;  // Insight phase chat
+  explorationChatHistory?: Array<{ role: 'user' | 'assistant'; content: string; timestamp: number; kind?: string; proposal?: any; status?: string }>;  // Mapping phase chat
+  synthesisChatHistory?: Array<{ role: 'user' | 'assistant'; content: string; timestamp: number; kind?: string; proposal?: any; status?: string }>;  // Synthesis phase chat
   // Legacy field for backward compatibility
-  chatHistory?: Array<{ role: 'user' | 'assistant'; content: string; timestamp: number }>;
+  chatHistory?: Array<{ role: 'user' | 'assistant'; content: string; timestamp: number; kind?: string; proposal?: any; status?: string }>;
   enrichmentSummary?: string;
   enrichmentResults?: any[];
   gseaResults?: { up: any[], down: any[] };
@@ -469,14 +470,25 @@ function App() {
     const volcanoData = (activeAnalysis.volcano_data || []) as any[];
     const enrichmentResults = activeAnalysis.enrichmentResults || (activeAnalysis as any)?.pathway?.enriched_terms || (activeAnalysis as any)?.statistics?.enriched_terms;
     const significantGenes = volcanoData.filter((g: any) => g?.status === 'UP' || g?.status === 'DOWN').map((g: any) => g?.gene).filter(Boolean);
+    const enrichmentMetadata = activeAnalysis.enrichmentMetadata || {};
 
     if (skillId) {
       if (skillId === 'sum') {
-        await sendCommand(enrichmentResults ? 'SUMMARIZE_ENRICHMENT' : 'SUMMARIZE_DE', { ...(enrichmentResults ? { enrichment_data: enrichmentResults } : {}), ...(volcanoData.length ? { volcano_data: volcanoData } : {}), ...(activeAnalysis.statistics ? { statistics: activeAnalysis.statistics } : {}) }, false);
+        await sendCommand(enrichmentResults ? 'SUMMARIZE_ENRICHMENT' : 'SUMMARIZE_DE', {
+          ...(enrichmentResults ? { enrichment_data: enrichmentResults } : {}),
+          ...(volcanoData.length ? { volcano_data: volcanoData } : {}),
+          ...(activeAnalysis.statistics ? { statistics: activeAnalysis.statistics } : {}),
+          ...(enrichmentResults ? { metadata: enrichmentMetadata } : {})
+        }, false);
         return;
       }
       if (skillId === 'exp') {
-        await sendCommand('SUMMARIZE_ENRICHMENT', { enrichment_data: enrichmentResults, volcano_data: volcanoData, statistics: activeAnalysis.statistics }, false);
+        await sendCommand('SUMMARIZE_ENRICHMENT', {
+          enrichment_data: enrichmentResults,
+          volcano_data: volcanoData,
+          statistics: activeAnalysis.statistics,
+          metadata: enrichmentMetadata
+        }, false);
         return;
       }
       if (skillId === 'hyp') {
@@ -1036,11 +1048,7 @@ function App() {
 
   return (
     <div className="app-container">
-      {/* SAFETY GUARD: Blocks all interaction when active */}
-      <SafetyGuardModal
-        proposal={activeProposal}
-        onRespond={resolveProposal}
-      />
+      {/* SAFETY GUARD: No longer using global modal as AIChatPanel handles proposals inline */}
 
       <SystemHealthModal
         isOpen={showHealthCheck}
@@ -1439,6 +1447,13 @@ function App() {
                   data={studioIntelligence}
                   onGenerateSuperNarrative={handleGenerateSuperNarrative}
                   isGenerating={isGeneratingStudioReport}
+                  metadata={activeAnalysis?.enrichmentMetadata}
+                  analysisContext={activeAnalysis ? {
+                    pathway: activeAnalysis.pathway,
+                    volcanoData: activeAnalysis.volcano_data,
+                    statistics: activeAnalysis.statistics,
+                    enrichmentResults: activeAnalysis.enrichmentResults
+                  } : undefined}
                   chatHistory={activeAnalysis?.synthesisChatHistory}
                   onChatUpdate={(messages) => {
                     if (activeAnalysis) {
@@ -1509,8 +1524,10 @@ function App() {
                   dataType: activeAnalysis?.config?.dataType,
                   filters: activeAnalysis?.config?.analysisMethods?.length
                     ? { methods: activeAnalysis?.config?.analysisMethods }
-                    : undefined
+                    : undefined,
+                  metadata: activeAnalysis?.enrichmentMetadata
                 }}
+                insights={activeAnalysis?.insights}
                 onInsightClick={(insight) => {
                   addLog(t('🧠 Exploring insight: {title}', { title: insight.title }));
                 }}
@@ -1783,10 +1800,13 @@ function App() {
                           sendCommand={async (cmd, data) => { await sendCommand(cmd, data, false); }}
                           isConnected={isConnected}
                           lastResponse={lastResponse}
+                          activeProposal={activeProposal}
+                          onResolveProposal={resolveProposal}
                           analysisContext={activeAnalysis ? {
                             pathway: activeAnalysis.pathway,
                             volcanoData: activeAnalysis.volcano_data,
-                            statistics: activeAnalysis.statistics
+                            statistics: activeAnalysis.statistics,
+                            metadata: activeAnalysis.enrichmentMetadata || activeAnalysis.deMetadata
                           } : undefined}
                           chatHistory={activeAnalysis?.explorationChatHistory || activeAnalysis?.chatHistory}
                           onChatUpdate={(messages) => {
@@ -2079,7 +2099,24 @@ function App() {
           <RuntimeLogPanel onClose={() => setShowRuntimeLog(false)} />
         )}
 
-        {/* v2.0: AI Event Panel removed - consolidated into Agent Hub */}
+        {workflowStep === 'viz' && activeAnalysis && (
+          <AIEventPanel
+            sendCommand={sendCommand}
+            isConnected={isConnected}
+            onNavigateToGSEA={() => {
+              setMainView('pathway');
+              setRightPanelView('enrichment');
+            }}
+            onExportSession={() => {
+              exportSession(activeAnalysis);
+            }}
+            analysisContext={{
+              pathway: activeAnalysis.pathway,
+              volcanoData: activeAnalysis.volcano_data,
+              statistics: activeAnalysis.statistics
+            }}
+          />
+        )}
       </div>
       <LicenseModal
         isOpen={showLicenseModal}

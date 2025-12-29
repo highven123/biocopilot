@@ -11,6 +11,7 @@ from ai_protocol import SafetyLevel
 import mapper
 from prompts import (
     PATHWAY_ENRICHMENT_PROMPT,
+    FUSION_ENRICHMENT_PROMPT,
     DE_SUMMARY_PROMPT,
     NL_FILTER_PROMPT,
     VISUALIZATION_PROMPT,
@@ -28,12 +29,14 @@ class ToolDefinition:
     def __init__(
         self,
         name: str,
+        label: str,
         description: str,
         parameters: Dict[str, Any],
         safety_level: SafetyLevel,
         handler: Callable[..., Any]
     ):
         self.name = name
+        self.label = label
         self.description = description
         self.parameters = parameters  # JSON Schema format
         self.safety_level = safety_level
@@ -215,6 +218,38 @@ def _normalize_enriched_terms(enrichment_data: Any) -> List[Dict[str, Any]]:
         })
 
     return normalized
+
+
+def _is_fusion_enrichment(enrichment_data: Any, metadata: Optional[Dict[str, Any]]) -> bool:
+    if isinstance(metadata, dict):
+        if metadata.get("gene_set_source") == "fusion":
+            return True
+        if metadata.get("sources") or metadata.get("sources_analyzed"):
+            return True
+        auto_enrich = metadata.get("auto_enrich")
+        if isinstance(auto_enrich, dict):
+            sources = auto_enrich.get("sources") or []
+            if "fusion" in sources:
+                return True
+
+    terms = []
+    if isinstance(enrichment_data, dict):
+        if enrichment_data.get("fusion_results"):
+            return True
+        for key in ["results", "terms", "pathways", "enriched_terms"]:
+            if enrichment_data.get(key):
+                terms = enrichment_data.get(key) or []
+                break
+    elif isinstance(enrichment_data, list):
+        terms = enrichment_data
+
+    for term in terms:
+        if not isinstance(term, dict):
+            continue
+        if term.get("members") or term.get("isFused") or term.get("representative_term"):
+            return True
+
+    return False
 
 
 def _derive_significant_genes(
@@ -439,6 +474,7 @@ def summarize_enrichment(
 ) -> Dict[str, Any]:
     """Summarize enrichment output into a structured narrative."""
     metadata = metadata or {}
+    is_fusion = _is_fusion_enrichment(enrichment_data, metadata)
     normalized_terms = _normalize_enriched_terms(enrichment_data or {})
 
     if not normalized_terms and volcano_data:
@@ -493,7 +529,7 @@ def summarize_enrichment(
     if ui_language:
         payload["ui_language"] = ui_language
 
-    prompt = render_prompt(PATHWAY_ENRICHMENT_PROMPT, payload)
+    prompt = render_prompt(FUSION_ENRICHMENT_PROMPT if is_fusion else PATHWAY_ENRICHMENT_PROMPT, payload)
     content, model, error = _invoke_structured_prompt(prompt, temperature=0.25)
 
     if error or not content:
@@ -764,18 +800,110 @@ def _update_analysis_thresholds(
 
 
 def _export_analysis_data(
-    output_path: str,
-    format: str = "csv"
+    output_path: Optional[str] = None,
+    format: str = "csv",
+    context: Optional[Dict[str, Any]] = None
 ) -> Dict[str, Any]:
     """
     Export analysis data to file.
     This is a Yellow Zone action - requires user confirmation.
     """
-    return {
-        "action": "export",
-        "output_path": output_path,
-        "format": format
-    }
+    try:
+        import csv
+        import os
+        from pathlib import Path
+        import time
+        import json
+        import sys
+        import traceback
+        
+        # 1. Resolve Path
+        default_dir = Path.home() / "BioViz_Exports"
+        default_dir.mkdir(parents=True, exist_ok=True)
+        
+        raw_path = output_path
+        if not raw_path:
+            raw_path = str(default_dir / f"bioviz_export_{int(time.time())}.{format}")
+        
+        # Handle simple names like "Desktop" or "~/Desktop"
+        if "desktop" in raw_path.lower():
+            desktop = Path.home() / "Desktop"
+            if desktop.exists():
+                if "/" not in raw_path and "\\" not in raw_path:
+                    # Just the word desktop, add filename
+                    raw_path = str(desktop / f"bioviz_export.{format}")
+                elif raw_path.startswith("desktop") or raw_path.startswith("Desktop"):
+                    # Relative to desktop
+                    raw_path = str(desktop / raw_path.split("/")[-1])
+        
+        resolved_path = str(Path(os.path.expanduser(raw_path)).absolute())
+        
+        # Ensure directory exists
+        Path(resolved_path).parent.mkdir(parents=True, exist_ok=True)
+        
+        # 2. Get Data
+        data = []
+        if context and context.get('volcanoData'):
+            data = context.get('volcanoData', [])
+        elif context and context.get('data') and isinstance(context.get('data'), list):
+            data = context.get('data')
+            
+        if not data:
+            return {
+                "status": "error",
+                "message": "No data found in context to export. Please ensure analysis is loaded."
+            }
+            
+        # 3. Perform Export
+        if format.lower() == "csv":
+            with open(resolved_path, 'w', encoding='utf-8', newline='') as f:
+                writer = csv.writer(f)
+                writer.writerow(['Gene', 'Log2FC', 'PValue', 'Status'])
+                for item in data:
+                    writer.writerow([
+                        item.get('gene', ''),
+                        item.get('x', 0),
+                        item.get('pvalue', 1.0),
+                        item.get('status', 'NS')
+                    ])
+        elif format.lower() == "json":
+            with open(resolved_path, 'w', encoding='utf-8') as f:
+                json.dump(data, f, indent=4)
+        else:
+             # Fallback to CSV if format not supported yet (Excel requires extra libs)
+             if not resolved_path.endswith(".csv"):
+                 resolved_path += ".csv"
+             with open(resolved_path, 'w', encoding='utf-8', newline='') as f:
+                writer = csv.writer(f)
+                writer.writerow(['Gene', 'Log2FC', 'PValue', 'Status'])
+                for item in data:
+                    writer.writerow([item.get('gene', ''), item.get('x', 0), item.get('pvalue', 1.0), item.get('status', 'NS')])
+
+        # 4. Generate Preview
+        rows = ["gene,log2FoldChange,status"]
+        for item in data[:10]:
+            rows.append(f"{item.get('gene')},{item.get('x', 0):.4f},{item.get('status', 'NS')}")
+        if len(data) > 10:
+            rows.append(f"... and {len(data)-10} more rows")
+        data_summary = "\n".join(rows)
+
+        print(f"[AI Tool] Exported {len(data)} rows to {resolved_path}", file=sys.stderr)
+
+        return {
+            "action": "export",
+            "output_path": resolved_path,
+            "format": format,
+            "status": "success",
+            "data_preview": data_summary,
+            "message": f"Data successfully saved to {resolved_path}"
+        }
+    except Exception as e:
+        import traceback
+        traceback.print_exc(file=sys.stderr)
+        return {
+            "status": "error",
+            "message": f"Failed to export data: {str(e)}"
+        }
 
 
 # --- Tool Registry ---
@@ -784,6 +912,7 @@ TOOLS: List[ToolDefinition] = [
     # Green Zone - Safe to auto-execute
     ToolDefinition(
         name="render_pathway",
+        label="Pathway Visualization",
         description="Render and color a KEGG pathway with gene expression data. Returns the colored pathway and statistics.",
         parameters={
             "type": "object",
@@ -812,6 +941,7 @@ TOOLS: List[ToolDefinition] = [
     
     ToolDefinition(
         name="get_pathway_stats",
+        label="Pathway Statistics",
         description="Get statistics for a pathway (upregulated, downregulated, unchanged counts) without full rendering.",
         parameters={
             "type": "object",
@@ -839,6 +969,7 @@ TOOLS: List[ToolDefinition] = [
     
     ToolDefinition(
         name="list_pathways",
+        label="Pathway Portfolio",
         description="List all available KEGG pathway templates.",
         parameters={
             "type": "object",
@@ -851,6 +982,7 @@ TOOLS: List[ToolDefinition] = [
     
     ToolDefinition(
         name="explain_pathway",
+        label="Pathway Explainer",
         description="Get a brief description of what a pathway does.",
         parameters={
             "type": "object",
@@ -868,6 +1000,7 @@ TOOLS: List[ToolDefinition] = [
     
     ToolDefinition(
         name="run_enrichment",
+        label="Enrichment Analysis",
         description="Run enrichment analysis (ORA) on a list of significant genes using local gene set sources.",
         parameters={
             "type": "object",
@@ -892,6 +1025,7 @@ TOOLS: List[ToolDefinition] = [
 
     ToolDefinition(
         name="summarize_studio_intelligence",
+        label="Studio Report Generator",
         description="Synthesize the 7 analytical layers into a cohesive 'Super Narrative'. Use this for full-width BioViz Studio reports.",
         parameters={
             "type": "object",
@@ -910,6 +1044,7 @@ TOOLS: List[ToolDefinition] = [
     # Yellow Zone - Requires confirmation
     ToolDefinition(
         name="update_thresholds",
+        label="Update Thresholds",
         description="Update analysis thresholds for significance (p-value) and effect size (log fold change). REQUIRES USER CONFIRMATION.",
         parameters={
             "type": "object",
@@ -931,6 +1066,7 @@ TOOLS: List[ToolDefinition] = [
     
     ToolDefinition(
         name="export_data",
+        label="Export Data",
         description="Export analysis data to a file. REQUIRES USER CONFIRMATION.",
         parameters={
             "type": "object",
@@ -946,7 +1082,7 @@ TOOLS: List[ToolDefinition] = [
                     "default": "csv"
                 }
             },
-            "required": ["output_path"]
+            "required": []
         },
         safety_level=SafetyLevel.YELLOW,
         handler=_export_analysis_data
@@ -979,9 +1115,19 @@ def get_yellow_zone_tools() -> List[str]:
     return [t.name for t in TOOLS if t.safety_level == SafetyLevel.YELLOW]
 
 
-def execute_tool(name: str, args: Dict[str, Any]) -> Any:
-    """Execute a tool by name with given arguments."""
+def execute_tool(name: str, args: Dict[str, Any], context: Optional[Dict[str, Any]] = None) -> Any:
+    """Execute a tool by name with given arguments and optional context."""
     tool = get_tool(name)
     if not tool:
         raise ValueError(f"Unknown tool: {name}")
+    
+    # Try to inject context if the handler accepts it
+    import inspect
+    try:
+        sig = inspect.signature(tool.handler)
+        if 'context' in sig.parameters:
+            return tool.handler(**args, context=context)
+    except Exception:
+        pass
+        
     return tool.handler(**args)

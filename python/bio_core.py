@@ -174,6 +174,46 @@ def send_error(message: str, details: Dict[str, Any] = None) -> None:
     send_response(data)
 
 
+def handle_sys_check(payload: Dict[str, Any] = None) -> Dict[str, Any]:
+    """
+    Handle SYS_CHECK command - returns hardware and environment stats.
+    """
+    try:
+        import psutil
+        import platform
+        
+        cpu_count = psutil.cpu_count(logical=True)
+        mem = psutil.virtual_memory()
+        
+        return {
+            "status": "ok",
+            "cpu_cores": cpu_count,
+            "ram": {
+                "total": mem.total,
+                "available": mem.available,
+                "percent": mem.percent
+            },
+            "platform": platform.platform(),
+            "python_version": sys.version,
+            "report": {
+                "os": platform.system(),
+                "node": platform.node(),
+                "arch": platform.machine()
+            }
+        }
+    except Exception as e:
+        # Fallback if psutil is not available
+        import platform
+        return {
+            "status": "ok",
+            "cpu_cores": "Unknown",
+            "ram": "Unknown",
+            "platform": platform.platform(),
+            "python_version": sys.version,
+            "error": str(e)
+        }
+
+
 def handle_heartbeat(payload: Dict[str, Any] = None) -> Dict[str, Any]:
     """Handle HEARTBEAT command - used for health checks."""
     return {"status": "alive"}
@@ -1530,8 +1570,16 @@ def handle_chat(payload: Dict[str, Any]) -> Dict[str, Any]:
         if not query:
             return {"status": "error", "message": "Query is required"}
         
+        # Intermediate update channel
+        def on_update(event_type, event_payload):
+            send_response({
+                "type": event_type,
+                "request_id": CURRENT_REQUEST_ID,
+                **event_payload
+            })
+
         print(f"[BioCore] Processing chat query: {query[:50]}...", file=sys.stderr)
-        action = process_query(query, history, context)
+        action = process_query(query, history, context, on_update=on_update)
         
         print(f"[BioCore] AI action type: {action.type}, content: {action.content[:50] if action.content else 'None'}...", file=sys.stderr)
         
@@ -1588,6 +1636,7 @@ def handle_chat_confirm(payload: Dict[str, Any]) -> Dict[str, Any]:
         
         return {
             "status": "ok",
+            "cmd": "CHAT",
             **action.model_dump()
         }
         
@@ -1679,6 +1728,7 @@ def handle_chat_reject(payload: Dict[str, Any]) -> Dict[str, Any]:
         
         return {
             "status": "ok",
+            "cmd": "CHAT",
             **action.model_dump()
         }
         
@@ -1702,7 +1752,9 @@ def handle_summarize_enrichment(payload: Dict[str, Any]) -> Dict[str, Any]:
         volcano_data = payload.get("volcano_data") or payload.get("volcanoData")
         context = payload.get("context") or {}
         ui_language = payload.get("ui_language") or payload.get("language")
+        metadata_payload = payload.get("metadata") or {}
         metadata = {
+            **(metadata_payload if isinstance(metadata_payload, dict) else {}),
             "pathway": payload.get("pathway") or context.get("pathway") or {},
             "statistics": payload.get("statistics") or context.get("statistics") or {},
         }
@@ -1838,6 +1890,7 @@ def process_command(command_obj: Dict[str, Any]) -> None:
         # Handlers that return a dict (old style)
         return_handlers = {
             "HEARTBEAT": handle_heartbeat,
+            "SYS_CHECK": handle_sys_check,
             "LOAD": handle_load,
             "ANALYZE": handle_analyze,
             "LOAD_PATHWAY": handle_load_pathway,
