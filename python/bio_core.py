@@ -181,25 +181,20 @@ def handle_sys_check(payload: Dict[str, Any] = None) -> Dict[str, Any]:
     try:
         import psutil
         import platform
-        
-        cpu_count = psutil.cpu_count(logical=True)
-        mem = psutil.virtual_memory()
+        from sys_check import perform_system_check
+        report = perform_system_check()
         
         return {
             "status": "ok",
-            "cpu_cores": cpu_count,
+            "cpu_cores": psutil.cpu_count(logical=True),
             "ram": {
-                "total": mem.total,
-                "available": mem.available,
-                "percent": mem.percent
+                "total": psutil.virtual_memory().total,
+                "available": psutil.virtual_memory().available,
+                "percent": psutil.virtual_memory().percent
             },
             "platform": platform.platform(),
             "python_version": sys.version,
-            "report": {
-                "os": platform.system(),
-                "node": platform.node(),
-                "arch": platform.machine()
-            }
+            "report": report
         }
     except Exception as e:
         # Fallback if psutil is not available
@@ -1594,8 +1589,8 @@ def handle_chat(payload: Dict[str, Any]) -> Dict[str, Any]:
         }
         
     except ImportError as e:
-        error_msg = f"AI module not available: {str(e)}. Please install openai and pydantic."
-        print(f"[BioCore] Import error: {error_msg}", file=sys.stderr)
+        error_msg = f"AI module dependency missing: {str(e)}. This usually means a standard library (like concurrent.futures) was missing from the package."
+        print(f"[BioCore] AI module error: {error_msg}", file=sys.stderr)
         return {
             "status": "ok",
             "cmd": "CHAT",
@@ -1603,16 +1598,35 @@ def handle_chat(payload: Dict[str, Any]) -> Dict[str, Any]:
             "content": error_msg
         }
     except Exception as e:
-        error_msg = f"AI error: {str(e)}"
-        print(f"[BioCore] Error: {error_msg}", file=sys.stderr)
+        error_msg = str(e)
+        if "Connection refused" in error_msg:
+            if "11434" in error_msg or "localhost" in error_msg or "127.0.0.1" in error_msg:
+                error_msg = f"Connection refused to local AI (Ollama). Is Ollama running? Error: {error_msg}"
+            else:
+                error_msg = f"Connection refused to AI provider. Please check your internet or proxy settings. Error: {error_msg}"
+        
+        print(f"[BioCore] AI Error: {error_msg}", file=sys.stderr)
         import traceback
-        traceback.print_exc(file=sys.stderr) # Print traceback to stderr
+        traceback.print_exc(file=sys.stderr)
         return {
             "status": "ok",
             "cmd": "CHAT",
             "type": "CHAT",
-            "content": f"Sorry, I encountered an error: {str(e)}"
+            "content": f"AI Error: {error_msg}"
         }
+
+
+def handle_update_ai_config(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """Update AI configuration dynamically."""
+    try:
+        from ai_core import update_ai_config
+        success = update_ai_config(payload)
+        if success:
+            return {"status": "ok", "message": "AI configuration updated successfully"}
+        else:
+            return {"status": "error", "message": "Failed to update AI configuration"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
 
 
 def handle_chat_confirm(payload: Dict[str, Any]) -> Dict[str, Any]:
@@ -1857,10 +1871,6 @@ def handle_agent_task(payload: Dict[str, Any]) -> Dict[str, Any]:
         return {"status": "error", "message": "Agent Runtime not loaded"}
     
     try:
-        # License Gate (Pro Only)
-        if not validator.is_pro:
-            return {"status": "error", "message": "This feature requires a Pro license. Please activate to continue."}
-
         # Map prompt to intent if needed
         intent = payload.get('intent')
         if not intent and payload.get('prompt'):
@@ -1916,6 +1926,7 @@ def process_command(command_obj: Dict[str, Any]) -> None:
             "DISCOVER_PATTERNS": handle_discover_patterns,
             "DESCRIBE_VISUALIZATION": handle_describe_visualization,
             "AGENT_TASK": handle_agent_task,
+            "UPDATE_AI_CONFIG": handle_update_ai_config,
         }
         
         logging.info("Legacy GSEA/Enrichr handlers are disabled in v2.0 runtime.")
@@ -2424,10 +2435,6 @@ def handle_list_templates(_payload: Dict[str, Any]) -> Dict[str, Any]:
 # ============================================================================
 
 def handle_enrich_fusion_run(payload: Dict[str, Any]) -> Dict[str, Any]:
-    # License Gate (Pro Only)
-    if not validator.is_pro:
-        return {"status": "error", "message": "Fusion Analysis requires a Pro license."}
-
     """Run multi-source fusion enrichment analysis."""
     try:
         from enrichment.fusion import fusion_pipeline

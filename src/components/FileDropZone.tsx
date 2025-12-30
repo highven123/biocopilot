@@ -174,7 +174,7 @@ export const FileDropZone: React.FC<FileDropZoneProps> = ({ onLoadSuccess, addLo
                     {t('Select Data Type')}
                 </h3>
                 <p className="dtype-subtitle">
-                    {t('Choose what kind of biological data you are uploading so BioViz can apply the right defaults.')}
+                    {t('Choose what kind of biological data you are uploading so BioCopilot can apply the right defaults.')}
                 </p>
 
                 <div className="dtype-grid">

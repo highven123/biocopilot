@@ -19,7 +19,7 @@ import { MultiSamplePanel } from './components/MultiSamplePanel';
 import { NarrativePanel } from './components/NarrativePanel';
 import { SingleCellPanel } from './components/SingleCellPanel';
 import { AIInsightsDashboard } from './components/AIInsightsDashboard';
-import { eventBus, BioVizEvents } from './stores/eventBus';
+import { eventBus, BioCopilotEvents } from './stores/eventBus';
 import { ResizablePanels } from './components/ResizablePanels';
 
 import { ENTITY_META, resolveEntityKind, EntityKind } from './entityTypes';
@@ -30,6 +30,7 @@ import { PathwaySelectorDropdown } from './components/PathwaySelectorDropdown';
 import { IntelligenceDashboard } from './components/IntelligenceDashboard';
 import { RuntimeLogPanel } from './components/RuntimeLogPanel';
 import { SystemHealthModal } from './components/SystemHealthModal';
+import { AISettingsModal, AIConfig } from './components/AISettingsModal';
 import { useI18n } from './i18n';
 import './App.css';
 /*
@@ -115,6 +116,21 @@ function App() {
   const [showSplash, setShowSplash] = useState(true);
   const [showHealthCheck, setShowHealthCheck] = useState(false);
   const [healthReport, setHealthReport] = useState<any>(null);
+  const [showAISettings, setShowAISettings] = useState(false);
+  const [aiConfig, setAIConfig] = useState<AIConfig>(() => {
+    try {
+      const saved = localStorage.getItem('bioviz_ai_config');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {
+      console.error('[App] Failed to load AI config:', e);
+    }
+    return {
+      provider: 'bailian',
+      apiKey: '',
+      baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+      model: 'deepseek-v3'
+    };
+  });
 
   // Wizard & Workflow
   const [draftConfig, setDraftConfig] = useState<AnalysisConfig | null>(null);
@@ -254,8 +270,18 @@ function App() {
         }
       };
       syncLicense();
+
+      // Sync AI Config to Backend
+      const syncAIConfig = async () => {
+        try {
+          await sendCommand('UPDATE_AI_CONFIG', aiConfig as any, true);
+        } catch (e) {
+          console.error('[App] Failed to sync AI config:', e);
+        }
+      };
+      syncAIConfig();
     }
-  }, [showSplash, isConnected, sendCommand]);
+  }, [showSplash, isConnected, sendCommand, aiConfig]);
 
   // Sync right panel view when workflow phase changes
   useEffect(() => {
@@ -438,7 +464,7 @@ function App() {
     const timestamp = new Date().toLocaleTimeString();
     const line = `[${timestamp}] ${message}`;
     setLogs(prev => [...prev.slice(-20), line]);
-    eventBus.emit(BioVizEvents.APP_LOG, { message });
+    eventBus.emit(BioCopilotEvents.APP_LOG, { message });
     const persistLog = async () => {
       try {
         await mkdir('', { baseDir: BaseDirectory.AppData, recursive: true });
@@ -600,7 +626,7 @@ function App() {
         successCount += 1;
 
         // v2.0: Emit event for AI proactive suggestions
-        eventBus.emit(BioVizEvents.ANALYSIS_COMPLETE, {
+        eventBus.emit(BioCopilotEvents.ANALYSIS_COMPLETE, {
           statistics: response.statistics,
           pathwayName: response.pathway?.name || response.pathway?.title || 'analysis',
           geneCount: volcano.length,
@@ -784,14 +810,14 @@ function App() {
 
       if (res && (res as any).super_narrative) {
         const narrative = (res as any).super_narrative;
-        console.log('[BioViz] 🤖 AI Narrative Received:', narrative.length, 'chars');
+        console.log('[BioCopilot] 🤖 AI Narrative Received:', narrative.length, 'chars');
         addLog(t('AI Synthesis complete ({count} chars).', { count: narrative.length }));
 
         // Force a fresh object to ensure re-render
         setStudioIntelligence((prev: any) => {
           if (!prev) return null;
           const next = { ...prev, super_narrative: narrative };
-          console.log('[BioViz] 🔄 Updating Studio Intelligence State:', next);
+          console.log('[BioCopilot] 🔄 Updating Studio Intelligence State:', next);
           return next;
         });
 
@@ -1064,7 +1090,7 @@ function App() {
             <div data-tauri-drag-region className="header-brand">
               <h1 data-tauri-drag-region style={{ fontSize: '18px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span data-tauri-drag-region>🧬</span>
-                <span data-tauri-drag-region>BioViz <span data-tauri-drag-region style={{ color: 'var(--text-secondary)', fontWeight: 400 }}>Local</span></span>
+                <span data-tauri-drag-region>BioCopilot</span>
               </h1>
               {!isPro && (
                 <button
@@ -1182,6 +1208,18 @@ function App() {
                 }}
               >
                 📤
+              </button>
+              <button
+                onClick={() => setShowAISettings(true)}
+                title={t('AI Configuration')}
+                style={{
+                  width: '32px', height: '32px', borderRadius: '6px',
+                  border: 'none',
+                  background: 'rgba(59,130,246,0.18)',
+                  color: 'white', cursor: 'pointer', fontSize: '16px'
+                }}
+              >
+                ⚙️
               </button>
               <div className="header-menu-dropdown" ref={projectMenuRef}>
                 <button
@@ -2064,7 +2102,7 @@ function App() {
           padding: '0 12px', fontSize: '11px', color: 'var(--text-dim)',
           flexShrink: 0
         }}>
-          <div>BioViz Local v1.0.0 • {t('Workbench Mode')}</div>
+          <div>BioCopilot v1.0.0 • {t('Workbench Mode')}</div>
           <div style={{ display: 'flex', gap: '8px', maxWidth: '500px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             <span style={{ color: 'var(--brand-primary)' }}>{t('Last')}:</span> {logs.length > 0 ? logs[logs.length - 1] : t('Ready')}
           </div>
@@ -2121,7 +2159,18 @@ function App() {
         onClose={() => setShowLicenseModal(false)}
         onSuccess={() => {
           setIsPro(true);
-          // Refresh state or show success message
+        }}
+      />
+
+      <AISettingsModal
+        isOpen={showAISettings}
+        onClose={() => setShowAISettings(false)}
+        currentConfig={aiConfig}
+        onSave={(config) => {
+          setAIConfig(config);
+          localStorage.setItem('bioviz_ai_config', JSON.stringify(config));
+          void sendCommand('UPDATE_AI_CONFIG', config as any, true);
+          addLog(t('AI configuration updated: {provider}', { provider: config.provider }));
         }}
       />
     </div>

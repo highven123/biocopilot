@@ -29,6 +29,15 @@ try:
 except ImportError:
     pass
 
+# Diagnostic module loading for packaged app
+print(">>> [BioEngine] Diagnostic: Loading core scientific modules...", file=sys.stderr, flush=True)
+for mod_name in ['numpy', 'pandas', 'scipy', 'gseapy', 'cryptography', 'httpx', 'certifi']:
+    try:
+        __import__(mod_name)
+        print(f">>> [BioEngine] OK: {mod_name} loaded", file=sys.stderr, flush=True)
+    except ImportError as e:
+        print(f">>> [BioEngine] FAIL: {mod_name} failed to load: {e}", file=sys.stderr, flush=True)
+
 # Setup file logging for packaged app
 def setup_logging():
     """Setup file logging to user's home directory."""

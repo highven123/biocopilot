@@ -4,7 +4,7 @@ import GmtUploader from './GmtUploader';
 import UpSetPlot from './UpSetPlot';
 import './EnrichmentPanel.css';
 import { useI18n } from '../i18n';
-import { eventBus, BioVizEvents } from '../stores/eventBus';
+import { eventBus, BioCopilotEvents } from '../stores/eventBus';
 
 interface EnrichmentPanelProps {
     volcanoData?: any[];
@@ -68,7 +68,7 @@ export const EnrichmentPanel: React.FC<EnrichmentPanelProps> = ({
 
     // Static list - could be dynamic from backend in future
     const availableSources = [
-        { id: 'fusion', name: t('✨ BioViz Multi-Source Fusion') },
+        { id: 'fusion', name: t('✨ BioCopilot Multi-Source Fusion') },
         { id: 'reactome', name: t('Reactome Pathways') },
         { id: 'wikipathways', name: t('WikiPathways') },
         { id: 'go_bp', name: t('GO Biological Process') },
@@ -157,7 +157,7 @@ export const EnrichmentPanel: React.FC<EnrichmentPanelProps> = ({
                 });
             }
             if (activeProcessRef.current) {
-                eventBus.emit(BioVizEvents.AI_PROCESS_COMPLETE, {
+                eventBus.emit(BioCopilotEvents.AI_PROCESS_COMPLETE, {
                     taskId: activeProcessRef.current,
                     status: lastResponse.status === 'ok' ? 'success' : 'error'
                 });
@@ -204,7 +204,7 @@ export const EnrichmentPanel: React.FC<EnrichmentPanelProps> = ({
                 setFeedback({ type: 'error', message: lastResponse.message || t('Fusion analysis failed') });
             }
             if (activeProcessRef.current) {
-                eventBus.emit(BioVizEvents.AI_PROCESS_COMPLETE, {
+                eventBus.emit(BioCopilotEvents.AI_PROCESS_COMPLETE, {
                     taskId: activeProcessRef.current,
                     status: lastResponse.status === 'ok' ? 'success' : 'error'
                 });
@@ -334,16 +334,16 @@ export const EnrichmentPanel: React.FC<EnrichmentPanelProps> = ({
             const taskId = `enrich_${Date.now()}`;
             const steps = buildProcessSteps();
             activeProcessRef.current = taskId;
-            eventBus.emit(BioVizEvents.AI_PROCESS_START, {
+            eventBus.emit(BioCopilotEvents.AI_PROCESS_START, {
                 taskId,
                 taskName: t('Enrichment Analysis'),
                 steps
             });
             processTimersRef.current.push(setTimeout(() => {
-                eventBus.emit(BioVizEvents.AI_PROCESS_UPDATE, { taskId, stepIndex: 1 });
+                eventBus.emit(BioCopilotEvents.AI_PROCESS_UPDATE, { taskId, stepIndex: 1 });
             }, 600));
             processTimersRef.current.push(setTimeout(() => {
-                eventBus.emit(BioVizEvents.AI_PROCESS_UPDATE, { taskId, stepIndex: 2 });
+                eventBus.emit(BioCopilotEvents.AI_PROCESS_UPDATE, { taskId, stepIndex: 2 });
             }, 1400));
 
             if (geneSetSource === 'fusion') {
@@ -373,7 +373,7 @@ export const EnrichmentPanel: React.FC<EnrichmentPanelProps> = ({
             });
             setIsLoading(false);
             if (activeProcessRef.current) {
-                eventBus.emit(BioVizEvents.AI_PROCESS_COMPLETE, {
+                eventBus.emit(BioCopilotEvents.AI_PROCESS_COMPLETE, {
                     taskId: activeProcessRef.current,
                     status: 'error'
                 });

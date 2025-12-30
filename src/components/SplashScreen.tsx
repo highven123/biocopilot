@@ -29,7 +29,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onEnter }) => {
       {/* Background Image */}
       <img
         src={splashImage}
-        alt="BioViz Local"
+        alt="BioCopilot"
         style={{
           position: 'absolute',
           top: 0,
@@ -56,7 +56,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onEnter }) => {
           fontSize: '14px',
           letterSpacing: '0.5px'
         }}>
-          WeChat: bioviz
+          Email: bioviz@outlook.com
         </div>
         <button
           onClick={onEnter}

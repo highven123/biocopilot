@@ -835,7 +835,7 @@
   },
   "config": {
     "filePaths": [
-      "/Users/haifeng/BioViz-Local/assets/sample_timecourse_6points.csv"
+      "assets/sample_timecourse_6points.csv"
     ],
     "mapping": {
       "gene": "Gene",
@@ -849,7 +849,7 @@
     ]
   },
   "entityKind": "gene",
-  "sourceFilePath": "/Users/haifeng/BioViz-Local/assets/sample_timecourse_6points.csv",
+  "sourceFilePath": "assets/sample_timecourse_6points.csv",
   "insights": {
     "summary": "Analysis of 42 genes shows strong upregulation (8 upregulated).",
     "badges": [

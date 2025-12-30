@@ -15,9 +15,11 @@ try:
     import pandas as pd
     import numpy as np
     GSEAPY_AVAILABLE = True
-except ImportError:
+except ImportError as e:
     GSEAPY_AVAILABLE = False
-    logging.warning("gseapy not installed. GSEA will not be available.")
+    import traceback
+    logging.warning(f"gseapy/dependencies not installed. GSEA will not be available. Error: {e}")
+    logging.warning(traceback.format_exc())
 
 
 @dataclass

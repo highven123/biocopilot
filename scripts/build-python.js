@@ -63,45 +63,12 @@ function getExclusionList() {
         'wx', 'wxPython',
         'curses',
 
-        // === Testing & Dev Tools (Save ~10MB) ===
-        'unittest', 'test', 'tests',
-        'pytest', 'nose', 'doctest',
-        'pdb', 'profile', 'pstats',
-        'setuptools', 'pip',
-        // NOTE: distutils removed - causes PyInstaller conflict in Python 3.12+
-        // NOTE: pandas/numpy/scipy KEPT - required for gseapy
-
-        // === Data Science - Only exclude unused packages ===
-        'matplotlib', 'seaborn', 'plotly',
-        'PIL', 'Pillow',
+        // === Misc Large Packages (Only if definitely not needed) ===
         'sklearn', 'scikit-learn',
-
-        // === Web Frameworks (Save ~15MB) ===
-        'flask', 'django', 'tornado',
-        'aiohttp', 'fastapi', 'starlette',
-        'werkzeug', 'jinja2',
-
-        // === LangChain Bloat (Save ~20MB) ===
         'langchain', 'langsmith', 'langserve',
         'chromadb', 'faiss', 'pinecone',
-        'huggingface_hub', 'transformers',
-
-        // === Async/Concurrency (Keep minimal) ===
-        'multiprocessing', 'concurrent.futures',
-
-        // === Encodings (Keep only essentials) ===
-        'encodings.bz2_codec',
-        'encodings.zlib_codec',
-        'encodings.hex_codec',
-        'encodings.quopri_codec',
-        'encodings.uu_codec',
-
-        // === Misc Bloat ===
         'IPython', 'jupyter',
         'notebook', 'nbformat',
-        'xml.dom', 'xml.sax',
-        'html.parser',
-        // NOTE: email and calendar KEPT - required by pkg_resources/setuptools
     ];
 }
 
@@ -116,8 +83,13 @@ function formatSize(bytes) {
  * Rebuild the Cythonized core so PyInstaller never bundles a stale .so
  */
 function rebuildCythonCore() {
-    console.log('[build-python] Rebuilding bio_core (Cython) ...');
+    console.log('[build-python] Cleaning up all stale .so, .pyc and build artifacts...');
     try {
+        // Clean Cython artifacts
+        execSync(`rm -rf *.so *.pyd bio_core.c build/`, { cwd: PYTHON_DIR });
+        // Clean PyInstaller artifacts
+        if (fs.existsSync(path.join(PYTHON_DIR, 'dist'))) fs.rmSync(path.join(PYTHON_DIR, 'dist'), { recursive: true });
+
         execSync(`${PYTHON_CMD} setup.py build_ext --inplace`, {
             cwd: PYTHON_DIR,
             stdio: 'inherit',
@@ -153,10 +125,14 @@ function buildPython() {
         // Hidden imports needed for pkg_resources/setuptools vendored packages
 
         const hiddenImports = [
-            'setuptools', 'pkg_resources',
+            'setuptools', 'pkg_resources', 'distutils',
             'jaraco.text', 'jaraco.functools', 'jaraco.context',
             'platformdirs', 'tomli', 'email', 'calendar',
             'secrets', 'gseapy', 'scipy', 'pandas', 'numpy',
+            'certifi', 'anyio', 'sniffio', 'httpcore', 'httpx',
+            'concurrent.futures', 'multiprocessing', 'unittest',
+            'packaging', 'cryptography', 'pycryptodome',
+            'matplotlib', 'psutil', 'openpyxl',
             // BioViz Agent Modules
             'agent_runtime', 'motia', 'workflow_registry',
             'narrative.deduplication', 'narrative.literature_rag',
@@ -173,24 +149,33 @@ function buildPython() {
 
         const pyinstallerCmd = [
             'pyinstaller',
+            '--noconfirm',
             '--onefile',
             '--clean',
-            '--strip',  // Strip debug symbols (Unix only, ignored on Windows)
             `--paths "${PYTHON_DIR}"`,  // Ensure local modules are found
             `--additional-hooks-dir "${PYTHON_DIR}"`,  // Use custom hooks
             '--collect-all jaraco.text',
             '--collect-all jaraco.functools',
             '--collect-all jaraco.context',
             '--collect-all setuptools',
+            '--collect-submodules scipy',
             '--collect-all scipy',
+            '--collect-submodules gseapy',
+            '--collect-all gseapy',
             '--collect-all pandas',
             '--collect-all numpy',
-            '--collect-all gseapy',
+            '--collect-all certifi',
+            '--collect-all anyio',
+            '--collect-all sniffio',
+            '--collect-all matplotlib',
+            '--collect-all psutil',
+            '--collect-all openpyxl',
             addDataArg,
             excludeArgs,
             hiddenImportArgs,
             '--name bio-engine',
             `--distpath "${PYTHON_DIR}/dist"`,
+            `--workpath "${PYTHON_DIR}/py-build"`,
             `"${PYTHON_ENTRY}"`
         ].join(' ');
 

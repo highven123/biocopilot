@@ -40,7 +40,7 @@ export const LicenseModal: React.FC<LicenseModalProps> = ({ isOpen, onClose, onS
     return (
         <div className="modal-overlay">
             <div className="modal-content" style={{ maxWidth: '500px' }}>
-                <h2>{t('Activate BioViz Pro 🔐')}</h2>
+                <h2>{t('Activate BioCopilot Pro 🔐')}</h2>
 
                 <div style={{ marginBottom: '20px', background: 'var(--bg-subtle)', padding: '12px', borderRadius: '6px', fontSize: '14px' }}>
                     <label style={{ display: 'block', marginBottom: '4px', opacity: 0.7 }}>{t('Your Machine ID')}:</label>

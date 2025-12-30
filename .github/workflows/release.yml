@@ -3,8 +3,8 @@ name: Release Build
 on:
   push:
     tags:
-      - 'v*' # 当推送 v1.0.0 这样的标签时触发
-  workflow_dispatch: # 允许手动触发
+      - 'v*'
+  workflow_dispatch:
 
 jobs:
   build:
@@ -51,9 +51,12 @@ jobs:
         with:
           python-version: '3.13'
 
-      - name: Install PyInstaller and Cython (Windows)
+      - name: Install Dependencies (Windows)
         if: matrix.platform == 'windows-latest'
-        run: pip install pyinstaller cython setuptools openpyxl numpy scipy
+        run: |
+          pip install pyinstaller cython setuptools openpyxl numpy scipy
+          # Ensure MSVC build tools are available for Cython if needed, 
+          # setup-python and windows-latest usually have them.
 
       - name: Install Python dependencies (macOS)
         if: matrix.platform == 'macos-latest'
@@ -62,13 +65,8 @@ jobs:
       - name: Install frontend dependencies
         run: npm install
 
-      - name: Build Python Sidecar (macOS)
-        if: matrix.platform == 'macos-latest'
-        run: npm run build:python
-
-      - name: Build Python Sidecar (Windows)
-        if: matrix.platform == 'windows-latest'
-        run: npm run build:python
+      - name: Build Python Sidecar (OneDir)
+        run: npm run build:python:onedir
         shell: bash
 
       - name: Build Tauri App
@@ -77,18 +75,21 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tagName: ${{ github.ref_name }}
-          releaseName: 'BioViz Local ${{ github.ref_name }}'
+          releaseName: 'BioCopilot ${{ github.ref_name }}'
           releaseBody: |
-            ## What's New
-            See the CHANGELOG for details.
+            ## BioCopilot v2.0.0
+            
+            ### Enhanced Performance
+            - **Instant Startup**: Transitioned to `--onedir` sidecar architecture.
+            - **Frontend Parsing**: Immediate data preview with local CSV/Excel processing.
+            
+            ### Extended AI Capabilities
+            - **Expanded Providers**: Native support for Gemini and Grok.
+            - **Intelligence Dashboard**: Multi-layer biological synthesis.
             
             ## Installation
-            - **macOS**: Download the `.dmg` file
-            - **Windows**: Download the `.msi` or `.exe` installer
-            
-            ## Notes
-            - macOS users may need to allow the app in System Preferences > Security & Privacy
-            - Windows users may see a SmartScreen warning on first launch
+            - **macOS (Apple Silicon)**: `BioCopilot_2.0.0_aarch64.dmg`
+            - **Windows**: `BioCopilot_2.0.0_x64_en-US.msi` or `.exe`
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}

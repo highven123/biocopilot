@@ -1,12 +1,12 @@
 /**
- * AI Chat Panel - BioViz AI Assistant
+ * AI Chat Panel - BioCopilot AI Assistant
  */
 
 import React, { useState, useRef, useEffect } from 'react';
 import './AIChatPanel.css';
 import { renderEvidenceContent } from '../utils/evidenceRenderer';
 import { useI18n } from '../i18n';
-import { eventBus, BioVizEvents } from '../stores/eventBus';
+import { eventBus, BioCopilotEvents } from '../stores/eventBus';
 import { AIActionResponse, isRedZone } from '../types/aiSafety';
 
 interface BaseMessage {
@@ -163,28 +163,28 @@ export const AIChatPanel: React.FC<AIChatPanelProps> = ({
 
     // Subscribe to AI process events for real-time visibility
     useEffect(() => {
-        const subStart = eventBus.subscribe(BioVizEvents.AI_PROCESS_START, (payload) => {
+        const subStart = eventBus.subscribe(BioCopilotEvents.AI_PROCESS_START, (payload) => {
             setAiActivity({
                 taskName: payload.taskName || t('AI Thinking'),
                 currentStep: payload.steps?.[0]
             });
         });
 
-        const subUpdate = eventBus.subscribe(BioVizEvents.AI_PROCESS_UPDATE, (payload) => {
+        const subUpdate = eventBus.subscribe(BioCopilotEvents.AI_PROCESS_UPDATE, (payload) => {
             setAiActivity(prev => ({
                 taskName: prev?.taskName || t('AI Thinking'),
                 currentStep: payload.label || (payload.steps && payload.steps[payload.stepIndex]) || prev?.currentStep
             }));
         });
 
-        const subComplete = eventBus.subscribe(BioVizEvents.AI_PROCESS_COMPLETE, () => {
+        const subComplete = eventBus.subscribe(BioCopilotEvents.AI_PROCESS_COMPLETE, () => {
             setAiActivity(null);
         });
 
         return () => {
-            eventBus.unsubscribe(BioVizEvents.AI_PROCESS_START, subStart);
-            eventBus.unsubscribe(BioVizEvents.AI_PROCESS_UPDATE, subUpdate);
-            eventBus.unsubscribe(BioVizEvents.AI_PROCESS_COMPLETE, subComplete);
+            eventBus.unsubscribe(BioCopilotEvents.AI_PROCESS_START, subStart);
+            eventBus.unsubscribe(BioCopilotEvents.AI_PROCESS_UPDATE, subUpdate);
+            eventBus.unsubscribe(BioCopilotEvents.AI_PROCESS_COMPLETE, subComplete);
         };
     }, []);
 
@@ -407,7 +407,7 @@ export const AIChatPanel: React.FC<AIChatPanelProps> = ({
             <div className="chat-header">
                 <div className="header-title">
                     <span className="ai-icon">🤖</span>
-                    <span>{t('BioViz AI Assistant')}</span>
+                    <span>{t('BioCopilot AI Assistant')}</span>
                 </div>
                 <div className={`status-indicator ${isConnected ? 'connected' : 'disconnected'}`}>
                     {isConnected ? `● ${t('Online')}` : `● ${t('Offline')}`}

@@ -1,8 +1,8 @@
-# BioViz Local (Biological Pathway Visualization & Analysis)
+# BioCopilot (Biological Pathway Visualization & Analysis)
 
-BioViz Local is a **privacy-focused** biological pathway analysis and visualization tool. It combines modern web technologies (React + Tauri) with a powerful Python analysis engine and AI agents to provide an intuitive and in-depth gene/protein omics data analysis experience.
+BioCopilot is a **privacy-focused** biological pathway analysis and visualization tool. It combines modern web technologies (React + Tauri) with a powerful Python analysis engine and AI agents to provide an intuitive and in-depth gene/protein omics data analysis experience.
 
-![BioViz Screenshot](https://raw.githubusercontent.com/highven123/BioViz-Local/main/screenshots/demo.png)
+![BioCopilot Screenshot](https://raw.githubusercontent.com/highven123/BioCopilot-Local/main/screenshots/demo.png)
 
 ## ✨ Core Features
 
@@ -45,8 +45,8 @@ Ensure your system has:
 
 1.  **Clone repository**
     ```bash
-    git clone https://github.com/highven123/BioViz-Local.git
-    cd BioViz-Local
+    git clone https://github.com/highven123/BioCopilot-Local.git
+    cd BioCopilot-Local
     ```
 
 2.  **Install frontend dependencies**
@@ -71,7 +71,7 @@ This command will start both the frontend dev server and Tauri window.
 
 ## 🤖 AI Configuration
 
-BioViz Local supports multiple AI models. Create a `.env` file in the project root or use the provided `setup-ai-env.sh` script for configuration.
+BioCopilot supports multiple AI models. Create a `.env` file in the project root or use the provided `setup-ai-env.sh` script for configuration.
 
 Reference template (`.env.example`):
 ```ini
@@ -116,4 +116,4 @@ DEEPSEEK_MODEL=deepseek-v3.2-exp
 MIT License
 
 ---
-*BioViz Local - Making bioinformatics analysis simpler, safer, and smarter.*
+*BioCopilot - Making bioinformatics analysis simpler, safer, and smarter.*

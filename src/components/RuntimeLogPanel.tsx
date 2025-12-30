@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useI18n } from '../i18n';
-import { eventBus, BioVizEvents } from '../stores/eventBus';
+import { eventBus, BioCopilotEvents } from '../stores/eventBus';
 import './RuntimeLogPanel.css';
 
 interface LogEntry {
@@ -36,7 +36,7 @@ export const RuntimeLogPanel: React.FC<{
         // Subscribe to all EventBus events
         const subscriptions: string[] = [];
 
-        Object.values(BioVizEvents).forEach(eventType => {
+        Object.values(BioCopilotEvents).forEach(eventType => {
             const subId = eventBus.subscribe(eventType, (payload) => {
                 // Special handling for APP_LOG
                 if (eventType === 'APP_LOG' && payload && typeof payload.message === 'string') {
@@ -55,7 +55,7 @@ export const RuntimeLogPanel: React.FC<{
         addLog(t('Listening for application events...'), 'debug', 'system');
 
         return () => {
-            Object.values(BioVizEvents).forEach((eventType, idx) => {
+            Object.values(BioCopilotEvents).forEach((eventType, idx) => {
                 eventBus.unsubscribe(eventType, subscriptions[idx]);
             });
         };

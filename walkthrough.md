@@ -26,6 +26,15 @@ We have successfully implemented the "Scientific Onboarding" phase of the produc
     - **Citations**: Boilerplate citations for BioViz and underlying tools.
     - **Results**: Tables for top DE genes and Enrichment results.
     - **AI Log**: Full transcript of the AI conversation.
+ 
+## 4. AI Configuration & Pro Access
+**Goal**: Make the AI experience flexible and inclusive.
+- **Dynamic AI Selection**: Users can now click the **COG (⚙️)** in the header to switch between providers:
+    - **Ollama**: Local AI (Privacy-focused).
+    - **DeepSeek**: Official API or Alibaba Cloud Bailian (Performance).
+    - **OpenAI**: Standard industry models.
+- **Pro Features for All**: Removed all "Pro License" barriers. Features like **Fusion Enrichment**, **Biologic Studio Reports**, and **AI Agent Tasks** are now enabled for all users by default.
+- **Connectivity Resilience**: The engine automatically detects proxy settings and re-initializes AI clients instantly when settings change.
 
 ## Verification
 ### Manual Test Cases

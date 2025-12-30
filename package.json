@@ -1,14 +1,16 @@
 {
-  "name": "bioviz-local",
+  "name": "biocopilot",
   "private": true,
   "version": "2.0.0",
+  "description": "BioCopilot - Intelligent biological data analysis and visualization assistant",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
-    "build:python": "node scripts/build-python.js"
+    "build:python": "node scripts/build-python.js",
+    "build:python:onedir": "node scripts/build-python-onedir.js"
   },
   "dependencies": {
     "@tauri-apps/api": "^2",
@@ -30,6 +32,7 @@
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2",
+    "@types/papaparse": "^5.5.2",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
     "@vitejs/plugin-react": "^4.6.0",

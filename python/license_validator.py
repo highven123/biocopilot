@@ -23,8 +23,8 @@ class LicenseValidator:
     def __init__(self):
         try:
             self.public_key = serialization.load_pem_public_key(PUBLIC_KEY_PEM)
-            self.is_pro = False
-            self.license_data = None
+            self.is_pro = True # Default to True for Community/Open version
+            self.license_data = {"type": "PRO", "status": "unlocked"}
         except Exception as e:
             logger.error(f"Failed to load public key: {e}")
             self.public_key = None
@@ -87,9 +87,6 @@ class LicenseValidator:
 
             # Success
             self.is_pro = True
-            if license_data.get("type") == "PRO":
-                self.is_pro = True
-            
             self.license_data = license_data
             logger.info(f"License validated for user: {license_data.get('email')}")
             return {"valid": True, "data": license_data}

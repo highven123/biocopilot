@@ -47,7 +47,7 @@ export const AnalysisSummaryCard: React.FC<AnalysisSummaryCardProps> = ({
     const balanceRatio = totalRegulated > 0 ? Math.abs(upregulated - downregulated) / totalRegulated : 1;
     const insightChips: Array<{ label: string; icon: string; type?: string }> = [];
 
-    // Heuristics (Local Only)
+    // Heuristics (Client-side only)
     if (upregulated > 1000) {
         insightChips.push({ icon: '🔥', label: t('High transcriptional activity') });
     }

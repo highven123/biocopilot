@@ -2,7 +2,7 @@
  * NarrativePanel - AI Mechanistic Narrative Generator
  * 
  * Converts enrichment results into paper-ready biological narrative reports.
- * Phase 2 of the BioViz AI Platform.
+ * Phase 2 of the BioCopilot AI Platform.
  */
 
 import { useState } from 'react';

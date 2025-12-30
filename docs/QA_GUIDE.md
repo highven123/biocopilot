@@ -1,4 +1,4 @@
-# BioViz-Local 常见问题解答 (Q&A)
+# BioCopilot-Local 常见问题解答 (Q&A)
 
 ---
 
@@ -11,16 +11,16 @@
 *   **解决建议**：下载 Wizard 界面提供的 "Template" (模板)，将数据复制进去再试。
 
 **Q2: 系统找不到我的基因列（Gene Column）？**
-*   BioViz 会自动搜索 `gene`, `symbol`, `id`, `name` 等关键词。
+*   BioCopilot 会自动搜索 `gene`, `symbol`, `id`, `name` 等关键词。
 *   如果您的列名比较特殊（如 `Probeset_ID`），请在 **Step 2: Map Columns** 界面手动下拉选择。
 
 **Q3: 如何分析没有 P-value 的数据？**
-*   BioViz 支持仅使用 Log2FC 进行分析。
+*   BioCopilot 支持仅使用 Log2FC 进行分析。
 *   在 **Map Columns** 步骤中，将 P-value Column 选为 `(None)`。
 *   **注意**：此时火山图的所有点都会显示，无法进行显著性筛选（默认所有点视为显著或由 FC 决定）。
 
 **Q4: 我有原始的 Counts 数据，可以直接用吗？**
-*   **可以**。BioViz 内置了基于 `PyDESeq2` 的差异分析模块。
+*   **可以**。BioCopilot 内置了基于 `PyDESeq2` 的差异分析模块。
 *   在导入时，如果系统检测到 `Ctrl_1`, `Exp_1` 等与重复样本相关的列名，会自动进入 **Raw Matrix Mode**。
 *   您也可以手动进入右侧面板的 **DE Analysis** 标签页，上传 Counts 矩阵进行分析，完成后结果会自动同步到可视化界面。
 
@@ -31,10 +31,10 @@
 **Q5: 为什么选择了通路后，并没有显示任何颜色变化？**
 *   **匹配率低**：您的基因名可能与 KEGG 数据库不匹配。KEGG 主要使用 Entrez ID 或官方 Symbol。建议上传前将基因名标准化为 Official Gene Symbol。
 *   **阈值过高**：检查火山图下方的 P-value/Log2FC 阈值滑块，可能过滤掉了所有基因。
-*   **物种不符**：虽然 BioViz 默认通过 KEGG API 适配，但如果数据来自非模式生物，可能需要手动调整物种前缀（暂需在配置文件或代码中修改）。
+*   **物种不符**：虽然 BioCopilot 默认通过 KEGG API 适配，但如果数据来自非模式生物，可能需要手动调整物种前缀（暂需在配置文件或代码中修改）。
 
 **Q6: 火山图上的点太多了，卡顿怎么办？**
-*   BioViz 对渲染进行了优化，但在处理 >50,000 个点时可能在低配机器上略显卡顿。
+*   BioCopilot 对渲染进行了优化，但在处理 >50,000 个点时可能在低配机器上略显卡顿。
 *   **建议**：在导入前，可以在 Excel 中预先过滤掉 Log2FC = 0 或表达量极低的行。
 
 **Q7: 如何导出高清图片用于发表论文？**
@@ -51,7 +51,7 @@
 *   **本地模型**：如果您配置的是 Ollama，请确保 Ollama 服务已在本地启动 (`ollama serve`) 且模型已下载。
 
 **Q9: AI 发送我的数据安全吗？**
-*   **非常安全**。BioViz 遵循 "数据最小化" 原则。
+*   **非常安全**。BioCopilot 遵循 "数据最小化" 原则。
 *   AI 仅接收必要的统计摘要（如 "Top 10 上调基因是..."）和 Prompt 文本。
 *   完整的数万行原始表达量数据**永远不会**自动发送给 AI，除非您主动将其粘贴到对话框中。
 
@@ -76,5 +76,5 @@
     3.  查看用户目录下的 `AppData` 或 `.bioviz` 文件夹中的 `bioviz_core.log` 日志文件获取详细错误信息。
 
 **Q13: 支持 Windows/Mac/Linux 吗？**
-*   **支持**。BioViz 基于 Tauri 构建，天然跨平台。
+*   **支持**。BioCopilot 基于 Tauri 构建，天然跨平台。
 *   当前发布的预编译包主要针对 macOS 和 Windows。Linux 用户建议从源码编译。

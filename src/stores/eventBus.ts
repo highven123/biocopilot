@@ -1,5 +1,5 @@
 /**
- * Global Event Bus for BioViz v2.0
+ * Global Event Bus for BioCopilot v2.0
  * Enables AI to subscribe to app-wide events and react proactively.
  */
 
@@ -67,7 +67,7 @@ class EventBus {
 export const eventBus = new EventBus();
 
 // Event type constants
-export const BioVizEvents = {
+export const BioCopilotEvents = {
     // Data lifecycle
     DATA_LOADED: 'DATA_LOADED',
     DATA_VALIDATED: 'DATA_VALIDATED',
@@ -99,4 +99,4 @@ export const BioVizEvents = {
     APP_LOG: 'APP_LOG',
 } as const;
 
-export type BioVizEventType = keyof typeof BioVizEvents;
+export type BioCopilotEventType = keyof typeof BioCopilotEvents;

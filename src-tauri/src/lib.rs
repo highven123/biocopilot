@@ -241,10 +241,39 @@ fn spawn_sidecar(app_handle: &AppHandle, state: &State<'_, AppState>) -> Result<
     };
 
     #[cfg(not(debug_assertions))]
-    let sidecar_command = app_handle
-        .shell()
-        .sidecar("bio-engine")
-        .map_err(|e| format!("Failed to create sidecar command: {}", e))?;
+    let sidecar_command = {
+        let platform = if cfg!(target_os = "windows") {
+            "x86_64-pc-windows-msvc"
+        } else if cfg!(target_arch = "aarch64") {
+            "aarch64-apple-darwin"
+        } else {
+            "x86_64-apple-darwin"
+        };
+        
+        let binary_name = if cfg!(target_os = "windows") {
+            "bio-engine.exe"
+        } else {
+            "bio-engine"
+        };
+
+        let resource_path = app_handle
+            .path()
+            .resource_dir()
+            .map_err(|e| format!("Failed to get resource dir: {}", e))?
+            .join("binaries")
+            .join(format!("bio-engine-{}", platform))
+            .join(binary_name);
+        
+        println!("[BioViz] Production mode: spawning Python engine from resources: {}", resource_path.display());
+        
+        if !resource_path.exists() {
+            return Err(format!("Python engine not found at: {}", resource_path.display()));
+        }
+
+        app_handle
+            .shell()
+            .command(resource_path.to_string_lossy().to_string())
+    };
 
     // Spawn the process
     let (mut rx, child) = sidecar_command

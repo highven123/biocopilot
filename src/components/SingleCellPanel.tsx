@@ -2,7 +2,7 @@
  * SingleCellPanel - Single-Cell Analysis Interface
  * 
  * Provides UI for loading AnnData files and running single-cell contextual analysis.
- * Phase 3 of the BioViz AI Platform.
+ * Phase 3 of the BioCopilot AI Platform.
  */
 
 import { useState } from 'react';

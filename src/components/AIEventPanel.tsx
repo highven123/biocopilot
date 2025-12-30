@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useI18n } from '../i18n';
-import { eventBus, BioVizEvents } from '../stores/eventBus';
+import { eventBus, BioCopilotEvents } from '../stores/eventBus';
 import { SidecarResponse } from '../hooks/useBioEngine';
 import './AIEventPanel.css';
 
@@ -234,7 +234,7 @@ export const AIEventPanel: React.FC<AIEventPanelProps> = ({
 
     useEffect(() => {
         // Subscribe to AI suggestion events
-        const subSuggestion = eventBus.subscribe(BioVizEvents.AI_SUGGESTION, (payload) => {
+        const subSuggestion = eventBus.subscribe(BioCopilotEvents.AI_SUGGESTION, (payload) => {
             const newSuggestion: AISuggestion = {
                 id: nextId('sug'),
                 type: payload.type || 'info',
@@ -247,7 +247,7 @@ export const AIEventPanel: React.FC<AIEventPanelProps> = ({
         });
 
         // Subscribe to AI warning events
-        const subWarning = eventBus.subscribe(BioVizEvents.AI_WARNING, (payload) => {
+        const subWarning = eventBus.subscribe(BioCopilotEvents.AI_WARNING, (payload) => {
             const warning: AISuggestion = {
                 id: nextId('warn'),
                 type: 'warning',
@@ -259,7 +259,7 @@ export const AIEventPanel: React.FC<AIEventPanelProps> = ({
         });
 
         // Example: Auto-trigger QC check when data is loaded
-        const subDataLoaded = eventBus.subscribe(BioVizEvents.DATA_LOADED, (payload) => {
+        const subDataLoaded = eventBus.subscribe(BioCopilotEvents.DATA_LOADED, (payload) => {
             // Simulate AI QC check
             setTimeout(() => {
                 const qcResult: AISuggestion = {
@@ -274,7 +274,7 @@ export const AIEventPanel: React.FC<AIEventPanelProps> = ({
         });
 
         // Auto-trigger suggestion when analysis completes
-        const subAnalysis = eventBus.subscribe(BioVizEvents.ANALYSIS_COMPLETE, (payload) => {
+        const subAnalysis = eventBus.subscribe(BioCopilotEvents.ANALYSIS_COMPLETE, (payload) => {
             setTimeout(() => {
                 const analysisHint: AISuggestion = {
                     id: nextId('analysis'),
@@ -301,15 +301,15 @@ export const AIEventPanel: React.FC<AIEventPanelProps> = ({
         });
 
         return () => {
-            eventBus.unsubscribe(BioVizEvents.AI_SUGGESTION, subSuggestion);
-            eventBus.unsubscribe(BioVizEvents.AI_WARNING, subWarning);
-            eventBus.unsubscribe(BioVizEvents.DATA_LOADED, subDataLoaded);
-            eventBus.unsubscribe(BioVizEvents.ANALYSIS_COMPLETE, subAnalysis);
+            eventBus.unsubscribe(BioCopilotEvents.AI_SUGGESTION, subSuggestion);
+            eventBus.unsubscribe(BioCopilotEvents.AI_WARNING, subWarning);
+            eventBus.unsubscribe(BioCopilotEvents.DATA_LOADED, subDataLoaded);
+            eventBus.unsubscribe(BioCopilotEvents.ANALYSIS_COMPLETE, subAnalysis);
         };
     }, [sendCommand]);
 
     useEffect(() => {
-        const subStart = eventBus.subscribe(BioVizEvents.AI_PROCESS_START, (payload) => {
+        const subStart = eventBus.subscribe(BioCopilotEvents.AI_PROCESS_START, (payload) => {
             const steps = Array.isArray(payload?.steps) ? payload.steps : [];
             setLiveActivity({
                 taskId: payload?.taskId || `task_${Date.now()}`,
@@ -321,7 +321,7 @@ export const AIEventPanel: React.FC<AIEventPanelProps> = ({
                 status: 'running'
             });
         });
-        const subUpdate = eventBus.subscribe(BioVizEvents.AI_PROCESS_UPDATE, (payload) => {
+        const subUpdate = eventBus.subscribe(BioCopilotEvents.AI_PROCESS_UPDATE, (payload) => {
             setLiveActivity((prev) => {
                 if (!prev) return prev;
                 if (payload?.taskId && payload.taskId !== prev.taskId) return prev;
@@ -341,7 +341,7 @@ export const AIEventPanel: React.FC<AIEventPanelProps> = ({
                 return { ...prev, steps: nextSteps, status: 'running' };
             });
         });
-        const subComplete = eventBus.subscribe(BioVizEvents.AI_PROCESS_COMPLETE, (payload) => {
+        const subComplete = eventBus.subscribe(BioCopilotEvents.AI_PROCESS_COMPLETE, (payload) => {
             setLiveActivity((prev) => {
                 if (!prev) return prev;
                 if (payload?.taskId && payload.taskId !== prev.taskId) return prev;
@@ -354,9 +354,9 @@ export const AIEventPanel: React.FC<AIEventPanelProps> = ({
         });
 
         return () => {
-            eventBus.unsubscribe(BioVizEvents.AI_PROCESS_START, subStart);
-            eventBus.unsubscribe(BioVizEvents.AI_PROCESS_UPDATE, subUpdate);
-            eventBus.unsubscribe(BioVizEvents.AI_PROCESS_COMPLETE, subComplete);
+            eventBus.unsubscribe(BioCopilotEvents.AI_PROCESS_START, subStart);
+            eventBus.unsubscribe(BioCopilotEvents.AI_PROCESS_UPDATE, subUpdate);
+            eventBus.unsubscribe(BioCopilotEvents.AI_PROCESS_COMPLETE, subComplete);
         };
     }, [t]);
 

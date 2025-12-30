@@ -1,8 +1,8 @@
-# BioViz AI Platform - 用户指南
+# BioCopilot AI Platform - 用户指南
 
 ## 🎯 概述
 
-BioViz AI Platform 提供两个核心 AI 功能：
+BioCopilot AI Platform 提供两个核心 AI 功能：
 
 1. **📝 机理叙事引擎** - 将富集结果转化为论文级生物学描述
 2. **🧬 单细胞分析平台** - 通路评分、空间交互、轨迹动态
@@ -130,4 +130,4 @@ pip install scanpy anndata
 
 ---
 
-*BioViz AI Platform v2.0 - Phase 3 Complete*
+*BioCopilot AI Platform v2.0 - Phase 3 Complete*

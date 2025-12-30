@@ -118,7 +118,7 @@ export const SystemHealthModal: React.FC<SystemHealthModalProps> = ({ isOpen, on
                             onClick={onClose}
                             style={{ ...btnStyle, background: '#3b82f6' }}
                         >
-                            {t('Launch BioViz Local')} →
+                            {t('Launch BioCopilot')} →
                         </button>
                     )}
                 </div>

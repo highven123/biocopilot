@@ -62,14 +62,11 @@ def get_ai_client() -> OpenAI:
     """
     Initialize AI client based on environment configuration.
     """
-    import httpx
-    provider = _get_env_clean("AI_PROVIDER", "ollama").lower()
+    # We only bypass proxies if the user explicitly points to localhost/127.0.0.1
+    is_local = "localhost" in str(os.getenv("CUSTOM_BASE_URL", "")) or "127.0.0.1" in str(os.getenv("CUSTOM_BASE_URL", ""))
+    client_to_use = httpx.Client(trust_env=not is_local, timeout=120.0)
+
     print(f"[AI Core] Initializing AI Client. Provider: {provider}", file=sys.stderr)
-    
-    # For local or Chinese providers, we usually want to bypass system proxies
-    no_proxy_client = httpx.Client(trust_env=False, timeout=120.0)
-    # For international providers, use default httpx client (which respects env proxies)
-    default_client = httpx.Client(trust_env=True, timeout=120.0)
 
     if provider == "bailian":
         api_key = _get_env_clean("DEEPSEEK_API_KEY") or _get_env_clean("DASHSCOPE_API_KEY")
@@ -84,7 +81,7 @@ def get_ai_client() -> OpenAI:
         return OpenAI(
             api_key=api_key,
             base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
-            http_client=no_proxy_client
+            http_client=client_to_use
         )
     
     elif provider == "deepseek":
@@ -96,7 +93,7 @@ def get_ai_client() -> OpenAI:
         return OpenAI(
             api_key=api_key,
             base_url="https://api.deepseek.com",
-            http_client=no_proxy_client
+            http_client=client_to_use
         )
     
     elif provider == "openai":
@@ -104,45 +101,189 @@ def get_ai_client() -> OpenAI:
         if not api_key:
             raise ValueError("OPENAI_API_KEY environment variable not set")
         
-        return OpenAI(api_key=api_key, http_client=default_client)
+        return OpenAI(api_key=api_key, http_client=client_to_use)
     
-    elif provider == "ollama":
-        base_url = _get_env_clean("OLLAMA_BASE_URL", "http://localhost:11434/v1")
+    elif provider == "gemini":
+        api_key = _get_env_clean("GEMINI_API_KEY")
         return OpenAI(
-            api_key="ollama",
-            base_url=base_url,
-            http_client=no_proxy_client
+            api_key=api_key or "sk-placeholder",
+            base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
+            http_client=client_to_use
         )
+    
+    elif provider == "grok":
+        api_key = _get_env_clean("XAI_API_KEY") or _get_env_clean("GROK_API_KEY")
+        return OpenAI(
+            api_key=api_key or "sk-placeholder",
+            base_url="https://api.x.ai/v1",
+            http_client=client_to_use
+        )
+    
     
     else:
         # Custom provider
         api_key = _get_env_clean("CUSTOM_API_KEY", "placeholder")
         base_url = _get_env_clean("CUSTOM_BASE_URL", "http://localhost:11434/v1")
-        return OpenAI(api_key=api_key, base_url=base_url, http_client=default_client)
+        return OpenAI(api_key=api_key, base_url=base_url, http_client=client_to_use)
 
 
 def get_model_name() -> str:
     """Get the model name based on provider."""
-    provider = _get_env_clean("AI_PROVIDER", "ollama").lower()
+    provider = _get_env_clean("AI_PROVIDER", "bailian").lower()
     
     if provider in ["bailian", "deepseek"]:
         return _get_env_clean("DEEPSEEK_MODEL", "deepseek-v3")
     elif provider == "openai":
         return _get_env_clean("OPENAI_MODEL", "gpt-4o-mini")
-    elif provider == "ollama":
-        return _get_env_clean("OLLAMA_MODEL", "llama3")
     else:
         return _get_env_clean("CUSTOM_MODEL", "gpt-3.5-turbo")
 
 
-# Initialize client
-client = get_ai_client()
-DEFAULT_MODEL = get_model_name()
+# Global state for dynamic reconfiguration
+_current_client: Optional[OpenAI] = None
+_current_model: str = "deepseek-v3"
+_current_config: Dict[str, Any] = {}
+
+def update_ai_config(config: Dict[str, Any]) -> bool:
+    """
+    Update the global AI configuration and re-initialize the client.
+    
+    Expected config: {
+        "provider": "openai" | "deepseek" | "ollama" | "bailian" | "custom",
+        "apiKey": "...",
+        "baseUrl": "...",
+        "model": "..."
+    }
+    """
+    global _current_client, _current_model, _current_config
+    try:
+        import httpx
+        provider = config.get("provider", "bailian").lower()
+        api_key = config.get("apiKey", "")
+        base_url = config.get("baseUrl", "")
+        model = config.get("model", "")
+
+        # Only bypass proxies for explicit local addresses
+        is_local = "localhost" in base_url or "127.0.0.1" in base_url
+        client_to_use = httpx.Client(trust_env=not is_local, timeout=120.0)
+
+        new_client = None
+        if provider == "bailian":
+            new_client = OpenAI(
+                api_key=api_key or _get_env_clean("DEEPSEEK_API_KEY") or _get_env_clean("DASHSCOPE_API_KEY") or "sk-placeholder",
+                base_url=base_url or "https://dashscope.aliyuncs.com/compatible-mode/v1",
+                http_client=client_to_use
+            )
+        elif provider == "deepseek":
+            new_client = OpenAI(
+                api_key=api_key or _get_env_clean("DEEPSEEK_API_KEY") or "sk-placeholder",
+                base_url=base_url or "https://api.deepseek.com",
+                http_client=client_to_use
+            )
+        elif provider == "openai":
+            new_client = OpenAI(
+                api_key=api_key or _get_env_clean("OPENAI_API_KEY"),
+                base_url=base_url or None, # Use default if empty
+                http_client=client_to_use
+            )
+        elif provider == "gemini":
+            new_client = OpenAI(
+                api_key=api_key or _get_env_clean("GEMINI_API_KEY"),
+                base_url=base_url or "https://generativelanguage.googleapis.com/v1beta/openai/",
+                http_client=client_to_use
+            )
+        elif provider == "grok":
+            new_client = OpenAI(
+                api_key=api_key or _get_env_clean("XAI_API_KEY") or _get_env_clean("GROK_API_KEY"),
+                base_url=base_url or "https://api.x.ai/v1",
+                http_client=client_to_use
+            )
+        else:
+            # Custom
+            new_client = OpenAI(
+                api_key=api_key or "placeholder",
+                base_url=base_url,
+                http_client=client_to_use
+            )
+
+        # Update global state
+        _current_client = new_client
+        _current_model = model or get_model_name()
+        _current_config = config
+        
+        print(f"[AI Core] Reconfigured to {provider} ({_current_model}) via {base_url}", file=sys.stderr)
+        
+        # Lightweight connectivity test
+        def test_online():
+            try:
+                import socket
+                from urllib.parse import urlparse
+                p = urlparse(base_url)
+                if p.hostname:
+                    with socket.create_connection((p.hostname, p.port or (443 if p.scheme == 'https' else 80)), timeout=1):
+                        pass
+                print(f"[AI Core] New configuration reachable: {base_url}", file=sys.stderr)
+            except Exception as e:
+                print(f"[AI Core] New configuration reachability warning: {e}", file=sys.stderr)
+        
+        import threading
+        threading.Thread(target=test_online, daemon=True).start()
+        
+        return True
+    except Exception as e:
+        print(f"[AI Core] Failed to update config: {e}", file=sys.stderr)
+        return False
+
+def get_current_client() -> OpenAI:
+    global _current_client
+    if _current_client is None:
+        _current_client = get_ai_client()
+    return _current_client
+
+def get_current_model() -> str:
+    global _current_model
+    return _current_model
+
+# Initialize client and handle configuration Resilience
+try:
+    _current_client = get_ai_client()
+    _current_model = get_model_name()
+    
+    # Proactive connectivity test (Lightweight)
+    print(f"[AI Core] Initializing with model: {_current_model}", file=sys.stderr)
+    
+    def check_ai_online():
+        try:
+            import httpx
+            # Just a DNS/TCP check, not a full API call
+            base_url = _current_client.base_url
+            if "localhost" in str(base_url) or "127.0.0.1" in str(base_url):
+                # Local check
+                import socket
+                from urllib.parse import urlparse
+                p = urlparse(str(base_url))
+                with socket.create_connection((p.hostname or "localhost", p.port or 11434), timeout=1):
+                    pass
+            print(f"[AI Core] Connectivity check OK for {base_url}", file=sys.stderr)
+        except Exception as e:
+            print(f"[AI Core] Connectivity check FAILED: {e}", file=sys.stderr)
+
+    check_ai_online()
+except Exception as e:
+    err_msg = str(e)
+    if "Connection refused" in err_msg and "dashscope" in err_msg.lower():
+        err_msg = "Connection to Alibaba Cloud Bailian failed. Please check your network and API Key."
+    elif "OPENAI_API_KEY" in err_msg:
+        err_msg = "OpenAI API Key is missing. Please set OPENAI_API_KEY in your .env file."
+    
+    print(f"[AI Core] CRITICAL: {err_msg}", file=sys.stderr)
+    client = None
+    DEFAULT_MODEL = "gpt-4o-mini"
 
 
 # --- System Prompt ---
 
-SYSTEM_PROMPT = """You are BioViz AI, an intelligent assistant for biological pathway analysis.
+SYSTEM_PROMPT = """You are BioCopilot AI, an intelligent assistant for biological pathway analysis.
 
 You help users:
 - Visualize gene expression data on KEGG pathways
@@ -172,7 +313,7 @@ Available tools:
 - export_data: Export data to file (requires confirmation)
 
 When users ask about "current pathway" or "this pathway", they are referring to the pathway in the CURRENT CONTEXT section.
-If users ask to export data without a path, choose a safe default filename like "bioviz_export.csv" and proceed with export_data.
+If users ask to export data without a path, choose a safe default filename like "biocopilot_export.csv" and proceed with export_data.
 Be concise and helpful. Focus on biological insights.
 """
 
@@ -321,8 +462,11 @@ def process_query(
     
     try:
         # Call AI API
-        response = client.chat.completions.create(
-            model=DEFAULT_MODEL,
+        current_client = get_current_client()
+        current_model = get_current_model()
+        
+        response = current_client.chat.completions.create(
+            model=current_model,
             messages=messages,
             tools=tools,
             tool_choice="auto"

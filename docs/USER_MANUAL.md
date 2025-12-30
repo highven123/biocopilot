@@ -1,4 +1,4 @@
-# BioViz-Local 用户手册 v2.0
+# BioCopilot-Local 用户手册 v2.0
 
 > **核心理念**：让生物信息学分析更简单、更安全、更智能。从原始数据到高质量证据，只需四步。
 
@@ -38,7 +38,7 @@
 
 ## 1. 产品简介
 
-**BioViz-Local** 是一款专注于隐私保护的本地化生物通路可视化与分析工具。它结合了现代 Web 技术 (React + Tauri) 的流畅交互与 Python 分析引擎的强大算力，旨在为生命科学研究者提供"所见即所得"的分析体验。
+**BioCopilot-Local** 是一款专注于隐私保护的本地化生物通路可视化与分析工具。它结合了现代 Web 技术 (React + Tauri) 的流畅交互与 Python 分析引擎的强大算力，旨在为生命科学研究者提供"所见即所得"的分析体验。
 
 ### 核心价值
 *   **🔒 隐私优先**：所有数据处理均在本地完成，核心业务逻辑不依赖云端。AI 功能采用"逻辑锁"架构，仅在显式授权下运行。
@@ -70,8 +70,8 @@
 3.  **首次启动**：程序会自动检测环境。如果缺少 `python` 或相关库，会提示安装或配置路径。
 
 #### 方式 B：源码运行 (开发者模式)
-1.  克隆仓库：`git clone https://github.com/highven123/BioViz-Local.git`
-2.  安装前端依赖：`cd BioViz-Local && npm install`
+1.  克隆仓库：`git clone https://github.com/highven123/BioCopilot-Local.git`
+2.  安装前端依赖：`cd BioCopilot-Local && npm install`
 3.  配置 Python：
     ```bash
     python3 -m venv venv
@@ -81,7 +81,7 @@
 4.  启动：`npm run tauri dev`
 
 ### AI 模型配置
-BioViz 支持多种 AI 后端。请在项目根目录创建 `.env` 文件进行配置：
+BioCopilot 支持多种 AI 后端。请在项目根目录创建 `.env` 文件进行配置：
 
 ```ini
 # 选择 AI 提供商: deepseek, openai, ollama (本地)
@@ -102,7 +102,7 @@ DEEPSEEK_MODEL=deepseek-v3.2-exp
 
 ## 3. 快速入门：四步分析法
 
-启动 BioViz 后，您将看到直观的 **Analysis Workflow** 面板。只需四步即可获得结果。
+启动 BioCopilot 后，您将看到直观的 **Analysis Workflow** 面板。只需四步即可获得结果。
 
 ### Step 1: 导入数据 (Import)
 *   点击 **Upload** 区域或直接拖拽文件。
@@ -207,7 +207,7 @@ DEEPSEEK_MODEL=deepseek-v3.2-exp
 *   `Esc`：关闭所有弹窗
 
 ### 数据隐私声明
-BioViz-Local 承诺：
+BioCopilot-Local 承诺：
 1.  **不上传原始数据**：您的 CSV/Excel 文件仅在本地内存中处理。
 2.  **透明的 AI 调用**：发送给 AI 模型的仅限于 Prompt 文本和统计摘要（如"由 50 个基因上调"），不会发送完整的基因组数据，除非用户在 Prompt 中明文粘贴。
 3.  **本地日志**：运行日志存储在用户本地目录，仅用于排查故障。

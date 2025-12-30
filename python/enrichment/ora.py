@@ -14,9 +14,11 @@ import warnings
 try:
     from scipy.stats import fisher_exact, hypergeom
     SCIPY_AVAILABLE = True
-except ImportError:
+except ImportError as e:
     SCIPY_AVAILABLE = False
-    logging.warning("scipy not installed. ORA will not be available.")
+    import traceback
+    logging.warning(f"scipy not installed. ORA will not be available. Error: {e}")
+    logging.warning(traceback.format_exc())
 
 try:
     from statsmodels.stats.multitest import multipletests
@@ -169,8 +171,8 @@ def run_ora(
         List of ORAResult objects, sorted by p-value
     """
     if not SCIPY_AVAILABLE:
-        logging.warning("scipy not available. ORA analysis skipped.")
-        return []  # Return empty results instead of crashing
+        logging.error("scipy not available. ORA analysis requires scipy.")
+        raise RuntimeError("scipy is required for ORA analysis. Please ensure it is installed.")
     
     # Prepare data
     gene_set = set(gene_list)

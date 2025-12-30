@@ -1,7 +1,7 @@
 
 export const en = {
     header: {
-        title: 'BioViz Local',
+        title: 'BioCopilot',
         connected: 'Connected',
         disconnected: 'Disconnected',
     },
@@ -41,12 +41,28 @@ export const en = {
         upregulated: 'Upregulated',
         downregulated: 'Downregulated',
         unchanged: 'Unchanged',
+    },
+    ai: {
+        config: 'AI Configuration',
+        provider: 'AI Provider',
+        apiKey: 'API Key',
+        enterApiKey: 'Enter your API Key',
+        baseUrl: 'Base URL',
+        modelName: 'Model Name',
+        helpTitle: 'How to get an API Key?',
+        helpDesc: 'Please visit the official website of your provider to generate a key.',
+        contactDev: 'For technical support or corporate keys, contact: bioviz@outlook.com',
+        saveConfig: 'Save Configuration',
+        cancel: 'Cancel',
+        immediateEffect: 'Changes will take effect immediately. Ensure your provider service is reachable.',
+        official: 'Official',
+        customApi: 'Custom OpenAI-Compatible API'
     }
 };
 
 export const zh = {
     header: {
-        title: 'BioViz Local',
+        title: 'BioCopilot',
         connected: '已连接',
         disconnected: '未连接',
     },
@@ -86,5 +102,21 @@ export const zh = {
         upregulated: '上调基因',
         downregulated: '下调基因',
         unchanged: '无显著变化',
+    },
+    ai: {
+        config: 'AI 智驾配置',
+        provider: 'AI 服务商',
+        apiKey: 'API 密钥',
+        enterApiKey: '请输入您的 API Key',
+        baseUrl: '接口地址 (Base URL)',
+        modelName: '模型名称',
+        helpTitle: '如何获取 API Key？',
+        helpDesc: '请访问对应服务商官网申请 API 密钥。',
+        contactDev: '如需技术支持或企业授权密钥，请联系：bioviz@outlook.com',
+        saveConfig: '保存配置',
+        cancel: '取消',
+        immediateEffect: '配置将立即生效。请确保您的网络能够访问对应服务商。',
+        official: '官网',
+        customApi: '自定义 OpenAI 兼容接口'
     }
 };

@@ -1,7 +1,7 @@
-# BioViz Analysis Session
+# BioCopilot Analysis Session
 
 **Date**: 2025/12/20 15:30:20
-**Dataset**: /Users/haifeng/BioViz-Local/assets/intelligence_test.csv
+**Dataset**: /Users/haifeng/BioCopilot/assets/intelligence_test.csv
 **Pathway**: Negative Regulation Of Apoptotic Process (GO:0043066)
 
 ## Statistics

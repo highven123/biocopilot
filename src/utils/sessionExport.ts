@@ -57,7 +57,7 @@ export async function exportSessionAsMarkdown(analysis: AnalysisSession): Promis
   const defaultName = `${baseName}_report.md`;
 
 
-  let markdown = `# ${t('BioViz Analysis Session')}\n\n`;
+  let markdown = `# ${t('BioCopilot Analysis Session')}\n\n`;
   markdown += `**${t('Date')}**: ${new Date().toLocaleString()}\n`;
   markdown += `**${t('Dataset')}**: ${analysis.sourceFilePath}\n`;
   markdown += `**${t('Pathway')}**: ${analysis.pathway?.title || analysis.pathway?.id || t('Unknown')}\n\n`;
@@ -207,7 +207,7 @@ function generateMaterialsAndMethods(analysis: AnalysisSession): string {
     ${t('Significant features were identified based on a Log2 Fold Change threshold and standard P-value significance cutoffs')}.</p>
 
     <h3>${t('Enrichment & Visualization')}</h3>
-    <p>${t('Pathway topology and enrichment analysis were performed using BioViz Local v2.0 algorithms')} (<strong>${enrichMethod}</strong>). 
+    <p>${t('Pathway topology and enrichment analysis were performed using BioCopilot v2.0 algorithms')} (<strong>${enrichMethod}</strong>). 
     ${t('Gene set source')}: <strong>${geneSetSource}</strong> (${t('version')} <strong>${geneSetVersion}</strong>, ${t('hash')} <strong>${geneSetHash}</strong>). 
     ${t('Visualizations include Volcano plots for significance distribution and interactive pathway mapping')}.</p>
     `;
@@ -224,7 +224,7 @@ export async function exportSessionAsInteractiveHtml(analysis: AnalysisSession):
   const defaultName = `${baseName}_lab_report.html`;
   const htmlLang = (typeof localStorage !== 'undefined' && localStorage.getItem('bioviz_language')) || 'en';
   const reportI18n = {
-    reportTitle: t('BioViz Analysis Report'),
+    reportTitle: t('BioCopilot Analysis Report'),
     generatedOn: t('Generated on'),
     materialsMethods: t('Materials & Methods'),
     citations: t('Citations & Dependencies'),
@@ -295,7 +295,7 @@ export async function exportSessionAsInteractiveHtml(analysis: AnalysisSession):
 <html lang="${htmlLang}">
 <head>
   <meta charset="UTF-8" />
-  <title>${t('BioViz Report')} • ${baseName}</title>
+  <title>${t('BioCopilot Report')} • ${baseName}</title>
   <style>
     :root {
       --bg: #ffffff;
@@ -402,9 +402,9 @@ export async function exportSessionAsInteractiveHtml(analysis: AnalysisSession):
 <body>
 
   <header>
-    <h1>${t('BioViz Analysis Report')}</h1>
+    <h1>${t('BioCopilot Analysis Report')}</h1>
     <div class="header-meta">
-      ${t('Generated on')} ${new Date().toLocaleString()} • BioViz Local v2.0
+      ${t('Generated on')} ${new Date().toLocaleString()} • BioCopilot v2.0
     </div>
     <div id="meta-pills"></div>
   </header>
@@ -414,7 +414,7 @@ export async function exportSessionAsInteractiveHtml(analysis: AnalysisSession):
     <div id="methods-content">${methodsHtml}</div>
     <h3>${t('Citations & Dependencies')}</h3>
     <ul style="font-size: 13px; color: #64748b; padding-left: 20px;">
-        <li><strong>BioViz Local</strong> (2025). ${t('AI-driven biological data visualization.')}</li>
+        <li><strong>BioCopilot</strong> (2025). ${t('AI-driven biological data visualization.')}</li>
         <li><strong>KEGG Database</strong>: ${t('Kyoto Encyclopedia of Genes and Genomes.')}</li>
         <li><strong>${t('Python Data Stack')}</strong>: Pandas, SciPy, NumPy.</li>
     </ul>
@@ -456,7 +456,7 @@ export async function exportSessionAsInteractiveHtml(analysis: AnalysisSession):
   </section>
 
   <div class="footer">
-    ${t('Verified by')} BioViz Local v${analysis.appVersion || '2.0.0'} • ${t('AI Model')}: ${analysis.aiModel || t('Standard')} • ${t('Database')}: KEGG 2021 Human<br/>
+    ${t('Verified by')} BioCopilot v${analysis.appVersion || '2.0.0'} • ${t('AI Model')}: ${analysis.aiModel || t('Standard')} • ${t('Database')}: KEGG 2021 Human<br/>
     ${t('Report Generated')}: ${new Date().toLocaleString()} • ${t('Ensure data privacy before sharing.')}
   </div>
 

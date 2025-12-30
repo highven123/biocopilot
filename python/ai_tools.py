@@ -20,6 +20,7 @@ from prompts import (
     STUDIO_INSIGHTS_PROMPT,
     render_prompt,
 )
+import ai_core
 
 
 # --- Tool Registry ---
@@ -64,65 +65,10 @@ STRUCTURED_SYSTEM_MESSAGE = (
 
 def _get_llm_client_and_model() -> Tuple[Any, str]:
     """
-    Create an OpenAI-compatible client based on environment configuration.
-    Mirrors ai_core.py to keep provider selection consistent.
+    Get the centralized AI client and model from ai_core.
     """
-    import sys
-    import logging
-    from openai import OpenAI
-    import httpx
-
-    def _get_env_clean(key: str, default: str = "") -> str:
-        val = os.getenv(key, default)
-        if val:
-            val = val.strip().strip("'").strip('"')
-        return val
-
-    provider = _get_env_clean("AI_PROVIDER", "ollama").lower()
-    logging.info(f"[AI Tools] Initializing structured LLM client for provider: {provider}")
-
-    # For local or Chinese providers, we usually want to bypass system proxies
-    # that might be set for international access but break local connections.
-    no_proxy_client = httpx.Client(trust_env=False, timeout=120.0)
-    
-    # For international providers, use default httpx client (which respects env proxies)
-    default_client = httpx.Client(trust_env=True, timeout=120.0)
-
-    if provider == "bailian":
-        api_key = _get_env_clean("DEEPSEEK_API_KEY") or _get_env_clean("DASHSCOPE_API_KEY") or "sk-placeholder"
-        model = _get_env_clean("DEEPSEEK_MODEL", "deepseek-v3")
-        # Bailian is in China, bypass proxy to avoid interference
-        client = OpenAI(api_key=api_key, base_url="https://dashscope.aliyuncs.com/compatible-mode/v1", http_client=no_proxy_client)
-        return client, model
-
-    if provider == "deepseek":
-        api_key = _get_env_clean("DEEPSEEK_API_KEY") or "sk-placeholder"
-        model = _get_env_clean("DEEPSEEK_MODEL", "deepseek-chat")
-        # DeepSeek is in China, bypass proxy
-        client = OpenAI(api_key=api_key, base_url="https://api.deepseek.com", http_client=no_proxy_client)
-        return client, model
-
-    if provider == "openai":
-        api_key = _get_env_clean("OPENAI_API_KEY")
-        if not api_key:
-            raise RuntimeError("OPENAI_API_KEY is not set")
-        model = _get_env_clean("OPENAI_MODEL", "gpt-4o-mini")
-        # OpenAI is international, use default client (respects proxies)
-        client = OpenAI(api_key=api_key, http_client=default_client)
-        return client, model
-
-    if provider == "ollama":
-        base_url = _get_env_clean("OLLAMA_BASE_URL", "http://localhost:11434/v1")
-        model = _get_env_clean("OLLAMA_MODEL", "llama3")
-        # Ollama is local, bypass proxy
-        client = OpenAI(api_key="ollama", base_url=base_url, http_client=no_proxy_client)
-        return client, model
-
-    # Custom fallback
-    api_key = _get_env_clean("CUSTOM_API_KEY", "placeholder")
-    base_url = _get_env_clean("CUSTOM_BASE_URL", "http://localhost:11434/v1")
-    model = _get_env_clean("CUSTOM_MODEL", "gpt-3.5-turbo")
-    client = OpenAI(api_key=api_key, base_url=base_url, http_client=default_client)
+    client = ai_core.get_current_client()
+    model = ai_core.get_current_model()
     return client, model
 
 

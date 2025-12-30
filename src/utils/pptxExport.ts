@@ -1,5 +1,5 @@
 /**
- * BioViz Local - PPTX Export Utility
+ * BioCopilot - PPTX Export Utility
  * Export pathway analysis results to PowerPoint presentations
  */
 
@@ -45,7 +45,7 @@ export async function exportPathwayToPPTX(data: PathwayExportData): Promise<stri
     const titleSlide = pptx.addSlide();
     titleSlide.background = { color: '0A0A0F' };
 
-    titleSlide.addText('BioViz Local', {
+    titleSlide.addText('BioCopilot', {
         x: 0.5,
         y: 2.0,
         w: 9,
@@ -300,7 +300,7 @@ export async function exportPathwayToPPTX(data: PathwayExportData): Promise<stri
     const fileName = `${data.pathwayId}_${data.pathwayName.replace(/\s+/g, '_')}_${Date.now()}.pptx`;
     await pptx.writeFile({ fileName });
 
-    console.log(`[BioViz] Exported to ${fileName}`);
+    console.log(`[BioCopilot] Exported to ${fileName}`);
     return fileName;
 }
 

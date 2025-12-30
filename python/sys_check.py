@@ -67,6 +67,28 @@ def perform_system_check():
     # Check NCBI/KEGG (primary scientific data sources)
     kegg_ok = check_network("www.kegg.jp")
     ncbi_ok = check_network("www.ncbi.nlm.nih.gov")
+    
+    # Check AI Provider
+    ai_provider = os.getenv("AI_PROVIDER", "ollama").lower()
+    ai_ok = False
+    ai_url = "N/A"
+    
+    if ai_provider == "ollama":
+        ai_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+        # Extract host/port from URL
+        try:
+            from urllib.parse import urlparse
+            p = urlparse(ai_url)
+            ai_ok = check_network(p.hostname or "localhost", p.port or 11434, timeout=2)
+        except Exception:
+            ai_ok = False
+    elif ai_provider == "openai":
+        ai_url = "api.openai.com"
+        ai_ok = check_network(ai_url, 443, timeout=3)
+    elif ai_provider in ["deepseek", "bailian"]:
+        ai_url = "api.deepseek.com" if ai_provider == "deepseek" else "dashscope.aliyuncs.com"
+        ai_ok = check_network(ai_url, 443, timeout=3)
+
     network_status = "OK" if (kegg_ok or ncbi_ok) else "OFFLINE"
     
     # 4. Binary/Sidecar integrity
@@ -85,6 +107,9 @@ def perform_system_check():
         "network": {
             "kegg_accessible": kegg_ok,
             "ncbi_accessible": ncbi_ok,
+            "ai_provider_accessible": ai_ok,
+            "ai_provider": ai_provider,
+            "ai_target_url": ai_url,
             "status": network_status
         },
         "dependencies": {

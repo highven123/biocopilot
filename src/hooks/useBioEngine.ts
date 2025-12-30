@@ -1,5 +1,5 @@
 /**
- * BioViz Local - Python Sidecar Communication Hook
+ * BioCopilot - Python Sidecar Communication Hook
  * 
  * This hook provides a clean API for communicating with the Python backend.
  * It handles event listening, command sending, and automatic cleanup.
@@ -9,7 +9,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen, UnlistenFn } from '@tauri-apps/api/event';
 import { AIActionResponse, isProposal } from '../types/aiSafety';
-import { eventBus, BioVizEvents } from '../stores/eventBus';
+import { eventBus, BioCopilotEvents } from '../stores/eventBus';
 
 /** Response structure from the Python sidecar */
 export interface SidecarResponse {
@@ -69,7 +69,7 @@ export interface UseBioEngineReturn {
 
 
 /**
- * Custom hook for communicating with the BioViz Python engine.
+ * Custom hook for communicating with the BioCopilot Python engine.
  * 
  * @example
  * ```tsx
@@ -123,7 +123,7 @@ export function useBioEngine(): UseBioEngineReturn {
 
                     try {
                         const response = JSON.parse(line) as SidecarResponse;
-                        console.log('[BioViz] Sidecar JSON:', response);
+                        console.log('[BioCopilot] Sidecar JSON:', response);
 
                         // ============================================
                         // If this is a PROPOSAL type (Yellow/Red Zone), 
@@ -134,7 +134,7 @@ export function useBioEngine(): UseBioEngineReturn {
                         // ============================================
                         const aiResponse = response as unknown as AIActionResponse;
                         if (aiResponse.type === 'PROPOSAL' && isProposal(aiResponse)) {
-                            console.log('[BioViz] 🛡️ SAFETY GUARD: Intercepted PROPOSAL:', aiResponse.proposal_id);
+                            console.log('[BioCopilot] 🛡️ SAFETY GUARD: Intercepted PROPOSAL:', aiResponse.proposal_id);
                             setActiveProposal(aiResponse);
                             continue;
                         }
@@ -143,15 +143,15 @@ export function useBioEngine(): UseBioEngineReturn {
                         // PROCESS VISIBILITY: Intercept AI_PROCESS events
                         // ============================================
                         if (response.type === 'AI_PROCESS_START') {
-                            eventBus.emit(BioVizEvents.AI_PROCESS_START, response);
+                            eventBus.emit(BioCopilotEvents.AI_PROCESS_START, response);
                             continue;
                         }
                         if (response.type === 'AI_PROCESS_UPDATE') {
-                            eventBus.emit(BioVizEvents.AI_PROCESS_UPDATE, response);
+                            eventBus.emit(BioCopilotEvents.AI_PROCESS_UPDATE, response);
                             continue;
                         }
                         if (response.type === 'AI_PROCESS_COMPLETE') {
-                            eventBus.emit(BioVizEvents.AI_PROCESS_COMPLETE, response);
+                            eventBus.emit(BioCopilotEvents.AI_PROCESS_COMPLETE, response);
                             continue;
                         }
                         // ============================================
@@ -195,7 +195,7 @@ export function useBioEngine(): UseBioEngineReturn {
                         // Check for ready status
                         if (response.status === 'ready') {
                             setIsConnected(true);
-                            console.log('[BioViz] Engine connected:', response.message);
+                            console.log('[BioCopilot] Engine connected:', response.message);
                         }
 
                         // Check for alive status (heartbeat response)
@@ -209,7 +209,7 @@ export function useBioEngine(): UseBioEngineReturn {
                         }
                     } catch (e) {
                         // Only log error for this line, don't affect parsing of following lines
-                        console.error('[BioViz] Failed to parse response line:', e, line.slice(0, 200));
+                        console.error('[BioCopilot] Failed to parse response line:', e, line.slice(0, 200));
                     }
                 }
             });
@@ -228,17 +228,17 @@ export function useBioEngine(): UseBioEngineReturn {
                         || text.startsWith('[AI Tool]')
                         || text.startsWith('[AI Tools]');
                     if (isLogLine) {
-                        console.log('[BioViz] Sidecar log:', text);
+                        console.log('[BioCopilot] Sidecar log:', text);
                         return;
                     }
                     if (/\[WARNING\]/.test(text)) {
-                        console.warn('[BioViz] Sidecar warning:', text);
+                        console.warn('[BioCopilot] Sidecar warning:', text);
                         return;
                     }
                 }
 
-                console.error('[BioViz] Sidecar error:', payload);
-                eventBus.emit(BioVizEvents.AI_WARNING, {
+                console.error('[BioCopilot] Sidecar error:', payload);
+                eventBus.emit(BioCopilotEvents.AI_WARNING, {
                     title: 'Engine Error',
                     message: text || (typeof payload === 'string' ? payload : String(payload))
                 });
@@ -247,7 +247,7 @@ export function useBioEngine(): UseBioEngineReturn {
 
             // Listen for termination
             unlistenTerminated = await listen<string>('sidecar-terminated', (event) => {
-                console.warn('[BioViz] Sidecar terminated:', event.payload);
+                console.warn('[BioCopilot] Sidecar terminated:', event.payload);
                 setIsConnected(false);
                 setError(`Sidecar terminated: ${event.payload}`);
 
@@ -264,7 +264,7 @@ export function useBioEngine(): UseBioEngineReturn {
                 const running = await invoke<boolean>('is_sidecar_running');
                 setIsConnected(running);
             } catch (e) {
-                console.error('[BioViz] Failed to check sidecar status:', e);
+                console.error('[BioCopilot] Failed to check sidecar status:', e);
             }
         };
 
@@ -369,7 +369,7 @@ export function useBioEngine(): UseBioEngineReturn {
             }
             const errorMsg = e instanceof Error ? e.message : String(e);
             setError(errorMsg);
-            console.error('[BioViz] Failed to send command:', e);
+            console.error('[BioCopilot] Failed to send command:', e);
             throw e; // Re-throw for caller
         } finally {
             setIsLoading(false);
@@ -384,7 +384,7 @@ export function useBioEngine(): UseBioEngineReturn {
             await invoke('heartbeat');
             return true;
         } catch (e) {
-            console.error('[BioViz] Heartbeat failed:', e);
+            console.error('[BioCopilot] Heartbeat failed:', e);
             setIsConnected(false);
             return false;
         }
@@ -418,27 +418,27 @@ export function useBioEngine(): UseBioEngineReturn {
      */
     const resolveProposal = useCallback(async (proposalId: string, accepted: boolean, context?: Record<string, unknown>): Promise<void> => {
         if (!activeProposal || activeProposal.proposal_id !== proposalId) {
-            console.warn('[BioViz] resolveProposal called with mismatched proposal ID');
+            console.warn('[BioCopilot] resolveProposal called with mismatched proposal ID');
             setActiveProposal(null);
             return;
         }
 
         if (accepted) {
             // Send confirmation to backend - this is the ONLY way to execute Yellow Zone actions
-            console.log('[BioViz] 🟢 User CONFIRMED proposal:', proposalId);
+            console.log('[BioCopilot] 🟢 User CONFIRMED proposal:', proposalId);
             try {
                 await sendCommand('CHAT_CONFIRM', { proposal_id: proposalId, context: context || {} }, true);
             } catch (e) {
-                console.error('[BioViz] Failed to confirm proposal:', e);
+                console.error('[BioCopilot] Failed to confirm proposal:', e);
                 setError(`Failed to confirm proposal: ${e}`);
             }
         } else {
             // User rejected - send rejection to backend for logging
-            console.log('[BioViz] 🔴 User REJECTED proposal:', proposalId);
+            console.log('[BioCopilot] 🔴 User REJECTED proposal:', proposalId);
             try {
                 await sendCommand('CHAT_REJECT', { proposal_id: proposalId }, false);
             } catch (e) {
-                console.error('[BioViz] Failed to reject proposal:', e);
+                console.error('[BioCopilot] Failed to reject proposal:', e);
             }
         }
 

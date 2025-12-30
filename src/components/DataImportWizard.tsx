@@ -2,6 +2,9 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { FileDropZone } from './FileDropZone';
 import './DataImportWizard.css'; // New CSS file
 import { open } from '@tauri-apps/plugin-dialog';
+import { readFile } from '@tauri-apps/plugin-fs';
+import Papa from 'papaparse';
+import * as XLSX from 'xlsx';
 import { useI18n } from '../i18n';
 
 
@@ -81,7 +84,7 @@ const loadLastConfig = (): AnalysisConfig | null => {
 
         // Fix: Convert empty pathwayId to undefined (from old configs)
         if (parsed.pathwayId === '') {
-            console.warn('[BioViz] Auto-fixing old config: empty pathwayId -> undefined');
+            console.warn('[BioCopilot] Auto-fixing old config: empty pathwayId -> undefined');
             parsed.pathwayId = undefined;
             // Persist the fix so we don't hit this again
             try {
@@ -161,42 +164,79 @@ export const DataImportWizard: React.FC<DataImportWizardProps> = ({
         onStepChange?.(next);
     };
 
-    const handleUploadSuccess = (data: any) => {
-        const incoming = Array.isArray(data?.files) ? data.files : [data];
-        const files: UploadedFileInfo[] = incoming
-            .filter((f: any) => f && (typeof f.filePath === 'string' || typeof f.path === 'string'))
-            .map((f: any) => ({
-                path: f.filePath || f.path,
-                columns: Array.isArray(f.columns) ? f.columns : [],
-                preview: Array.isArray(f.preview) ? f.preview : [],
-                suggestedMapping: f.suggestedMapping || {},
-                dataType: f.dataType || 'gene',
-            }));
+    const handleUploadSuccess = async (data: any) => {
+        // v2.0: Unified local-first parsing logic
+        const incomingPaths = Array.isArray(data?.files)
+            ? data.files.map((f: any) => f.filePath || f.path)
+            : [data.filePath || data.path];
+
+        const files: UploadedFileInfo[] = [];
+
+        for (const filePath of incomingPaths) {
+            if (!filePath) continue;
+            addLog(t('🔍 Local parsing: {name}', { name: filePath.split(/[\\/]/).pop() }));
+
+            try {
+                // 1. Read file as bytes via Tauri FS
+                const bytes = await readFile(filePath);
+                const ext = filePath.split('.').pop()?.toLowerCase();
+
+                let cols: string[] = [];
+                let previewRows: string[][] = [];
+                let suggested: any = {};
+
+                if (ext === 'csv' || ext === 'txt' || ext === 'tsv') {
+                    // 2a. JS Parsing (Instant)
+                    const text = new TextDecoder().decode(bytes);
+                    const parsed = Papa.parse(text, { header: true, skipEmptyLines: true, preview: 10 });
+                    cols = parsed.meta.fields || [];
+                    previewRows = (parsed.data as any[]).map(row => Object.values(row).map(String));
+                } else if (ext === 'xlsx' || ext === 'xls') {
+                    // 2b. Excel Parsing (Instant)
+                    const workbook = XLSX.read(bytes, { type: 'array' });
+                    const sheetName = workbook.SheetNames[0];
+                    const sheet = workbook.Sheets[sheetName];
+                    const json = XLSX.utils.sheet_to_json(sheet, { header: 1, range: 10 }) as any[][];
+                    if (json.length > 0) {
+                        cols = json[0].map(String);
+                        previewRows = json.slice(1).map(row => row.map(String));
+                    }
+                }
+
+                // 3. Heuristic suggestions (UI side)
+                suggested.gene = findFallback(cols, 'gene') || undefined;
+                suggested.value = findFallback(cols, 'value') || undefined;
+                suggested.pvalue = findFallback(cols, 'pvalue') || undefined;
+
+                files.push({
+                    path: filePath,
+                    columns: cols,
+                    preview: previewRows,
+                    suggestedMapping: suggested,
+                    dataType: 'gene',
+                });
+            } catch (err) {
+                console.error('Local parse error:', err);
+                addLog(`❌ Local parse failed for ${filePath}: ${err}`);
+                // Fallback: Notify user to use manual mode if JS fails
+            }
+        }
 
         if (files.length === 0) return;
 
         const merged = (uploadedFiles || []).slice();
         files.forEach(f => {
-            if (!baseDataType) {
-                setBaseDataType(f.dataType);
-            } else if (baseDataType !== f.dataType) {
-                alert(t('Data type mismatch: expected {expected}, but got {actual} for file {file}. Skipped.', {
-                    expected: baseDataType,
-                    actual: f.dataType,
-                    file: f.path
-                }));
-                return;
-            }
             if (!merged.find(m => m.path === f.path)) {
                 merged.push(f);
             }
         });
 
-        if (merged.length === 0) return;
         setUploadedFiles(merged);
         updateStep(2);
-        // Upload complete but mapping/pathway not set, config is incomplete
         onConfigPreview?.(null);
+
+        // v2.0: Trigger background engine warmup
+        sendCommand('SYS_CHECK', {}).catch(() => { });
     };
 
     // --- Step 2: Mapping ---
@@ -668,7 +708,7 @@ export const DataImportWizard: React.FC<DataImportWizardProps> = ({
                                                 <span className="raw-matrix-group">
                                                     {t('Experiment')}&nbsp;({rawMatrixInfo?.treats.join(', ')})
                                                 </span>
-                                                . {t('BioViz will compute Log2FC and approximate P-values from these columns automatically.')}
+                                                . {t('BioCopilot will compute Log2FC and approximate P-values from these columns automatically.')}
                                             </div>
                                         )}
 
@@ -762,7 +802,7 @@ export const DataImportWizard: React.FC<DataImportWizardProps> = ({
                                 <span className="raw-matrix-group">
                                     {t('Experiment')}&nbsp;({rawMatrixInfo.treats.join(', ')})
                                 </span>
-                                . {t('BioViz will automatically compute Log2FC and P-values for these groups when you click')}
+                                . {t('BioCopilot will automatically compute Log2FC and P-values for these groups when you click')}
                                 <strong> {t('Visualize')}</strong>.
                             </div>
                         )}
