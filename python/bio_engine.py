@@ -8,14 +8,18 @@ from datetime import datetime
 # CRITICAL FIX FOR PACKAGED APP IPC
 # Force stdout/stderr to be unbuffered IMMEDIATELY before any imports/logging
 # ==================================================================================
-if sys.platform != 'win32':
-    try:
-        # STDIN MUST BE UNBUFFERED/LINE-BUFFERED TOO!
-        sys.stdin.reconfigure(line_buffering=True)
-        sys.stdout.reconfigure(line_buffering=True)
-        sys.stderr.reconfigure(line_buffering=True)
-    except AttributeError:
-        pass # Python < 3.7
+try:
+    # FORCE UTF-8 ENCODING FOR ALL STREAMS ON ALL PLATFORMS
+    # This prevents 'gbk' or other legacy encoding crashes (e.g. emojis 🔥)
+    if hasattr(sys.stdin, 'reconfigure'):
+        sys.stdin.reconfigure(encoding='utf-8', line_buffering=True)
+    if hasattr(sys.stdout, 'reconfigure'):
+        sys.stdout.reconfigure(encoding='utf-8', line_buffering=True)
+    if hasattr(sys.stderr, 'reconfigure'):
+        sys.stderr.reconfigure(encoding='utf-8', line_buffering=True)
+except Exception as e:
+    # Safety fallback for older Python or restricted environments
+    print(f">>> [BioEngine] Warning: Could not reconfigure streams: {e}", file=sys.stderr, flush=True)
 
 print(">>> [BioEngine] BOOTSTRAP VERIFICATION (FINAL 4 - DEBUG CMD) <<<", file=sys.stderr, flush=True)
 
@@ -31,7 +35,7 @@ except ImportError:
 
 # Diagnostic module loading for packaged app
 print(">>> [BioEngine] Diagnostic: Loading core scientific modules...", file=sys.stderr, flush=True)
-for mod_name in ['numpy', 'pandas', 'scipy', 'gseapy', 'cryptography', 'httpx', 'certifi']:
+for mod_name in ['numpy', 'pandas', 'scipy', 'openai', 'gseapy', 'cryptography', 'httpx', 'certifi']:
     try:
         __import__(mod_name)
         print(f">>> [BioEngine] OK: {mod_name} loaded", file=sys.stderr, flush=True)
