@@ -1382,7 +1382,7 @@ function App() {
             )}
           </div>
 
-          {workflowStep === 'viz' && activeAnalysis && (
+          {workflowStep === 'viz' && (
             <div className="science-journey-nav" style={{
               display: 'flex',
               alignItems: 'center',
