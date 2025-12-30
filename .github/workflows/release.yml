@@ -56,13 +56,11 @@ jobs:
       - name: Install Dependencies (Windows)
         if: matrix.platform == 'windows-latest'
         run: |
-          pip install pyinstaller cython setuptools openpyxl numpy scipy
-          # Ensure MSVC build tools are available for Cython if needed, 
-          # setup-python and windows-latest usually have them.
+          pip install pyinstaller cython setuptools openpyxl numpy scipy pandas gseapy cryptography httpx certifi anyio sniffio matplotlib psutil pycryptodome packaging platformdirs tomli jaraco.text
 
       - name: Install Python dependencies (macOS)
         if: matrix.platform == 'macos-latest'
-        run: pip3 install cython setuptools openpyxl numpy scipy --break-system-packages
+        run: pip3 install cython setuptools openpyxl numpy scipy pandas gseapy cryptography httpx certifi anyio sniffio matplotlib psutil pycryptodome packaging platformdirs tomli jaraco.text --break-system-packages
 
       - name: Install frontend dependencies
         run: npm install
