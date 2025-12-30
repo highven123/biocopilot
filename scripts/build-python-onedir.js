@@ -195,9 +195,10 @@ function buildPython() {
  * Move, rename, and report binary size
  */
 function moveAndRenameBinary(targetTriple) {
-    const extension = getExtension(targetTriple);
-    const sourceName = `bio-engine${extension}`;
-    const targetName = `bio-engine-${targetTriple}${extension}`;
+    // PyInstaller --onedir creates a directory with exactly the --name string.
+    // It does NOT append .exe to the directory name on Windows.
+    const sourceName = 'bio-engine';
+    const targetName = `bio-engine-${targetTriple}`;
 
     const sourcePath = path.join(PYTHON_DIR, 'dist', sourceName);
     const targetPath = path.join(BINARIES_DIR, targetName);
